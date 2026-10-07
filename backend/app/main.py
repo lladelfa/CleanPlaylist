@@ -40,6 +40,7 @@ class PlaylistFetchRequest(BaseModel):
 
 class TrackScanItem(BaseModel):
     id: str
+    setVideoId: Optional[str] = None
     title: str
     artist: str
     duration: Optional[str] = ""
@@ -94,6 +95,12 @@ class ExportRequest(BaseModel):
 # ==========================================
 # API Routes
 # ==========================================
+
+from app.auth_endpoints import router as auth_router
+app.include_router(auth_router)
+
+from app.playlist_endpoints import router as playlist_router
+app.include_router(playlist_router)
 
 @app.get("/api/health")
 def health_check():
