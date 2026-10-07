@@ -4,7 +4,6 @@ import {
   ArrowRight, FileText, ExternalLink, RefreshCw, Filter, SlidersHorizontal, Plus, X, Save
 } from 'lucide-react';
 
-import AuthModal from './AuthModal';
 import SavePlaylistModal from './SavePlaylistModal';
 
 export default function ScanTab({
@@ -16,7 +15,9 @@ export default function ScanTab({
   customBlocklist,
   setCustomBlocklist,
   preset,
-  setPreset
+  setPreset,
+  isAuthenticated,
+  onOpenAuth
 }) {
   const [urlInput, setUrlInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,17 +30,7 @@ export default function ScanTab({
   const [searchingClean, setSearchingClean] = useState({});
   const [statusMessage, setStatusMessage] = useState(null);
 
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-
-  // Check auth status on mount
-  React.useEffect(() => {
-    fetch('/api/auth/status')
-      .then(res => res.json())
-      .then(data => setIsAuthenticated(data.authenticated))
-      .catch(err => console.error("Failed to check auth status", err));
-  }, []);
 
   // Sample playlists for instant testing
   const samplePlaylists = [
@@ -390,11 +381,11 @@ export default function ScanTab({
                 </button>
               ) : (
                 <button
-                  onClick={() => setIsAuthModalOpen(true)}
+                  onClick={onOpenAuth}
                   className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-xl flex items-center space-x-2 border border-slate-700 transition"
                 >
                   <Sparkles className="w-4 h-4 text-purple-400" />
-                  <span>Connect YouTube Music to Save</span>
+                  <span>Connect to Save</span>
                 </button>
               )}
             </div>
@@ -561,12 +552,6 @@ export default function ScanTab({
           </div>
         </div>
       )}
-
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onAuthenticated={() => setIsAuthenticated(true)}
-      />
 
       <SavePlaylistModal
         isOpen={isSaveModalOpen}
