@@ -4,30 +4,46 @@ import json
 from pathlib import Path
 from ytmusicapi.auth.oauth.credentials import OAuthCredentials
 
-# Default TV app client ID/Secret for ytmusicapi if we were to use the internal one,
-# but ytmusicapi removed defaults recently. We will use the common YT on TV client id.
-OAUTH_CLIENT_ID = "861556708454-d6dlm3lhchptglgc5n2scloflh112h2v.apps.googleusercontent.com" # YT TV client ID
-OAUTH_CLIENT_SECRET = "qr8ZUSpzuzamSqGYkS82I4-2"
-
 # File to store the token locally
 OAUTH_FILEPATH = Path(__file__).parent.parent.parent / "oauth.json"
 
-
 class AuthService:
     def __init__(self):
-        self.credentials = OAuthCredentials(client_id=OAUTH_CLIENT_ID, client_secret=OAUTH_CLIENT_SECRET)
         self._pending_auths = {}
 
     def is_authenticated(self) -> bool:
         return OAUTH_FILEPATH.exists()
 
+    def _get_credentials(self):
+        # ytmusicapi requires users to provide their own client ID and secret now
+        client_id = os.environ.get("YOUTUBE_CLIENT_ID")
+        client_secret = os.environ.get("YOUTUBE_CLIENT_SECRET")
+
+        if not client_id or not client_secret:
+            raise ValueError("MISSING_CREDENTIALS")
+
+        return OAuthCredentials(client_id=client_id, client_secret=client_secret)
+
     def start_oauth_flow(self) -> Dict[str, Any]:
         """Gets a device code and verification URL for the user."""
-        code = self.credentials.get_code()
+        try:
+            creds = self._get_credentials()
+            code = creds.get_code()
+        except ValueError as ve:
+            if str(ve) == "MISSING_CREDENTIALS":
+                return {"status": "error", "code": "MISSING_CREDENTIALS", "message": "Please configure your Google Cloud OAuth credentials in the .env file."}
+            raise ve
+
         # Save device_code in memory so we can check it later
         user_code = code['user_code']
-        self._pending_auths[user_code] = code
+        self._pending_auths[user_code] = {
+            "device_code": code["device_code"],
+            "client_id": os.environ.get("YOUTUBE_CLIENT_ID"),
+            "client_secret": os.environ.get("YOUTUBE_CLIENT_SECRET")
+        }
+
         return {
+            "status": "success",
             "verification_url": code['verification_url'],
             "user_code": user_code,
             "expires_in": code['expires_in'],
@@ -39,9 +55,11 @@ class AuthService:
         if user_code not in self._pending_auths:
             return {"status": "error", "message": "Invalid or expired session"}
 
-        code_data = self._pending_auths[user_code]
+        auth_data = self._pending_auths[user_code]
+        creds = OAuthCredentials(client_id=auth_data["client_id"], client_secret=auth_data["client_secret"])
+
         try:
-            raw_token = self.credentials.token_from_code(code_data["device_code"])
+            raw_token = creds.token_from_code(auth_data["device_code"])
 
             # If successful, save to file
             refresh_token_expires_in = raw_token.get("refresh_token_expires_in", raw_token["expires_in"])
@@ -53,8 +71,8 @@ class AuthService:
                 "scope": raw_token["scope"],
                 "token_type": raw_token["token_type"],
                 "expires_in": refresh_token_expires_in,
-                "client_id": OAUTH_CLIENT_ID,
-                "client_secret": OAUTH_CLIENT_SECRET
+                "client_id": auth_data["client_id"],
+                "client_secret": auth_data["client_secret"]
             }
 
             with open(OAUTH_FILEPATH, "w") as f:
