@@ -1,7 +1,7 @@
 import React from 'react';
-import { Disc3, Search, Shuffle, FileText, CheckCircle2 } from 'lucide-react';
+import { Disc3, Search, Shuffle, FileText, CheckCircle2, Sparkles, Music } from 'lucide-react';
 
-export default function Navbar({ activeTab, setActiveTab }) {
+export default function Navbar({ activeTab, setActiveTab, isAuthenticated, onOpenAuth }) {
   const tabs = [
     { id: 'scan', label: 'Scan & Clean', icon: Disc3 },
     { id: 'keywords', label: 'Keyword Search', icon: Search },
@@ -28,7 +28,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
           </div>
         </div>
 
-        <nav className="flex space-x-1 sm:space-x-2">
+        <nav className="flex items-center space-x-1 sm:space-x-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -43,10 +43,27 @@ export default function Navbar({ activeTab, setActiveTab }) {
                 }`}
               >
                 <Icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="hidden lg:inline">{tab.label}</span>
               </button>
             );
           })}
+
+          <div className="h-6 w-px bg-slate-700 mx-2 hidden sm:block"></div>
+
+          {isAuthenticated ? (
+            <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-950/40 text-emerald-400 text-sm font-medium rounded-lg border border-emerald-900/50">
+              <CheckCircle2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Connected</span>
+            </div>
+          ) : (
+            <button
+              onClick={onOpenAuth}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-lg flex items-center space-x-2 border border-slate-700 transition"
+            >
+              <Music className="w-4 h-4 text-purple-400" />
+              <span className="hidden sm:inline">Connect Account</span>
+            </button>
+          )}
         </nav>
       </div>
     </header>
