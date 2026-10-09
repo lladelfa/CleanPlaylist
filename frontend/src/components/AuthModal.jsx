@@ -22,7 +22,7 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
       const data = await res.json();
 
       if (data.status === 'error') {
-        if (data.code === 'MISSING_CREDENTIALS') {
+        if (data.code === 'MISSING_CREDENTIALS' || data.code === 'AUTH_ERROR') {
            setStep(4); // Setup Instructions Step
            return;
         }

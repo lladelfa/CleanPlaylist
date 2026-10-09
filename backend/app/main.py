@@ -12,6 +12,9 @@ from app.config import PRESET_PROFILES, WORD_CATEGORIES
 from app.services.scanner_service import scanner_service
 from app.services.stitcher_service import stitcher_service
 from app.services.ytmusic_service import ytmusic_service
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(
     title="CleanPlaylist API",

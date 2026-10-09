@@ -33,6 +33,8 @@ class AuthService:
             if str(ve) == "MISSING_CREDENTIALS":
                 return {"status": "error", "code": "MISSING_CREDENTIALS", "message": "Please configure your Google Cloud OAuth credentials in the .env file."}
             raise ve
+        except Exception as e:
+            return {"status": "error", "code": "AUTH_ERROR", "message": f"OAuth Error: {str(e)}"}
 
         # Save device_code in memory so we can check it later
         user_code = code['user_code']
