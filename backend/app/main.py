@@ -22,6 +22,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Initialize YTMusic with auth on startup if it exists
+from app.services.auth_service import auth_service, OAUTH_FILEPATH
+if auth_service.is_authenticated():
+    ytmusic_service.__init__(auth_filepath=str(OAUTH_FILEPATH))
+
 # Enable CORS for local dev and frontend deployment
 app.add_middleware(
     CORSMiddleware,
