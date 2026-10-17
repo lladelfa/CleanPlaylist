@@ -1,18 +1,15 @@
+from typing import Optional, Dict, Any
 import os
 import json
-import time
-import requests
-from typing import Dict, Any, Optional
 from pathlib import Path
-from urllib.parse import urlencode
 from ytmusicapi.auth.oauth.credentials import OAuthCredentials
 
+# File to store the token locally
 OAUTH_FILEPATH = Path(__file__).parent.parent.parent / "oauth.json"
 
 class AuthService:
     def __init__(self):
-        # We assume local development for now, but this should be configurable
-        self.redirect_uri = os.environ.get("OAUTH_REDIRECT_URI", "http://localhost:8000/api/auth/callback")
+        self._pending_auths = {}
 
     def is_authenticated(self) -> bool:
         if not OAUTH_FILEPATH.exists():
@@ -28,66 +25,88 @@ class AuthService:
         except Exception:
             return False
 
-    def get_login_url(self) -> str:
-        client_id = os.environ.get("YOUTUBE_CLIENT_ID")
-        if not client_id:
-            raise ValueError("MISSING_CREDENTIALS")
+    def logout(self) -> Dict[str, str]:
+        if OAUTH_FILEPATH.exists():
+            OAUTH_FILEPATH.unlink()
+        return {"status": "success", "message": "Logged out successfully"}
 
-        params = {
-            "client_id": client_id,
-            "redirect_uri": self.redirect_uri,
-            "response_type": "code",
-            "scope": "https://www.googleapis.com/auth/youtube",
-            "access_type": "offline",
-            "prompt": "consent" # Force consent to ensure we get a refresh token
-        }
-
-        url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
-        return url
-
-    def exchange_code(self, code: str) -> Dict[str, Any]:
+    def _get_credentials(self):
+        # ytmusicapi requires users to provide their own client ID and secret now
         client_id = os.environ.get("YOUTUBE_CLIENT_ID")
         client_secret = os.environ.get("YOUTUBE_CLIENT_SECRET")
 
         if not client_id or not client_secret:
             raise ValueError("MISSING_CREDENTIALS")
 
-        token_url = "https://oauth2.googleapis.com/token"
-        data = {
-            "code": code,
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "redirect_uri": self.redirect_uri,
-            "grant_type": "authorization_code"
+        return OAuthCredentials(client_id=client_id, client_secret=client_secret)
+
+    def start_oauth_flow(self) -> Dict[str, Any]:
+        """Gets a device code and verification URL for the user."""
+        try:
+            creds = self._get_credentials()
+            code = creds.get_code()
+        except ValueError as ve:
+            if str(ve) == "MISSING_CREDENTIALS":
+                return {"status": "error", "code": "MISSING_CREDENTIALS", "message": "Please configure your Google Cloud OAuth credentials in the .env file."}
+            raise ve
+        except Exception as e:
+            return {"status": "error", "code": "AUTH_ERROR", "message": f"OAuth Error: {str(e)}"}
+
+        # Save device_code in memory so we can check it later
+        user_code = code['user_code']
+        self._pending_auths[user_code] = {
+            "device_code": code["device_code"],
+            "client_id": os.environ.get("YOUTUBE_CLIENT_ID"),
+            "client_secret": os.environ.get("YOUTUBE_CLIENT_SECRET")
         }
 
-        res = requests.post(token_url, data=data)
-        if not res.ok:
-            raise ValueError(f"Token exchange failed: {res.text}")
-
-        token_data = res.json()
-
-        # Format for ytmusicapi
-        expires_in = token_data.get("expires_in", 3599)
-        yt_token_data = {
-            "access_token": token_data["access_token"],
-            "refresh_token": token_data.get("refresh_token", ""), # If they already authorized, Google might omit this without prompt=consent
-            "expires_in": expires_in,
-            "expires_at": int(time.time()) + expires_in,
-            "token_type": token_data.get("token_type", "Bearer"),
-            "scope": token_data.get("scope", "https://www.googleapis.com/auth/youtube"),
-            "client_id": client_id,
-            "client_secret": client_secret
+        return {
+            "status": "success",
+            "verification_url": code['verification_url'],
+            "user_code": user_code,
+            "expires_in": code['expires_in'],
+            "interval": code['interval']
         }
 
-        with open(OAUTH_FILEPATH, "w") as f:
-            json.dump(yt_token_data, f)
+    def check_oauth_status(self, user_code: str) -> Dict[str, Any]:
+        """Polls to see if the user has completed the flow."""
+        if user_code not in self._pending_auths:
+            return {"status": "error", "message": "Invalid or expired session"}
 
-        return yt_token_data
+        auth_data = self._pending_auths[user_code]
+        creds = OAuthCredentials(client_id=auth_data["client_id"], client_secret=auth_data["client_secret"])
 
-    def logout(self) -> Dict[str, str]:
-        if OAUTH_FILEPATH.exists():
-            OAUTH_FILEPATH.unlink()
-        return {"status": "success", "message": "Logged out successfully"}
+        try:
+            raw_token = creds.token_from_code(auth_data["device_code"])
+
+            # If successful, save to file
+            refresh_token_expires_in = raw_token.get("refresh_token_expires_in", raw_token["expires_in"])
+
+            # Format expected by YTMusic
+            token_data = {
+                "access_token": raw_token["access_token"],
+                "refresh_token": raw_token["refresh_token"],
+                "scope": raw_token["scope"],
+                "token_type": raw_token["token_type"],
+                "expires_in": refresh_token_expires_in,
+                "client_id": auth_data["client_id"],
+                "client_secret": auth_data["client_secret"]
+            }
+
+            with open(OAUTH_FILEPATH, "w") as f:
+                json.dump(token_data, f)
+
+            del self._pending_auths[user_code]
+            return {"status": "success", "message": "Authentication successful"}
+
+        except Exception as e:
+            err_msg = str(e)
+            if "authorization_pending" in err_msg:
+                return {"status": "pending", "message": "Waiting for user authorization"}
+            elif "expired_token" in err_msg:
+                del self._pending_auths[user_code]
+                return {"status": "error", "message": "Verification code expired"}
+            else:
+                return {"status": "error", "message": f"Auth error: {err_msg}"}
 
 auth_service = AuthService()

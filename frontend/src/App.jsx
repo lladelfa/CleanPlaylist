@@ -12,22 +12,10 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   React.useEffect(() => {
-    // Check URL for auth success or error redirects
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('auth_success')) {
-      setIsAuthenticated(true);
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (params.get('auth_error')) {
-      console.error("Auth Error:", params.get('auth_error'));
-      // Could show a toast/alert here
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else {
-      fetch('/api/auth/status')
-        .then(res => res.json())
-        .then(data => setIsAuthenticated(data.authenticated))
-        .catch(err => console.error("Failed to check auth status", err));
-    }
+    fetch('/api/auth/status')
+      .then(res => res.json())
+      .then(data => setIsAuthenticated(data.authenticated))
+      .catch(err => console.error("Failed to check auth status", err));
   }, []);
   const [playlist, setPlaylist] = useState(null);
   const [scannedTracks, setScannedTracks] = useState([]);
