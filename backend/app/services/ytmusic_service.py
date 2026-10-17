@@ -1,8 +1,10 @@
 """YouTube Music API service wrapper using ytmusicapi."""
 
+import os
 import re
 from typing import Dict, List, Optional
 from ytmusicapi import YTMusic
+from ytmusicapi.auth.oauth.credentials import OAuthCredentials
 
 
 class YTMusicService:
@@ -10,7 +12,15 @@ class YTMusicService:
         self.auth_filepath = auth_filepath
         try:
             if auth_filepath:
-                self.yt = YTMusic(auth_filepath)
+                client_id = os.environ.get("YOUTUBE_CLIENT_ID")
+                client_secret = os.environ.get("YOUTUBE_CLIENT_SECRET")
+
+                # If we are using oauth.json and have credentials, provide them to YTMusic
+                if "oauth.json" in str(auth_filepath) and client_id and client_secret:
+                    creds = OAuthCredentials(client_id=client_id, client_secret=client_secret)
+                    self.yt = YTMusic(auth_filepath, oauth_credentials=creds)
+                else:
+                    self.yt = YTMusic(auth_filepath)
             else:
                 self.yt = YTMusic()
         except Exception as e:

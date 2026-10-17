@@ -15,7 +15,18 @@ class AuthService:
         self.redirect_uri = os.environ.get("OAUTH_REDIRECT_URI", "http://localhost:8000/api/auth/callback")
 
     def is_authenticated(self) -> bool:
-        return OAUTH_FILEPATH.exists()
+        if not OAUTH_FILEPATH.exists():
+            return False
+        # Verify it has scope, otherwise it will crash ytmusicapi
+        try:
+            with open(OAUTH_FILEPATH, "r") as f:
+                data = json.load(f)
+                if "scope" not in data:
+                    self.logout()
+                    return False
+            return True
+        except Exception:
+            return False
 
     def get_login_url(self) -> str:
         client_id = os.environ.get("YOUTUBE_CLIENT_ID")
@@ -64,6 +75,7 @@ class AuthService:
             "expires_in": expires_in,
             "expires_at": int(time.time()) + expires_in,
             "token_type": token_data.get("token_type", "Bearer"),
+            "scope": token_data.get("scope", "https://www.googleapis.com/auth/youtube"),
             "client_id": client_id,
             "client_secret": client_secret
         }
