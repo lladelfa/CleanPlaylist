@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, ExternalLink, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
@@ -6,11 +6,18 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
   const [authData, setAuthData] = useState(null);
   const [error, setError] = useState(null);
   const [polling, setPolling] = useState(false);
+  const intervalRef = useRef(null);
 
   useEffect(() => {
     if (isOpen && step === 1) {
       startAuthFlow();
     }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
@@ -39,18 +46,34 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
   };
 
   const startPolling = (userCode, intervalSeconds) => {
+    if (!userCode) return;
+
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
     setPolling(true);
-    const intervalId = setInterval(async () => {
+    intervalRef.current = setInterval(async () => {
       try {
         const res = await fetch('/api/auth/check', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ user_code: userCode })
         });
+
+        if (!res.ok) {
+           if (res.status >= 400) {
+             clearInterval(intervalRef.current);
+             setPolling(false);
+             setError("Polling failed due to server error.");
+           }
+           return;
+        }
+
         const data = await res.json();
 
         if (data.status === 'success') {
-          clearInterval(intervalId);
+          clearInterval(intervalRef.current);
           setPolling(false);
           setStep(3);
 
@@ -62,17 +85,14 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
             onClose();
           }, 2000);
         } else if (data.status === 'error') {
-          clearInterval(intervalId);
+          clearInterval(intervalRef.current);
           setPolling(false);
           setError(data.message);
         }
       } catch (err) {
         // Keep polling on network errors
       }
-    }, intervalSeconds * 1000);
-
-    // Cleanup on unmount or modal close
-    return () => clearInterval(intervalId);
+    }, (intervalSeconds || 5) * 1000);
   };
 
   if (!isOpen) return null;
