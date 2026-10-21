@@ -12,12 +12,20 @@ from app.config import PRESET_PROFILES, WORD_CATEGORIES
 from app.services.scanner_service import scanner_service
 from app.services.stitcher_service import stitcher_service
 from app.services.ytmusic_service import ytmusic_service
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(
     title="CleanPlaylist API",
     description="Intelligent offensive language detection and playlist stitching for YouTube Music",
     version="1.0.0"
 )
+
+# Initialize YTMusic with auth on startup if it exists
+from app.services.auth_service import auth_service, OAUTH_FILEPATH
+if auth_service.is_authenticated():
+    ytmusic_service.__init__(auth_filepath=str(OAUTH_FILEPATH))
 
 # Enable CORS for local dev and frontend deployment
 app.add_middleware(
@@ -40,6 +48,7 @@ class PlaylistFetchRequest(BaseModel):
 
 class TrackScanItem(BaseModel):
     id: str
+    setVideoId: Optional[str] = None
     title: str
     artist: str
     duration: Optional[str] = ""
@@ -94,6 +103,12 @@ class ExportRequest(BaseModel):
 # ==========================================
 # API Routes
 # ==========================================
+
+from app.auth_endpoints import router as auth_router
+app.include_router(auth_router)
+
+from app.playlist_endpoints import router as playlist_router
+app.include_router(playlist_router)
 
 @app.get("/api/health")
 def health_check():

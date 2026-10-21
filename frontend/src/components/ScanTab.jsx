@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import {
   Search, AlertCircle, CheckCircle2, ShieldAlert, Sparkles,
-  ArrowRight, FileText, ExternalLink, RefreshCw, Filter, SlidersHorizontal, Plus, X
+  ArrowRight, FileText, ExternalLink, RefreshCw, Filter, SlidersHorizontal, Plus, X, Save
 } from 'lucide-react';
+
+import SavePlaylistModal from './SavePlaylistModal';
 
 export default function ScanTab({
   playlist,
@@ -13,7 +15,9 @@ export default function ScanTab({
   customBlocklist,
   setCustomBlocklist,
   preset,
-  setPreset
+  setPreset,
+  isAuthenticated,
+  onOpenAuth
 }) {
   const [urlInput, setUrlInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,6 +29,8 @@ export default function ScanTab({
   const [cleanCandidates, setCleanCandidates] = useState({});
   const [searchingClean, setSearchingClean] = useState({});
   const [statusMessage, setStatusMessage] = useState(null);
+
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
   // Sample playlists for instant testing
   const samplePlaylists = [
@@ -134,7 +140,9 @@ export default function ScanTab({
             reasons: [],
             is_explicit: false,
             was_replaced: true,
-            original_title: originalTrack.title
+            original_title: originalTrack.title,
+            original_id: originalTrack.id,
+            original_set_video_id: originalTrack.setVideoId
           };
         }
         return t;
@@ -354,14 +362,32 @@ export default function ScanTab({
             </div>
 
             <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-1.5 bg-red-950/40 text-red-400 text-xs px-3 py-1.5 rounded-xl border border-red-900/50">
+              <div className="flex items-center space-x-1.5 bg-red-950/40 text-red-400 text-xs px-3 py-1.5 rounded-xl border border-red-900/50 hidden sm:flex">
                 <ShieldAlert className="w-4 h-4" />
                 <span className="font-semibold">{flaggedCount} Flagged</span>
               </div>
-              <div className="flex items-center space-x-1.5 bg-emerald-950/40 text-emerald-400 text-xs px-3 py-1.5 rounded-xl border border-emerald-900/50">
+              <div className="flex items-center space-x-1.5 bg-emerald-950/40 text-emerald-400 text-xs px-3 py-1.5 rounded-xl border border-emerald-900/50 hidden sm:flex">
                 <CheckCircle2 className="w-4 h-4" />
                 <span className="font-semibold">{cleanCount} Clean</span>
               </div>
+
+              {isAuthenticated ? (
+                <button
+                  onClick={() => setIsSaveModalOpen(true)}
+                  className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-xl flex items-center space-x-2 transition shadow"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Save Playlist...</span>
+                </button>
+              ) : (
+                <button
+                  onClick={onOpenAuth}
+                  className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-xl flex items-center space-x-2 border border-slate-700 transition"
+                >
+                  <Sparkles className="w-4 h-4 text-purple-400" />
+                  <span>Connect to Save</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -526,6 +552,16 @@ export default function ScanTab({
           </div>
         </div>
       )}
+
+      <SavePlaylistModal
+        isOpen={isSaveModalOpen}
+        onClose={() => setIsSaveModalOpen(false)}
+        playlist={playlist}
+        displayedTracks={scannedTracks}
+        onSaveSuccess={() => {
+          setStatusMessage({ type: 'success', text: 'Playlist saved successfully!' });
+        }}
+      />
     </div>
   );
 }

@@ -90,6 +90,7 @@ class YTMusicService:
 
             tracks.append({
                 "id": video_id,
+                "setVideoId": item.get("setVideoId"),  # Needed to remove tracks from existing playlists
                 "index": idx + 1,
                 "title": item.get("title", "Untitled Track"),
                 "artist": artist_name,
