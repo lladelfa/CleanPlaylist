@@ -23,6 +23,16 @@ export default function App() {
   const [preset, setPreset] = useState('moderate');
   const [selectedTrackForLyrics, setSelectedTrackForLyrics] = useState(null);
 
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setIsAuthenticated(false);
+      window.location.reload();
+    } catch (err) {
+      console.error("Logout failed", err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       <Navbar
@@ -30,6 +40,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         isAuthenticated={isAuthenticated}
         onOpenAuth={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">

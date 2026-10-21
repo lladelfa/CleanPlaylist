@@ -1,7 +1,9 @@
 import React from 'react';
 import { Disc3, Search, Shuffle, FileText, CheckCircle2, Sparkles, Music } from 'lucide-react';
 
-export default function Navbar({ activeTab, setActiveTab, isAuthenticated, onOpenAuth }) {
+import { LogOut } from 'lucide-react';
+
+export default function Navbar({ activeTab, setActiveTab, isAuthenticated, onOpenAuth, onLogout }) {
   const tabs = [
     { id: 'scan', label: 'Scan & Clean', icon: Disc3 },
     { id: 'keywords', label: 'Keyword Search', icon: Search },
@@ -51,9 +53,18 @@ export default function Navbar({ activeTab, setActiveTab, isAuthenticated, onOpe
           <div className="h-6 w-px bg-slate-700 mx-2 hidden sm:block"></div>
 
           {isAuthenticated ? (
-            <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-950/40 text-emerald-400 text-sm font-medium rounded-lg border border-emerald-900/50">
-              <CheckCircle2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Connected</span>
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-950/40 text-emerald-400 text-sm font-medium rounded-lg border border-emerald-900/50">
+                <CheckCircle2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Connected</span>
+              </div>
+              <button
+                onClick={onLogout}
+                title="Disconnect Account"
+                className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 rounded-lg transition"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           ) : (
             <button

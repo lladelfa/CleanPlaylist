@@ -31,3 +31,10 @@ def init_ytmusic():
         ytmusic_service.__init__(auth_filepath=str(OAUTH_FILEPATH))
         return {"status": "success", "message": "YTMusic re-initialized with auth"}
     return {"status": "error", "message": "Not authenticated"}
+
+@router.post("/api/auth/logout")
+def logout():
+    """Deletes the authentication file and resets the client to an unauthenticated state."""
+    res = auth_service.logout()
+    ytmusic_service.__init__() # Reset to unauthenticated
+    return res
