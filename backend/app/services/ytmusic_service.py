@@ -47,6 +47,8 @@ class YTMusicService:
             try:
                 raw_playlist = self.yt.get_playlist(f"VL{playlist_id}", limit=limit)
             except Exception:
+                if "contents" in str(e) or "private" in str(e).lower() or "not found" in str(e).lower():
+                     raise ValueError(f"Could not load playlist. Ensure it is public or unlisted.")
                 raise ValueError(f"Could not load playlist '{playlist_id}': {str(e)}")
 
         thumbnails = raw_playlist.get("thumbnails", [])

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Save, AlertTriangle, FilePlus, Loader2, CheckCircle2 } from 'lucide-react';
 
-export default function SavePlaylistModal({ isOpen, onClose, playlist, displayedTracks, onSaveSuccess }) {
+export default function SavePlaylistModal({ isOpen, onClose, playlist, displayedTracks, onSaveSuccess, activePlatform }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -28,7 +28,9 @@ export default function SavePlaylistModal({ isOpen, onClose, playlist, displayed
 
       const final_track_ids = displayedTracks.map(t => t.id);
 
-      const res = await fetch('/api/playlist/save', {
+      const endpoint = activePlatform === 'spotify' ? '/api/spotify/playlist/save' : '/api/ytmusic/playlist/save';
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -146,7 +148,7 @@ export default function SavePlaylistModal({ isOpen, onClose, playlist, displayed
               <button
                 onClick={handleSave}
                 disabled={loading}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`px-4 py-2 ${activePlatform === 'spotify' ? 'bg-green-600 hover:bg-green-500' : 'bg-purple-600 hover:bg-purple-500'} text-white text-sm font-medium rounded-lg flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {loading ? (
                   <>
