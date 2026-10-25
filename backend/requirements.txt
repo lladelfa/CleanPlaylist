@@ -5,3 +5,4 @@ better-profanity>=0.7.0
 pydantic>=2.8.0
 requests>=2.32.0
 python-dotenv>=1.0.0
+spotipy>=2.23.0

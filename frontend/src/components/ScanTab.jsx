@@ -48,7 +48,7 @@ export default function ScanTab({
       const res = await fetch('/api/playlist/fetch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url_or_id: targetUrl, limit: 100 })
+        body: JSON.stringify({ url_or_id: targetUrl, limit: 100, platform: activePlatform })
       });
       if (!res.ok) {
         const err = await res.json();
@@ -88,7 +88,8 @@ export default function ScanTab({
           preset: preset,
           custom_blocklist: customBlocklist,
           deep_scan_lyrics: deepScan,
-          max_deep_scan: 25
+          max_deep_scan: 25,
+          platform: activePlatform
         })
       });
       if (!res.ok) throw new Error('Scanning failed');
@@ -114,7 +115,8 @@ export default function ScanTab({
         body: JSON.stringify({
           title: track.title,
           artist: track.artist,
-          duration_seconds: track.duration_seconds || 0
+          duration_seconds: track.duration_seconds || 0,
+          platform: activePlatform
         })
       });
       const data = await res.json();
@@ -127,6 +129,33 @@ export default function ScanTab({
       console.error(err);
     } finally {
       setSearchingClean(prev => ({ ...prev, [track.id]: false }));
+    }
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      const res = await fetch('/api/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          format: 'csv',
+          tracks: scannedTracks,
+          playlist_title: playlist?.title || 'CleanPlaylist'
+        })
+      });
+      if (!res.ok) throw new Error('Export failed');
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${playlist?.title || 'CleanPlaylist'}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+    } catch (err) {
+      alert("Failed to export: " + err.message);
     }
   };
 
@@ -371,22 +400,32 @@ export default function ScanTab({
                 <span className="font-semibold">{cleanCount} Clean</span>
               </div>
 
-              {isAuthenticated ? (
-                <button
-                  onClick={() => setIsSaveModalOpen(true)}
-                  className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-xl flex items-center space-x-2 transition shadow"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Save Playlist...</span>
-                </button>
+              {activePlatform === 'spotify' ? (
+                 isAuthenticated ? (
+                   <button
+                     onClick={() => setIsSaveModalOpen(true)}
+                     className="px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded-xl flex items-center space-x-2 transition shadow"
+                   >
+                     <Save className="w-4 h-4" />
+                     <span>Save to Spotify...</span>
+                   </button>
+                 ) : (
+                   <button
+                     onClick={onOpenAuth}
+                     className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-xl flex items-center space-x-2 border border-slate-700 transition"
+                   >
+                     <Sparkles className="w-4 h-4 text-green-400" />
+                     <span>Login to Save</span>
+                   </button>
+                 )
               ) : (
-                <button
-                  onClick={onOpenAuth}
-                  className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-xl flex items-center space-x-2 border border-slate-700 transition"
-                >
-                  <Sparkles className="w-4 h-4 text-purple-400" />
-                  <span>Connect to Save</span>
-                </button>
+                 <button
+                   onClick={() => handleExportCSV()}
+                   className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-xl flex items-center space-x-2 transition shadow"
+                 >
+                   <FileText className="w-4 h-4" />
+                   <span>Export to CSV</span>
+                 </button>
               )}
             </div>
           </div>
