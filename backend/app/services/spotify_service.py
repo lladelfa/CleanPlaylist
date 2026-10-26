@@ -88,14 +88,24 @@ class SpotifyService:
             pl = sp.playlist(playlist_id)
             tracks_raw = []
 
-            # Handle pagination
-            results = pl.get('tracks', {})
-            tracks_raw.extend(results.get('items', []))
-            while results.get('next'):
-                results = sp.next(results)
-                if not results:
-                    break
+            # Try getting tracks explicitly using playlist_items
+            results = sp.playlist_items(playlist_id)
+            if results and 'items' in results:
                 tracks_raw.extend(results.get('items', []))
+                while results.get('next'):
+                    results = sp.next(results)
+                    if not results:
+                        break
+                    tracks_raw.extend(results.get('items', []))
+            else:
+                # Fallback to older pl tracks object
+                results = pl.get('tracks', {})
+                tracks_raw.extend(results.get('items', []))
+                while results.get('next'):
+                    results = sp.next(results)
+                    if not results:
+                        break
+                    tracks_raw.extend(results.get('items', []))
 
             tracks = []
 
