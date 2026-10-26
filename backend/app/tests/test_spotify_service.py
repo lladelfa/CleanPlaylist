@@ -1,14 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
-import app.services.spotify_service as spotify_service_module
 from app.services.spotify_service import SpotifyService
-
-
-@pytest.fixture(autouse=True)
-def isolate_spotify_cache(monkeypatch, tmp_path):
-    """Ensure tests use an isolated temp directory instead of real backend/.spotify_caches/token.json."""
-    monkeypatch.setattr(spotify_service_module, "SPOTIFY_TOKEN_CACHE", tmp_path)
-
 
 def test_extract_playlist_id():
     # standard URL
@@ -23,7 +14,6 @@ def test_extract_playlist_id():
     # Just the ID
     assert SpotifyService.extract_playlist_id("75ykVn9fVZWHn20oXxaFJt") == "75ykVn9fVZWHn20oXxaFJt"
 
-
 def test_missing_credentials_initialization(monkeypatch):
     # Ensure missing credentials does not crash the app, but sets sp_oauth to None
     monkeypatch.delenv("SPOTIFY_CLIENT_ID", raising=False)
@@ -32,7 +22,6 @@ def test_missing_credentials_initialization(monkeypatch):
     service = SpotifyService()
     assert service.sp_oauth is None
     assert service.is_authenticated() is False
-
 
 def test_valid_credentials_initialization(monkeypatch):
     monkeypatch.setenv("SPOTIFY_CLIENT_ID", "mock_id")
@@ -44,6 +33,7 @@ def test_valid_credentials_initialization(monkeypatch):
     # Still false because we haven't exchanged a code for a token
     assert service.is_authenticated() is False
 
+from unittest.mock import MagicMock, patch
 
 def test_get_playlist_unauthenticated():
     service = SpotifyService()
@@ -52,7 +42,6 @@ def test_get_playlist_unauthenticated():
         service.get_playlist("75ykVn9fVZWHn20oXxaFJt")
     assert exc_info.value.status_code == 401
     assert "log in to Spotify" in exc_info.value.detail
-
 
 def test_get_playlist_mocked_responses():
     service = SpotifyService()
