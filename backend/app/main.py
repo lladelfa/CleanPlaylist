@@ -112,6 +112,8 @@ def fetch_playlist(req: PlaylistFetchRequest):
     except HTTPException as he:
         raise he
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/scan/playlist")

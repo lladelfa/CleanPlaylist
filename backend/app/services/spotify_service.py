@@ -89,11 +89,13 @@ class SpotifyService:
             tracks_raw = []
 
             # Handle pagination
-            results = pl['tracks']
-            tracks_raw.extend(results['items'])
-            while results['next']:
+            results = pl.get('tracks', {})
+            tracks_raw.extend(results.get('items', []))
+            while results.get('next'):
                 results = sp.next(results)
-                tracks_raw.extend(results['items'])
+                if not results:
+                    break
+                tracks_raw.extend(results.get('items', []))
 
             tracks = []
             for idx, item in enumerate(tracks_raw):
