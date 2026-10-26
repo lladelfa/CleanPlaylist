@@ -71,11 +71,13 @@ class SpotifyService:
     def extract_playlist_id(url: str) -> str:
         if "spotify.com" in url:
             return url.split("/")[-1].split("?")[0]
+        if url.startswith("spotify:playlist:"):
+            return url.split(":")[-1]
         return url
 
     def _get_client(self):
         if not self.sp:
-            raise HTTPException(status_code=401, detail="Not authenticated with Spotify")
+            raise HTTPException(status_code=401, detail="You must log in to Spotify to perform this action.")
         return self.sp
 
     def get_playlist(self, url_or_id: str) -> Dict:
@@ -95,11 +97,13 @@ class SpotifyService:
 
             tracks = []
             for idx, item in enumerate(tracks_raw):
+                if not item:
+                    continue
                 track = item.get('track')
-                if not track:
+                if not track or not isinstance(track, dict):
                     continue
 
-                artists = [a['name'] for a in track.get('artists', [])]
+                artists = [a.get('name', 'Unknown') for a in track.get('artists', []) if isinstance(a, dict)]
 
                 # Get largest thumbnail
                 images = track.get('album', {}).get('images', [])

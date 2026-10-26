@@ -109,6 +109,8 @@ def fetch_playlist(req: PlaylistFetchRequest):
             return spotify_service.get_playlist(req.url_or_id)
         else:
             return ytmusic_service.get_playlist(req.url_or_id, limit=req.limit or 100)
+    except HTTPException as he:
+        raise he
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
