@@ -4,37 +4,25 @@ import re
 from typing import Dict, List, Optional
 from ytmusicapi import YTMusic
 
-
 class YTMusicService:
-    def __init__(self, auth_filepath: Optional[str] = None):
-        self.auth_filepath = auth_filepath
-        try:
-            if auth_filepath:
-                self.yt = YTMusic(auth_filepath)
-            else:
-                self.yt = YTMusic()
-        except Exception as e:
-            print(f"[YTMusicService] Warning initializing YTMusic: {e}. Falling back to default client.")
-            self.yt = YTMusic()
-
+    def __init__(self):
+        # YTM is now strictly a read-only unauthenticated utility.
+        self.yt = YTMusic()
         self._lyrics_cache: Dict[str, Optional[str]] = {}
 
     @staticmethod
     def extract_playlist_id(url_or_id: str) -> str:
         """Extracts the clean playlist ID from a URL or raw ID."""
         raw = url_or_id.strip()
-        # Check for ?list= parameter
         match = re.search(r"[?&]list=([a-zA-Z0-9_-]+)", raw)
         if match:
             return match.group(1)
-        # If it starts with VLPL or PL or RD
         if raw.startswith("VL"):
             return raw[2:]
         return raw
 
     @staticmethod
     def parse_duration_to_seconds(duration_str: Optional[str]) -> int:
-        """Parses '3:45' or '1:02:15' string into total seconds."""
         if not duration_str or not isinstance(duration_str, str):
             return 0
         parts = duration_str.split(":")
@@ -54,16 +42,15 @@ class YTMusicService:
             raise ValueError("Invalid YouTube Music playlist link or ID provided.")
 
         try:
-            # ytmusicapi get_playlist accepts playlistId
             raw_playlist = self.yt.get_playlist(playlist_id, limit=limit)
         except Exception as e:
-            # Try with VL prefix if not already present
             try:
                 raw_playlist = self.yt.get_playlist(f"VL{playlist_id}", limit=limit)
             except Exception:
+                if "contents" in str(e) or "private" in str(e).lower() or "not found" in str(e).lower():
+                     raise ValueError(f"Could not load playlist. Ensure it is public or unlisted.")
                 raise ValueError(f"Could not load playlist '{playlist_id}': {str(e)}")
 
-        # Extract thumbnails
         thumbnails = raw_playlist.get("thumbnails", [])
         cover_image = thumbnails[-1]["url"] if thumbnails else None
 
@@ -75,7 +62,6 @@ class YTMusicService:
                 continue
 
             video_id = item.get("videoId")
-            # In some cases tracks are unplayable/deleted with no videoId
             if not video_id:
                 continue
 
@@ -90,6 +76,7 @@ class YTMusicService:
 
             tracks.append({
                 "id": video_id,
+                "setVideoId": item.get("setVideoId"),
                 "index": idx + 1,
                 "title": item.get("title", "Untitled Track"),
                 "artist": artist_name,
@@ -113,7 +100,6 @@ class YTMusicService:
         }
 
     def get_track_lyrics(self, video_id: str) -> Optional[str]:
-        """Fetches lyrics for a given track via watch playlist."""
         if video_id in self._lyrics_cache:
             return self._lyrics_cache[video_id]
 
@@ -133,15 +119,7 @@ class YTMusicService:
             self._lyrics_cache[video_id] = None
             return None
 
-    def search_clean_replacement(
-        self,
-        title: str,
-        artist: str,
-        duration_seconds: int = 0
-    ) -> Optional[Dict]:
-        """
-        Searches YouTube Music for a non-explicit clean/radio edit version of a song.
-        """
+    def search_clean_replacement(self, title: str, artist: str, duration_seconds: int = 0) -> Optional[Dict]:
         clean_queries = [
             f"{title} {artist} clean",
             f"{title} {artist} radio edit",
@@ -154,7 +132,6 @@ class YTMusicService:
             try:
                 results = self.yt.search(q, filter="songs", limit=5)
                 for res in results:
-                    # Must NOT be explicit
                     if res.get("isExplicit", False):
                         continue
 
@@ -169,18 +146,12 @@ class YTMusicService:
                     cand_duration_str = res.get("duration", "")
                     cand_duration_sec = self.parse_duration_to_seconds(cand_duration_str)
 
-                    # Duration delta check
                     duration_diff = abs(cand_duration_sec - duration_seconds) if duration_seconds > 0 else 0
                     if duration_seconds > 0 and duration_diff > 35:
-                        # Skip if duration differs significantly (e.g. extended mix or live)
                         continue
 
-                    # Score similarity
                     score = 100
-                    # Penalize duration differences
                     score -= min(30, duration_diff)
-
-                    # Boost if "clean" or "radio" in title
                     if any(term in cand_title.lower() for term in ["clean", "radio edit", "clean version"]):
                         score += 20
 
@@ -208,9 +179,7 @@ class YTMusicService:
         if not candidates:
             return None
 
-        # Return candidate with highest confidence score
         candidates.sort(key=lambda x: x["confidence_score"], reverse=True)
         return candidates[0]
-
 
 ytmusic_service = YTMusicService()
