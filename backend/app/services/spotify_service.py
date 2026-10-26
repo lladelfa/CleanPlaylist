@@ -115,7 +115,22 @@ class SpotifyService:
 
                 # Spotify sometimes returns tracks wrapped in a 'track' object (standard playlist format)
                 # Or flat track objects directly (algorithmic/search formats)
-                track = item.get('track') if item.get('track') and isinstance(item.get('track'), dict) else item
+                # And sometimes in a custom 'item' key
+
+                track = None
+
+                if isinstance(item, dict):
+                    # Check standard playlist wrapper
+                    if 'track' in item and isinstance(item['track'], dict):
+                        track = item['track']
+                    # Check algorithmic playlist wrapper
+                    elif 'item' in item and isinstance(item['item'], dict):
+                        track = item['item']
+                    # Check if the item itself is a track
+                    elif 'id' in item and 'name' in item:
+                        track = item
+                else:
+                    track = None
 
                 if not track or not isinstance(track, dict) or 'id' not in track:
                     continue
