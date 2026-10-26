@@ -98,8 +98,13 @@ class SpotifyService:
                 tracks_raw.extend(results.get('items', []))
 
             tracks = []
+
+            valid_tracks_count = 0
+            empty_items_count = 0
+
             for idx, item in enumerate(tracks_raw):
                 if not item:
+                    empty_items_count += 1
                     continue
                 track = item.get('track')
                 if not track or not isinstance(track, dict):
@@ -130,6 +135,9 @@ class SpotifyService:
                 })
 
             cover_image = pl.get('images', [{}])[0].get('url') if pl.get('images') else None
+
+            if len(tracks) == 0:
+                print(f"CRITICAL DEBUG: Playlist {playlist_id} has {len(tracks_raw)} raw items but 0 valid tracks. Empty items count: {empty_items_count}")
 
             return {
                 "id": playlist_id,
