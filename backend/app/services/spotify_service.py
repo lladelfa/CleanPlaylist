@@ -23,7 +23,7 @@ class SpotifyService:
     def _init_oauth(self):
         client_id = os.environ.get("SPOTIFY_CLIENT_ID")
         client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET")
-        redirect_uri = os.environ.get("SPOTIFY_REDIRECT_URI", "http://localhost:8000/api/spotify/callback")
+        redirect_uri = os.environ.get("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8000/api/spotify/callback")
 
         if client_id and client_secret:
             self.sp_oauth = SpotifyOAuth(
@@ -109,15 +109,15 @@ class SpotifyService:
 
             tracks = []
 
-            valid_tracks_count = 0
-            empty_items_count = 0
-
             for idx, item in enumerate(tracks_raw):
                 if not item:
-                    empty_items_count += 1
                     continue
-                track = item.get('track')
-                if not track or not isinstance(track, dict):
+
+                # Spotify sometimes returns tracks wrapped in a 'track' object (standard playlist format)
+                # Or flat track objects directly (algorithmic/search formats)
+                track = item.get('track') if item.get('track') and isinstance(item.get('track'), dict) else item
+
+                if not track or not isinstance(track, dict) or 'id' not in track:
                     continue
 
                 artists = [a.get('name', 'Unknown') for a in track.get('artists', []) if isinstance(a, dict)]
@@ -145,9 +145,6 @@ class SpotifyService:
                 })
 
             cover_image = pl.get('images', [{}])[0].get('url') if pl.get('images') else None
-
-            if len(tracks) == 0:
-                print(f"CRITICAL DEBUG: Playlist {playlist_id} has {len(tracks_raw)} raw items but 0 valid tracks. Empty items count: {empty_items_count}")
 
             return {
                 "id": playlist_id,
