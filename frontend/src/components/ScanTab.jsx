@@ -14,6 +14,7 @@ import {
   Plus,
   X,
   Save,
+  Trash2,
 } from "lucide-react";
 
 import SavePlaylistModal from "./SavePlaylistModal";
@@ -227,6 +228,15 @@ export default function ScanTab({
     setCustomBlocklist(customBlocklist.filter((w) => w !== word));
   };
 
+  const handleRemoveTrack = (trackToRemove) => {
+    setScannedTracks((prev) => prev.filter((t) => t.id !== trackToRemove.id));
+    setCleanCandidates((prev) => {
+      const updated = { ...prev };
+      delete updated[trackToRemove.id];
+      return updated;
+    });
+  };
+
   // Filtered tracks
   const displayedTracks = scannedTracks.filter((t) => {
     const matchesFilter =
@@ -244,6 +254,8 @@ export default function ScanTab({
 
   const flaggedCount = scannedTracks.filter((t) => t.is_flagged).length;
   const cleanCount = scannedTracks.length - flaggedCount;
+  const initialTrackCount = playlist?.tracks?.length ?? scannedTracks.length;
+  const removedCount = Math.max(0, initialTrackCount - scannedTracks.length);
 
   return (
     <div className="space-y-6">
@@ -448,6 +460,10 @@ export default function ScanTab({
                 <CheckCircle2 className="w-4 h-4" />
                 <span className="font-semibold">{cleanCount} Clean</span>
               </div>
+              <div className="flex items-center space-x-1.5 bg-slate-800/60 text-slate-300 text-xs px-3 py-1.5 rounded-xl border border-slate-700/60 hidden sm:flex">
+                <Trash2 className="w-4 h-4 text-slate-400" />
+                <span className="font-semibold">{removedCount} Removed</span>
+              </div>
 
               {activePlatform === "spotify" ? (
                 isAuthenticated ? (
@@ -631,6 +647,16 @@ export default function ScanTab({
                         No clean version found
                       </span>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTrack(track)}
+                      aria-label="Remove track"
+                      title="Remove track"
+                      className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
 
                     <a
                       href={track.video_url}
