@@ -60,3 +60,6 @@ spotify_postman_collection.json
 *.log
 backend.log
 backend/backend.log
+
+# Vercel
+.vercel

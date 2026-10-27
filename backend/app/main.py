@@ -1,6 +1,7 @@
 """Main FastAPI application for CleanPlaylist."""
 
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from fastapi import FastAPI, HTTPException, Response, Request
@@ -103,10 +104,11 @@ def get_presets():
     }
 
 @app.post("/api/playlist/fetch")
-def fetch_playlist(req: PlaylistFetchRequest):
+def fetch_playlist(req: PlaylistFetchRequest, request: Request, response: Response):
     try:
         if req.platform == "spotify":
-            return spotify_service.get_playlist(req.url_or_id)
+            sp_client = spotify_service.get_client(request=request, response=response)
+            return spotify_service.get_playlist(req.url_or_id, sp_client=sp_client)
         else:
             return ytmusic_service.get_playlist(req.url_or_id, limit=req.limit or 100)
     except HTTPException as he:
@@ -122,15 +124,21 @@ def scan_playlist(req: PlaylistScanRequest):
     deep_scanned_count = 0
     service = spotify_service if req.platform == "spotify" else ytmusic_service
 
-    for track in req.tracks:
-        lyrics = None
-        has_lyrics = False
-
-        if req.deep_scan_lyrics and deep_scanned_count < (req.max_deep_scan or 20):
-            lyrics = service.get_track_lyrics(track.id)
-            if lyrics:
-                has_lyrics = True
+    # Pre-fetch lyrics concurrently for tracks eligible for deep scan to avoid serverless timeouts
+    lyrics_by_id: Dict[str, Optional[str]] = {}
+    if req.deep_scan_lyrics:
+        max_to_scan = req.max_deep_scan or 20
+        tracks_for_lyrics = req.tracks[:max_to_scan]
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            fetched = list(executor.map(lambda t: (t.id, service.get_track_lyrics(t.id)), tracks_for_lyrics))
+        for track_id, text in fetched:
+            if text:
+                lyrics_by_id[track_id] = text
                 deep_scanned_count += 1
+
+    for track in req.tracks:
+        lyrics = lyrics_by_id.get(track.id)
+        has_lyrics = bool(lyrics)
 
         scan_result = scanner_service.scan_lyrics(
             lyrics=lyrics or "",
@@ -208,8 +216,11 @@ def search_keywords_in_playlist(req: KeywordSearchRequest):
     tracks_to_process = req.tracks[: req.max_tracks or 30]
     service = spotify_service if req.platform == "spotify" else ytmusic_service
 
-    for track in tracks_to_process:
-        lyrics = service.get_track_lyrics(track.id)
+    # Fetch lyrics concurrently across worker threads to keep response fast on serverless
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        lyrics_list = list(executor.map(lambda t: service.get_track_lyrics(t.id), tracks_to_process))
+
+    for track, lyrics in zip(tracks_to_process, lyrics_list):
         if not lyrics:
             per_track_results.append({
                 "id": track.id,
@@ -252,13 +263,21 @@ def search_keywords_in_playlist(req: KeywordSearchRequest):
     }
 
 @app.post("/api/replacements/find")
-def find_clean_replacement(req: FindCleanReplacementRequest):
-    service = spotify_service if req.platform == "spotify" else ytmusic_service
-    candidate = service.search_clean_replacement(
-        title=req.title,
-        artist=req.artist,
-        duration_seconds=req.duration_seconds or 0
-    )
+def find_clean_replacement(req: FindCleanReplacementRequest, request: Request, response: Response):
+    if req.platform == "spotify":
+        sp_client = spotify_service.get_client(request=request, response=response)
+        candidate = spotify_service.search_clean_replacement(
+            title=req.title,
+            artist=req.artist,
+            duration_seconds=req.duration_seconds or 0,
+            sp_client=sp_client,
+        )
+    else:
+        candidate = ytmusic_service.search_clean_replacement(
+            title=req.title,
+            artist=req.artist,
+            duration_seconds=req.duration_seconds or 0
+        )
     return {
         "found": candidate is not None,
         "clean_candidate": candidate
@@ -295,7 +314,7 @@ def export_playlist_file(req: ExportRequest):
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported export format '{fmt}'")
 
-# Static Files
+# Static Files (only mounted when running standalone locally, as Vercel serves frontend/dist directly)
 FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
-if FRONTEND_DIST.exists():
+if not os.environ.get("VERCEL") and FRONTEND_DIST.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="static")
