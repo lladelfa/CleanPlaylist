@@ -1,7 +1,12 @@
 import pytest
 from unittest.mock import MagicMock, patch
 import app.services.spotify_service as spotify_service_module
-from app.services.spotify_service import SpotifyService
+from app.services.spotify_service import (
+    SpotifyService,
+    SPOTIFY_SESSION_COOKIE,
+    encode_session_token,
+    decode_session_token,
+)
 
 
 def test_extract_playlist_id():
@@ -39,6 +44,65 @@ def test_valid_credentials_initialization(monkeypatch, tmp_path):
     assert service.sp_oauth is not None
     # Still false because we haven't exchanged a code for a token in this clean cache dir
     assert service.is_authenticated() is False
+
+
+def test_session_cookie_encode_decode_and_tamper_protection(monkeypatch):
+    monkeypatch.setenv("SESSION_SECRET_KEY", "test-secret-key-123")
+    token_data = {
+        "access_token": "acc_user_1",
+        "refresh_token": "ref_user_1",
+        "expires_at": 9999999999,
+    }
+    cookie_val = encode_session_token(token_data)
+    decoded = decode_session_token(cookie_val)
+    assert decoded is not None
+    assert decoded["access_token"] == "acc_user_1"
+    assert decoded["refresh_token"] == "ref_user_1"
+
+    # Tampered signature must be rejected
+    tampered = cookie_val[:-4] + "0000"
+    assert decode_session_token(tampered) is None
+
+
+def test_multi_user_session_isolation(monkeypatch):
+    monkeypatch.setenv("SPOTIFY_CLIENT_ID", "mock_id")
+    monkeypatch.setenv("SPOTIFY_CLIENT_SECRET", "mock_secret")
+    monkeypatch.setenv("SESSION_SECRET_KEY", "multi-user-secret")
+
+    service = SpotifyService()
+
+    user_a_cookie = encode_session_token({
+        "access_token": "token_user_a",
+        "refresh_token": "refresh_a",
+        "expires_at": 9999999999,
+    })
+
+    req_user_a = MagicMock()
+    req_user_a.cookies = {SPOTIFY_SESSION_COOKIE: user_a_cookie}
+    req_user_a.headers = {"host": "cleanplaylist.vercel.app", "x-forwarded-proto": "https"}
+
+    req_user_b = MagicMock()
+    req_user_b.cookies = {}
+    req_user_b.headers = {"host": "cleanplaylist.vercel.app", "x-forwarded-proto": "https"}
+
+    assert service.is_authenticated(request=req_user_a) is True
+    assert service.is_authenticated(request=req_user_b) is False
+
+    # User B must get 401 even while User A is authenticated
+    with pytest.raises(Exception) as exc_info:
+        service.get_client(request=req_user_b)
+    assert exc_info.value.status_code == 401
+
+
+def test_resolve_redirect_uri_for_vercel(monkeypatch):
+    monkeypatch.setenv("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8000/api/spotify/callback")
+    mock_req = MagicMock()
+    mock_req.headers = {
+        "x-forwarded-host": "clean-playlist.vercel.app",
+        "x-forwarded-proto": "https",
+    }
+    resolved = SpotifyService.resolve_redirect_uri(mock_req)
+    assert resolved == "https://clean-playlist.vercel.app/api/spotify/callback"
 
 
 def test_get_playlist_unauthenticated():
@@ -232,4 +296,4 @@ def test_spotify_playlists_endpoint():
     with patch.object(spotify_service, "get_user_playlists", return_value=mock_payload) as mock_method:
         response = get_user_playlists(limit=20, offset=0)
         assert response == mock_payload
-        mock_method.assert_called_once_with(limit=20, offset=0)
+        mock_method.assert_called_once_with(limit=20, offset=0, sp_client=None)

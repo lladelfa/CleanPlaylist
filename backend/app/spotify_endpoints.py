@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
@@ -16,13 +16,13 @@ class SpotifySaveRequest(BaseModel):
     create_new: bool = False
 
 @router.get("/api/spotify/status")
-def get_auth_status() -> Dict[str, bool]:
-    return {"authenticated": spotify_service.is_authenticated()}
+def get_auth_status(request: Request, response: Response) -> Dict[str, bool]:
+    return {"authenticated": spotify_service.is_authenticated(request=request, response=response)}
 
 @router.get("/api/spotify/login")
-def login():
+def login(request: Request):
     try:
-        url = spotify_service.get_login_url()
+        url = spotify_service.get_login_url(request=request)
         return {"status": "success", "url": url}
     except ValueError as ve:
         if str(ve) == "MISSING_CREDENTIALS":
@@ -30,26 +30,28 @@ def login():
         raise HTTPException(status_code=500, detail=str(ve))
 
 @router.get("/api/spotify/callback")
-def auth_callback(code: str = None, error: str = None):
+def auth_callback(request: Request, code: str = None, error: str = None):
     if error:
         return RedirectResponse(url=f"/?auth_error={error}&platform=spotify")
     if not code:
         return RedirectResponse(url="/?auth_error=missing_code&platform=spotify")
 
     try:
-        spotify_service.exchange_code(code)
-        return RedirectResponse(url="/?auth_success=true&platform=spotify")
+        token_info = spotify_service.exchange_code(code, request=request)
+        redirect_resp = RedirectResponse(url="/?auth_success=true&platform=spotify")
+        spotify_service.set_session_cookie(redirect_resp, token_info, request=request)
+        return redirect_resp
     except Exception as e:
         return RedirectResponse(url=f"/?auth_error={str(e)}&platform=spotify")
 
 @router.post("/api/spotify/logout")
-def logout():
-    spotify_service.logout()
+def logout(response: Response):
+    spotify_service.logout(response=response)
     return {"status": "success", "message": "Logged out of Spotify"}
 
 @router.post("/api/spotify/playlist/save")
-def save_playlist(req: SpotifySaveRequest):
-    sp = spotify_service._get_client()
+def save_playlist(req: SpotifySaveRequest, request: Request, response: Response):
+    sp = spotify_service.get_client(request=request, response=response)
     user_id = sp.me()['id']
 
     # Spotify playlist item replacement is very easy!
@@ -89,5 +91,8 @@ def save_playlist(req: SpotifySaveRequest):
 
 
 @router.get("/api/spotify/playlists")
-def get_user_playlists(limit: int = 20, offset: int = 0):
-    return spotify_service.get_user_playlists(limit=limit, offset=offset)
+def get_user_playlists(
+    limit: int = 20, offset: int = 0, request: Request = None, response: Response = None
+):
+    sp_client = spotify_service.get_client(request=request, response=response) if request is not None else None
+    return spotify_service.get_user_playlists(limit=limit, offset=offset, sp_client=sp_client)
