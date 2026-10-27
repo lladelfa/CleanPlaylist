@@ -55,3 +55,8 @@ spotify_postman_collection.json
 .idea/
 *.swp
 *.swo
+
+# Logs
+*.log
+backend.log
+backend/backend.log
