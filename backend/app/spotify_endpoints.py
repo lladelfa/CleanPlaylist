@@ -86,3 +86,8 @@ def save_playlist(req: SpotifySaveRequest):
             for i in range(0, len(uris), 100):
                 sp.playlist_add_items(pl['id'], uris[i:i+100])
             return {"status": "success", "message": "Created new playlist (fallback)", "playlist_id": pl['id']}
+
+
+@router.get("/api/spotify/playlists")
+def get_user_playlists(limit: int = 20, offset: int = 0):
+    return spotify_service.get_user_playlists(limit=limit, offset=offset)

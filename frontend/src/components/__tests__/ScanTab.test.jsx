@@ -156,3 +156,135 @@ describe("ScanTab - Remove Tracks UI", () => {
   });
 });
 
+
+
+describe("ScanTab - Spotify Playlist Picker Integration", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows 'Browse Library' button only when activePlatform is spotify and user is authenticated", () => {
+    const { rerender } = render(
+      <ScanTab
+        playlist={null}
+        setPlaylist={vi.fn()}
+        scannedTracks={[]}
+        setScannedTracks={vi.fn()}
+        onOpenLyrics={vi.fn()}
+        customBlocklist={[]}
+        setCustomBlocklist={vi.fn()}
+        preset="moderate"
+        setPreset={vi.fn()}
+        isAuthenticated={true}
+        onOpenAuth={vi.fn()}
+        activePlatform="spotify"
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /browse library/i })).toBeInTheDocument();
+
+    // Unauthenticated Spotify -> hidden
+    rerender(
+      <ScanTab
+        playlist={null}
+        setPlaylist={vi.fn()}
+        scannedTracks={[]}
+        setScannedTracks={vi.fn()}
+        onOpenLyrics={vi.fn()}
+        customBlocklist={[]}
+        setCustomBlocklist={vi.fn()}
+        preset="moderate"
+        setPreset={vi.fn()}
+        isAuthenticated={false}
+        onOpenAuth={vi.fn()}
+        activePlatform="spotify"
+      />
+    );
+    expect(screen.queryByRole("button", { name: /browse library/i })).not.toBeInTheDocument();
+
+    // Authenticated YouTube Music -> hidden
+    rerender(
+      <ScanTab
+        playlist={null}
+        setPlaylist={vi.fn()}
+        scannedTracks={[]}
+        setScannedTracks={vi.fn()}
+        onOpenLyrics={vi.fn()}
+        customBlocklist={[]}
+        setCustomBlocklist={vi.fn()}
+        preset="moderate"
+        setPreset={vi.fn()}
+        isAuthenticated={true}
+        onOpenAuth={vi.fn()}
+        activePlatform="ytmusic"
+      />
+    );
+    expect(screen.queryByRole("button", { name: /browse library/i })).not.toBeInTheDocument();
+  });
+
+  it("populates the URL input, closes the modal, and automatically fetches the playlist when selected from the modal", async () => {
+    const user = userEvent.setup();
+
+    const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+      if (typeof url === "string" && url.startsWith("/api/spotify/playlists")) {
+        return {
+          ok: true,
+          json: async () => ({
+            items: [
+              {
+                id: "sp_picked_1",
+                name: "My Picked Spotify Playlist",
+                tracks_total: 3,
+                thumbnail: "http://example.com/cover.jpg",
+                owner: "SpotifyUser",
+                url: "https://open.spotify.com/playlist/sp_picked_1",
+              },
+            ],
+            total: 1,
+            limit: 20,
+            offset: 0,
+            has_next: false,
+            has_prev: false,
+          }),
+        };
+      }
+      if (url === "/api/playlist/fetch") {
+        return {
+          ok: true,
+          json: async () => ({
+            id: "sp_picked_1",
+            title: "My Picked Spotify Playlist",
+            author: "SpotifyUser",
+            tracks: mockPlaylist.tracks,
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    render(<StatefulScanTabWrapper initialPlaylist={null} initialTracks={[]} />);
+
+    const browseBtn = screen.getByRole("button", { name: /browse library/i });
+    await user.click(browseBtn);
+
+    const pickedItem = await screen.findByText("My Picked Spotify Playlist");
+    await user.click(pickedItem);
+
+    // URL input is populated
+    const urlInput = screen.getByPlaceholderText(/https:\/\/music\.youtube\.com\/playlist/i);
+    expect(urlInput).toHaveValue("https://open.spotify.com/playlist/sp_picked_1");
+
+    // Modal closed and playlist fetch triggered automatically
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/playlist/fetch",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          url_or_id: "https://open.spotify.com/playlist/sp_picked_1",
+          limit: 100,
+          platform: "spotify",
+        }),
+      })
+    );
+  });
+});

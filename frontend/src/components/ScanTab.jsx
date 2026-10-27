@@ -15,9 +15,11 @@ import {
   X,
   Save,
   Trash2,
+  Library,
 } from "lucide-react";
 
 import SavePlaylistModal from "./SavePlaylistModal";
+import PlaylistPickerModal from "./PlaylistPickerModal";
 
 export default function ScanTab({
   playlist,
@@ -45,6 +47,7 @@ export default function ScanTab({
   const [statusMessage, setStatusMessage] = useState(null);
 
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [isPickerModalOpen, setIsPickerModalOpen] = useState(false);
 
   // Sample playlists for instant testing
   const samplePlaylists = [
@@ -274,6 +277,16 @@ export default function ScanTab({
               className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
             />
           </div>
+          {activePlatform === "spotify" && isAuthenticated && (
+            <button
+              type="button"
+              onClick={() => setIsPickerModalOpen(true)}
+              className="flex items-center justify-center space-x-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-green-400 border border-slate-700 font-medium text-sm rounded-xl transition"
+            >
+              <Library className="w-4 h-4" />
+              <span>Browse Library</span>
+            </button>
+          )}
           <button
             onClick={() => handleFetchPlaylist()}
             disabled={loading}
@@ -692,6 +705,15 @@ export default function ScanTab({
             type: "success",
             text: "Playlist saved successfully!",
           });
+        }}
+      />
+
+      <PlaylistPickerModal
+        isOpen={isPickerModalOpen}
+        onClose={() => setIsPickerModalOpen(false)}
+        onSelectPlaylist={(selectedUrl) => {
+          setUrlInput(selectedUrl);
+          handleFetchPlaylist(selectedUrl);
         }}
       />
     </div>

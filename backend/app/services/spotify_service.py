@@ -80,6 +80,44 @@ class SpotifyService:
             raise HTTPException(status_code=401, detail="You must log in to Spotify to perform this action.")
         return self.sp
 
+    def get_user_playlists(self, limit: int = 20, offset: int = 0) -> Dict:
+        sp = self._get_client()
+        try:
+            results = sp.current_user_playlists(limit=limit, offset=offset)
+            items = []
+            for pl in results.get("items", []):
+                if not pl:
+                    continue
+                images = pl.get("images") or []
+                thumbnail = images[0].get("url") if images and isinstance(images[0], dict) else None
+                tracks_info = pl.get("tracks") or {}
+                external_urls = pl.get("external_urls") or {}
+                playlist_id = pl.get("id", "")
+                url = external_urls.get("spotify") or f"https://open.spotify.com/playlist/{playlist_id}"
+
+                items.append({
+                    "id": playlist_id,
+                    "name": pl.get("name", "Untitled Playlist"),
+                    "tracks_total": tracks_info.get("total", 0),
+                    "thumbnail": thumbnail,
+                    "owner": (pl.get("owner") or {}).get("display_name", "Unknown"),
+                    "url": url,
+                })
+
+            total = results.get("total", len(items))
+            return {
+                "items": items,
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+                "has_next": results.get("next") is not None or (offset + limit < total),
+                "has_prev": offset > 0,
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to fetch Spotify playlists: {e}")
+
     def get_playlist(self, url_or_id: str) -> Dict:
         sp = self._get_client()
         playlist_id = self.extract_playlist_id(url_or_id)

@@ -1,5 +1,8 @@
 import pytest
+from unittest.mock import MagicMock, patch
+import app.services.spotify_service as spotify_service_module
 from app.services.spotify_service import SpotifyService
+
 
 def test_extract_playlist_id():
     # standard URL
@@ -14,8 +17,10 @@ def test_extract_playlist_id():
     # Just the ID
     assert SpotifyService.extract_playlist_id("75ykVn9fVZWHn20oXxaFJt") == "75ykVn9fVZWHn20oXxaFJt"
 
-def test_missing_credentials_initialization(monkeypatch):
+
+def test_missing_credentials_initialization(monkeypatch, tmp_path):
     # Ensure missing credentials does not crash the app, but sets sp_oauth to None
+    monkeypatch.setattr(spotify_service_module, "SPOTIFY_TOKEN_CACHE", tmp_path)
     monkeypatch.delenv("SPOTIFY_CLIENT_ID", raising=False)
     monkeypatch.delenv("SPOTIFY_CLIENT_SECRET", raising=False)
 
@@ -23,17 +28,18 @@ def test_missing_credentials_initialization(monkeypatch):
     assert service.sp_oauth is None
     assert service.is_authenticated() is False
 
-def test_valid_credentials_initialization(monkeypatch):
+
+def test_valid_credentials_initialization(monkeypatch, tmp_path):
+    monkeypatch.setattr(spotify_service_module, "SPOTIFY_TOKEN_CACHE", tmp_path)
     monkeypatch.setenv("SPOTIFY_CLIENT_ID", "mock_id")
     monkeypatch.setenv("SPOTIFY_CLIENT_SECRET", "mock_secret")
     monkeypatch.setenv("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8000")
 
     service = SpotifyService()
     assert service.sp_oauth is not None
-    # Still false because we haven't exchanged a code for a token
+    # Still false because we haven't exchanged a code for a token in this clean cache dir
     assert service.is_authenticated() is False
 
-from unittest.mock import MagicMock, patch
 
 def test_get_playlist_unauthenticated():
     service = SpotifyService()
@@ -42,6 +48,7 @@ def test_get_playlist_unauthenticated():
         service.get_playlist("75ykVn9fVZWHn20oXxaFJt")
     assert exc_info.value.status_code == 401
     assert "log in to Spotify" in exc_info.value.detail
+
 
 def test_get_playlist_mocked_responses():
     service = SpotifyService()
@@ -125,3 +132,104 @@ def test_get_playlist_mocked_responses():
     assert result["tracks"][2]["id"] == "t3"
     assert result["tracks"][2]["title"] == "Track 3"
     assert result["tracks"][2]["duration"] == "4:00"
+
+
+def test_get_user_playlists_unauthenticated():
+    service = SpotifyService()
+    service.sp = None
+    with pytest.raises(Exception) as exc_info:
+        service.get_user_playlists(limit=20, offset=0)
+    assert exc_info.value.status_code == 401
+    assert "log in to Spotify" in exc_info.value.detail
+
+
+def test_get_user_playlists_pagination():
+    service = SpotifyService()
+    mock_sp = MagicMock()
+    service.sp = mock_sp
+
+    mock_sp.current_user_playlists.return_value = {
+        "items": [
+            {
+                "id": "pl_1",
+                "name": "Workout Mix",
+                "tracks": {"total": 42},
+                "images": [{"url": "http://example.com/pl1.jpg"}],
+                "owner": {"display_name": "DJ Test"},
+                "external_urls": {"spotify": "https://open.spotify.com/playlist/pl_1"},
+            },
+            {
+                "id": "pl_2",
+                "name": "Chill Vibes",
+                "tracks": {"total": 15},
+                "images": [],
+                "owner": {"display_name": "DJ Test"},
+                "external_urls": {},
+            },
+        ],
+        "total": 45,
+        "limit": 20,
+        "offset": 20,
+        "next": "https://api.spotify.com/v1/me/playlists?offset=40&limit=20",
+        "previous": "https://api.spotify.com/v1/me/playlists?offset=0&limit=20",
+    }
+
+    result = service.get_user_playlists(limit=20, offset=20)
+
+    mock_sp.current_user_playlists.assert_called_once_with(limit=20, offset=20)
+    assert result["total"] == 45
+    assert result["limit"] == 20
+    assert result["offset"] == 20
+    assert result["has_next"] is True
+    assert result["has_prev"] is True
+    assert len(result["items"]) == 2
+
+    assert result["items"][0] == {
+        "id": "pl_1",
+        "name": "Workout Mix",
+        "tracks_total": 42,
+        "thumbnail": "http://example.com/pl1.jpg",
+        "owner": "DJ Test",
+        "url": "https://open.spotify.com/playlist/pl_1",
+    }
+    assert result["items"][1] == {
+        "id": "pl_2",
+        "name": "Chill Vibes",
+        "tracks_total": 15,
+        "thumbnail": None,
+        "owner": "DJ Test",
+        "url": "https://open.spotify.com/playlist/pl_2",
+    }
+
+
+def test_spotify_playlists_endpoint():
+    from app.spotify_endpoints import router, get_user_playlists
+    from app.services.spotify_service import spotify_service
+
+    # Verify route registration
+    routes = [r for r in router.routes if getattr(r, "path", None) == "/api/spotify/playlists"]
+    assert len(routes) == 1
+    assert "GET" in routes[0].methods
+
+    mock_payload = {
+        "items": [
+            {
+                "id": "pl_100",
+                "name": "Road Trip",
+                "tracks_total": 12,
+                "thumbnail": "http://example.com/road.jpg",
+                "owner": "Alice",
+                "url": "https://open.spotify.com/playlist/pl_100",
+            }
+        ],
+        "total": 1,
+        "limit": 20,
+        "offset": 0,
+        "has_next": False,
+        "has_prev": False,
+    }
+
+    with patch.object(spotify_service, "get_user_playlists", return_value=mock_payload) as mock_method:
+        response = get_user_playlists(limit=20, offset=0)
+        assert response == mock_payload
+        mock_method.assert_called_once_with(limit=20, offset=0)
