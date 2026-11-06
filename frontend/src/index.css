@@ -1,8 +1,44 @@
 @import "tailwindcss";
 
+@theme {
+  --color-surface-inset: #070D1F;
+  --color-surface-canvas: #0C1324;
+  --color-surface-low: #151B2D;
+  --color-surface-card: #191F31;
+  --color-surface-elevated: #23293C;
+  --color-surface-highest: #2E3447;
+  --color-surface-backdrop: #050812;
+  --color-border-subtle: #2B3247;
+  --color-border-strong: #4A4455;
+  --color-ring-focus: #A78BFA;
+  --color-text-primary: #DCE1FB;
+  --color-text-secondary: #CCC3D8;
+  --color-text-muted: #958DA1;
+  --color-brand-primary: #7C3AED;
+  --color-brand-primary-hover: #6D28D9;
+  --color-brand-accent: #6366F1;
+  --color-brand-tint: #D2BBFF;
+  --color-brand-foreground: #FFFFFF;
+  --color-status-clean: #4EDEA3;
+  --color-status-clean-bg: #062E22;
+  --color-status-clean-border: #10B981;
+  --color-status-clean-ink: #022C1E;
+  --color-status-flagged: #FFB4AB;
+  --color-status-flagged-bg: #3B0A14;
+  --color-status-flagged-border: #F43F5E;
+  --color-status-caution: #FCD34D;
+  --color-status-caution-bg: #332106;
+  --color-status-caution-border: #F59E0B;
+  --color-keyword-mark-bg: #422806;
+  --color-keyword-mark-fg: #FDE68A;
+
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 antialiased selection:bg-purple-500 selection:text-white min-h-screen font-sans;
+    @apply bg-surface-canvas text-text-primary antialiased selection:bg-brand-primary selection:text-white min-h-screen font-sans;
   }
 }
 
@@ -13,14 +49,14 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: var(--color-surface-inset);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--color-surface-elevated);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--color-surface-highest);
 }

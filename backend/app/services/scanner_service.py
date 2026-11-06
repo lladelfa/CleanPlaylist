@@ -2,11 +2,7 @@
 
 import re
 from typing import Dict, List, Optional, Set, Tuple
-from better_profanity import profanity
 from app.config import PRESET_PROFILES, WORD_CATEGORIES
-
-# Initialize default profanity filter
-profanity.load_censor_words()
 
 
 class ScannerService:
@@ -14,7 +10,7 @@ class ScannerService:
         self.categories = WORD_CATEGORIES
         self.presets = PRESET_PROFILES
 
-    def _compile_patterns(self, words: Set[str]) -> List[re.Pattern]:
+    def _compile_patterns(self, words: Set[str]) -> List[Tuple[str, re.Pattern]]:
         """Compile a list of words or phrases into boundary-aware regex patterns."""
         patterns = []
         for word in words:

@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CleanPlaylist Studio - Keyword Search</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration verbatim from Design System -->
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-high": "#23293c",
+            "inverse-on-surface": "#2a3043",
+            "on-tertiary-fixed-variant": "#005236",
+            "on-tertiary": "#003824",
+            "secondary": "#c0c1ff",
+            "primary": "#d2bbff",
+            "secondary-container": "#3131c0",
+            "inverse-surface": "#dce1fb",
+            "on-error": "#690005",
+            "surface-bright": "#33394c",
+            "on-secondary-container": "#b0b2ff",
+            "primary-container": "#7c3aed",
+            "tertiary-fixed": "#6ffbbe",
+            "surface-dim": "#0c1324",
+            "primary-fixed-dim": "#d2bbff",
+            "secondary-fixed-dim": "#c0c1ff",
+            "surface-container-highest": "#2e3447",
+            "tertiary": "#4edea3",
+            "error-container": "#93000a",
+            "surface-container-lowest": "#070d1f",
+            "background": "#0c1324",
+            "outline": "#958da1",
+            "on-surface-variant": "#ccc3d8",
+            "on-surface": "#dce1fb",
+            "on-secondary-fixed": "#07006c",
+            "primary-fixed": "#eaddff",
+            "surface": "#0c1324",
+            "on-tertiary-fixed": "#002113",
+            "inverse-primary": "#732ee4",
+            "on-primary-fixed-variant": "#5a00c6",
+            "surface-variant": "#2e3447",
+            "on-background": "#dce1fb",
+            "on-secondary": "#1000a9",
+            "tertiary-container": "#007650",
+            "on-primary-container": "#ede0ff",
+            "on-error-container": "#ffdad6",
+            "surface-tint": "#d2bbff",
+            "surface-container-low": "#151b2d",
+            "outline-variant": "#4a4455",
+            "error": "#ffb4ab",
+            "on-primary-fixed": "#25005a",
+            "on-tertiary-container": "#76ffc2",
+            "on-secondary-fixed-variant": "#2f2ebe",
+            "on-primary": "#3f008e",
+            "tertiary-fixed-dim": "#4edea3",
+            "surface-container": "#191f31",
+            "secondary-fixed": "#e1e0ff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-lg": "1.25rem",
+            "space-xs": "0.25rem",
+            "gutter": "1rem",
+            "margin-desktop": "1.5rem",
+            "space-sm": "0.5rem",
+            "space-xl": "2rem",
+            "margin": "1rem",
+            "gutter-desktop": "1.25rem",
+            "space-md": "0.75rem"
+          },
+          "fontFamily": {
+            "headline-md": ["Plus Jakarta Sans"],
+            "body-lg": ["Plus Jakarta Sans"],
+            "label-sans-bold": ["Plus Jakarta Sans"],
+            "headline-xl": ["Plus Jakarta Sans"],
+            "headline-xl-mobile": ["Plus Jakarta Sans"],
+            "body-sm": ["Plus Jakarta Sans"],
+            "label-mono-sm": ["JetBrains Mono"],
+            "headline-lg": ["Plus Jakarta Sans"],
+            "label-mono-md": ["JetBrains Mono"],
+            "body-md": ["Plus Jakarta Sans"]
+          },
+          "fontSize": {
+            "headline-md": ["18px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.005em", "fontWeight": "500" }],
+            "label-sans-bold": ["11px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "700" }],
+            "headline-xl": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "headline-xl-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-mono-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "400" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "label-mono-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "body-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    /* Subtle technical grid pattern for DAW depth */
+    .studio-grid-bg {
+      background-image: linear-gradient(to right, rgba(74, 68, 85, 0.08) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(74, 68, 85, 0.08) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen flex flex-col antialiased selection:bg-primary-container selection:text-white studio-grid-bg">
+<!-- ========================================== -->
+<!-- 1. STICKY GLOBAL HEADER                    -->
+<!-- ========================================== -->
+<header class="sticky top-0 z-50 h-14 bg-surface/95 backdrop-blur-md border-b border-outline-variant/30 px-8 flex items-center justify-between">
+<!-- Left: Brand Logo + Studio Badge -->
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center border border-outline-variant/40 shadow-inner">
+<span class="material-symbols-outlined text-primary-container text-[18px]">equalizer</span>
+</div>
+<span class="font-headline-md text-headline-md font-bold tracking-tight text-on-surface">CleanPlaylist</span>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high border border-outline-variant/30 text-primary font-label-mono-sm text-[10px] font-bold tracking-wider">STUDIO</span>
+</div>
+<!-- Center: Exactly 3 Navigation Tabs (Keyword Search is Active) -->
+<nav class="flex items-center gap-8 h-full">
+<a class="font-body-md text-body-md font-medium text-outline hover:text-on-surface transition-colors flex items-center h-full pt-1" href="#">
+        Scan &amp; Clean
+      </a>
+<!-- ACTIVE TAB: Keyword Search -->
+<a class="font-body-md text-body-md font-semibold text-primary border-b-2 border-primary-container h-full flex items-center pt-1 transition-colors relative" href="#">
+<span>Keyword Search</span>
+<span class="absolute bottom-0 inset-x-0 h-[2px] bg-primary-container shadow-[0_0_8px_#7c3aed]"></span>
+</a>
+<a class="font-body-md text-body-md font-medium text-outline hover:text-on-surface transition-colors flex items-center h-full pt-1" href="#">
+        Stitch Studio
+      </a>
+</nav>
+<!-- Right: Segmented Catalog Selector ONLY -->
+<div class="flex items-center">
+<div class="flex items-center bg-surface-container-lowest border border-outline-variant/40 rounded-full p-1 text-[12px] font-medium text-outline">
+<span class="px-2 text-outline-variant font-label-mono-sm text-[11px]">Catalog:</span>
+<button class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-on-surface border border-outline-variant/40 shadow-sm transition-colors text-[11px] font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span>Spotify</span>
+</button>
+<button class="px-3 py-1 rounded-full text-outline hover:text-on-surface transition-colors text-[11px]">
+          YouTube Music
+        </button>
+</div>
+</div>
+</header>
+<!-- ========================================== -->
+<!-- MAIN WORKSPACE CONTENT                     -->
+<!-- ========================================== -->
+<main class="flex-1 w-full max-w-7xl mx-auto px-6 py-6 pb-24">
+<!-- 2. Page Header / Sub-banner -->
+<div class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-outline-variant/20 pb-5">
+<div>
+<div class="flex items-center gap-3">
+<h1 class="font-headline-xl text-headline-xl tracking-tight text-on-surface font-bold">Keyword Search</h1>
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container-high border border-outline-variant/40 font-label-mono-sm text-primary text-[11px]">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+            Deep Lyric Scanner v2.4
+          </span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1.5 max-w-3xl">
+          Scan loaded playlists and candidate tracks for specific custom prohibited words, themes, or brand terms across acoustic transcriptions.
+        </p>
+</div>
+<div class="flex items-center gap-3">
+<div class="px-3 py-1.5 rounded-lg bg-surface-container-low border border-outline-variant/30 flex items-center gap-2">
+<span class="material-symbols-outlined text-[15px] text-tertiary">security</span>
+<span class="font-label-mono-sm text-[11px] text-outline">Sensitivity:</span>
+<span class="font-label-mono-sm text-[11px] text-tertiary font-bold">High (Strict Phonetic)</span>
+</div>
+</div>
+</div>
+<!-- 3. Keyword Search Bar & Target Chips Card -->
+<section class="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-6 shadow-xl relative overflow-hidden backdrop-blur-sm">
+<div class="absolute top-0 right-0 w-96 h-32 bg-primary-container/5 blur-3xl pointer-events-none"></div>
+<!-- Context status pill top bar -->
+<div class="flex items-center justify-between mb-4 pb-3 border-b border-outline-variant/20">
+<div class="flex items-center gap-2">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-tertiary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-tertiary"></span>
+</span>
+<span class="font-label-mono-md text-label-mono-md text-on-surface font-medium">
+            Searching 28 loaded tracks from Working List
+          </span>
+<span class="text-outline text-[12px]">•</span>
+<span class="font-body-sm text-body-sm text-outline">Lyrics cross-referenced</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px] text-outline">sync</span>
+<span class="font-label-mono-sm text-label-mono-sm text-outline">Synced 1m ago</span>
+</div>
+</div>
+<!-- Search input row -->
+<div class="flex items-center gap-3 mb-5">
+<div class="relative flex-1">
+<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-outline">
+<span class="material-symbols-outlined text-[18px]">search</span>
+</div>
+<input class="w-full pl-10 pr-24 py-2.5 bg-surface-container-lowest border border-outline-variant/40 rounded-xl font-body-md text-on-surface placeholder:text-outline/70 focus:outline-none focus:ring-1 focus:ring-primary-container focus:border-primary-container transition-all" placeholder="Enter custom word or phrase to hunt across all lyrics..." type="text"/>
+<div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+<kbd class="px-2 py-0.5 rounded bg-surface-container-high border border-outline-variant/40 font-label-mono-sm text-[10px] text-outline">⌘K</kbd>
+</div>
+</div>
+<button class="border border-primary-container/40 text-primary hover:bg-primary-container/20 px-5 py-2.5 rounded-xl font-body-md font-medium flex items-center gap-1.5 transition-colors active:scale-[0.98]">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>Add Keyword</span>
+</button>
+</div>
+<!-- Target Keywords Section -->
+<div>
+<div class="flex items-center justify-between mb-2.5">
+<span class="font-label-sans-bold text-label-sans-bold text-outline uppercase tracking-wider">
+            Active Target Keywords (5)
+          </span>
+<span class="font-label-mono-sm text-[11px] text-outline">Phonetic stemming active</span>
+</div>
+<!-- Removable chips container -->
+<div class="flex flex-wrap items-center gap-2 mb-6">
+<!-- Pill: money -->
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/40 text-amber-300 font-label-mono-md text-label-mono-md shadow-sm">
+<span>money</span>
+<button class="hover:bg-amber-500/20 rounded-full w-4 h-4 flex items-center justify-center text-amber-300/80 hover:text-amber-200 transition-colors" title="Remove keyword">
+<span class="text-[12px] leading-none">×</span>
+</button>
+</div>
+<!-- Pill: drugs -->
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/40 text-red-300 font-label-mono-md text-label-mono-md shadow-sm">
+<span>drugs</span>
+<button class="hover:bg-red-500/20 rounded-full w-4 h-4 flex items-center justify-center text-red-300/80 hover:text-red-200 transition-colors" title="Remove keyword">
+<span class="text-[12px] leading-none">×</span>
+</button>
+</div>
+<!-- Pill: gun -->
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/40 text-orange-300 font-label-mono-md text-label-mono-md shadow-sm">
+<span>gun</span>
+<button class="hover:bg-orange-500/20 rounded-full w-4 h-4 flex items-center justify-center text-orange-300/80 hover:text-orange-200 transition-colors" title="Remove keyword">
+<span class="text-[12px] leading-none">×</span>
+</button>
+</div>
+<!-- Pill: party -->
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-container/20 border border-primary-container/40 text-primary font-label-mono-md text-label-mono-md shadow-sm">
+<span>party</span>
+<button class="hover:bg-primary-container/30 rounded-full w-4 h-4 flex items-center justify-center text-primary/80 hover:text-white transition-colors" title="Remove keyword">
+<span class="text-[12px] leading-none">×</span>
+</button>
+</div>
+<!-- Pill: alcohol -->
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/40 text-amber-300 font-label-mono-md text-label-mono-md shadow-sm">
+<span>alcohol</span>
+<button class="hover:bg-amber-500/20 rounded-full w-4 h-4 flex items-center justify-center text-amber-300/80 hover:text-amber-200 transition-colors" title="Remove keyword">
+<span class="text-[12px] leading-none">×</span>
+</button>
+</div>
+</div>
+<!-- Action Bar -->
+<div class="flex items-center justify-between pt-4 border-t border-outline-variant/20">
+<div class="flex items-center gap-3">
+<button class="bg-primary-container hover:bg-inverse-primary text-on-primary font-headline-md text-body-lg font-semibold px-6 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-primary-container/30 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined text-[18px]">find_in_page</span>
+<span>Search Keywords Across Working List</span>
+</button>
+<button class="text-outline hover:text-on-surface font-body-md text-body-md px-3 py-2 transition-colors">
+              Clear All Keywords
+            </button>
+</div>
+<div class="flex items-center gap-2 text-outline font-label-mono-sm text-[11px]">
+<span class="material-symbols-outlined text-[14px]">tune</span>
+<span>Regex: Disabled</span>
+<span class="text-outline-variant">•</span>
+<span>Case: Insensitive</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 4. Keyword Match Results Card -->
+<section class="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-6 shadow-xl mt-6 backdrop-blur-sm">
+<!-- Header summary -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-outline-variant/20 gap-4">
+<div>
+<div class="flex items-center gap-2.5">
+<span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+<h2 class="font-headline-md text-headline-md text-on-surface font-semibold">
+              4 of 28 tracks contain target keywords
+            </h2>
+<span class="px-2 py-0.5 rounded bg-surface-container-high border border-outline-variant/40 font-label-mono-sm text-[11px] text-outline">
+              14% Flagged
+            </span>
+</div>
+<!-- Filter chips -->
+<div class="flex items-center gap-2 mt-3">
+<button class="px-3 py-1 rounded-lg bg-primary-container text-white font-label-mono-sm text-label-mono-sm font-semibold shadow-sm">
+              All Matches (4)
+            </button>
+<button class="px-3 py-1 rounded-lg bg-surface-container border border-outline-variant/30 text-amber-300 font-label-mono-sm text-label-mono-sm hover:bg-surface-container-high transition-colors">
+              money (3)
+            </button>
+<button class="px-3 py-1 rounded-lg bg-surface-container border border-outline-variant/30 text-red-300 font-label-mono-sm text-label-mono-sm hover:bg-surface-container-high transition-colors">
+              drugs (2)
+            </button>
+<button class="px-3 py-1 rounded-lg bg-surface-container border border-outline-variant/30 text-orange-300 font-label-mono-sm text-label-mono-sm hover:bg-surface-container-high transition-colors">
+              gun (1)
+            </button>
+</div>
+</div>
+<div class="flex items-center gap-2 self-start sm:self-center">
+<button class="border border-outline-variant/40 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[16px]">file_download</span>
+<span>Export Keyword Audit</span>
+</button>
+<button class="border border-outline-variant/40 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[16px]">unfold_more</span>
+<span>Expand All</span>
+</button>
+</div>
+</div>
+<!-- Expandable Track Match List -->
+<div class="divide-y divide-outline-variant/20 mt-2">
+<!-- MATCH 1 (Expanded) -->
+<div class="py-4">
+<div class="flex items-center justify-between gap-4 p-2 rounded-xl bg-surface-container-high/40 hover:bg-surface-container-high/70 transition-colors">
+<div class="flex items-center gap-3.5 flex-1 min-w-0">
+<span class="font-label-mono-md text-label-mono-md text-outline font-bold w-6 text-center">01</span>
+<!-- Album artwork placeholder -->
+<img class="w-10 h-10 rounded-md object-cover border border-outline-variant/50 shadow-sm shrink-0" data-alt="A gritty retro 90s hip-hop vinyl album cover layout displaying bold urban typography in stark black and rich athletic gold yellow, framed in an authentic weathered analog studio vinyl slipcase sleeve with subtle film grain and geometric accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkxQw6XbrEaP7MgVT3h0HQ5Q8QgBm05dWCm0vZEBbLjqnia7Or2JVrH_J9SyF5eNxhdp1zqq61S0-0qukU9KkxRvQMK7Jx1P93swYVX9N070UwF15w3deRnHx3_BltrMtImwBPLZZR4nJb7wTbcmJMpGPOe3FqTdghEti8fr1mOtVMklBsmtIr_NZAufjLZ-w1zmbUFsE9GYCs96SNpq2pANiS8ymCZRvSvMZcaxmnP26xCmLmiZ_bTOHtuXiPE8nMMHlMZQwdcsTi"/>
+<div class="min-w-0 flex-1">
+<div class="flex items-center gap-2">
+<span class="font-headline-md text-headline-md font-semibold text-on-surface truncate">C.R.E.A.M.</span>
+<span class="font-label-mono-sm text-label-mono-sm text-outline">• 4:12</span>
+</div>
+<div class="flex items-center gap-2 text-outline font-body-sm text-body-sm truncate">
+<span class="text-on-surface-variant">Wu-Tang Clan</span>
+<span>—</span>
+<span class="truncate">Enter the Wu-Tang (36 Chambers)</span>
+</div>
+</div>
+</div>
+<!-- Badges and Actions -->
+<div class="flex items-center gap-3 shrink-0">
+<span class="px-2.5 py-1 rounded bg-amber-500/15 border border-amber-500/40 text-amber-300 font-label-mono-sm text-label-mono-sm font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">bolt</span>
+<span>money: 6x</span>
+</span>
+<button class="border border-outline-variant/30 hover:bg-surface-container text-on-surface-variant hover:text-on-surface px-2.5 py-1 rounded-lg text-body-sm font-medium flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">lyrics</span>
+<span>View Lyrics</span>
+</button>
+<button class="border border-outline-variant/30 hover:bg-surface-container text-on-surface-variant hover:text-on-surface px-2.5 py-1 rounded-lg text-body-sm font-medium flex items-center gap-1 transition-colors">
+<span>Open Track</span>
+<span class="material-symbols-outlined text-[14px]">north_east</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-bright flex items-center justify-center text-on-surface transition-colors" title="Collapse view">
+<span class="material-symbols-outlined text-[16px]">keyboard_arrow_up</span>
+</button>
+</div>
+</div>
+<!-- Expanded Inset Box -->
+<div class="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-4 mt-2.5 ml-9 space-y-2.5 shadow-inner">
+<div class="flex items-center justify-between text-outline font-label-mono-sm text-[11px] pb-2 border-b border-outline-variant/15">
+<span>Timestamped Transcription Excerpts</span>
+<span>Matched Pattern: [exact: "money"]</span>
+</div>
+<!-- Excerpt line L09 -->
+<div class="flex items-baseline gap-3 text-body-sm font-body-sm text-on-surface-variant">
+<span class="font-label-mono-sm text-outline shrink-0">[L09] 0:42</span>
+<p class="leading-relaxed">
+                Cash rules everything around me, <mark class="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.5 rounded font-label-mono-sm font-bold">money</mark> get the yea
+              </p>
+</div>
+<!-- Excerpt line L17 -->
+<div class="flex items-baseline gap-3 text-body-sm font-body-sm text-on-surface-variant">
+<span class="font-label-mono-sm text-outline shrink-0">[L17] 1:18</span>
+<p class="leading-relaxed">
+                You gotta have come up with <mark class="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.5 rounded font-label-mono-sm font-bold">money</mark> in this world, young man
+              </p>
+</div>
+<!-- Excerpt line L24 -->
+<div class="flex items-baseline gap-3 text-body-sm font-body-sm text-on-surface-variant">
+<span class="font-label-mono-sm text-outline shrink-0">[L24] 2:05</span>
+<p class="leading-relaxed">
+                Dollar dollar bill y'all, get the <mark class="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.5 rounded font-label-mono-sm font-bold">money</mark> stack
+              </p>
+</div>
+</div>
+</div>
+<!-- MATCH 2 (Expanded) -->
+<div class="py-4">
+<div class="flex items-center justify-between gap-4 p-2 rounded-xl bg-surface-container-high/40 hover:bg-surface-container-high/70 transition-colors">
+<div class="flex items-center gap-3.5 flex-1 min-w-0">
+<span class="font-label-mono-md text-label-mono-md text-outline font-bold w-6 text-center">02</span>
+<!-- Album artwork placeholder -->
+<img class="w-10 h-10 rounded-md object-cover border border-outline-variant/50 shadow-sm shrink-0" data-alt="A vibrant West Coast hip-hop album cover aesthetic featuring lowrider chrome hydraulics under twilight purple and deep indigo skies, illustrated with smooth sharp vector comic line art and retro neon detailing." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3SSdS45ji4_LzcrfOl6UMjBVcn7c4jfTdPjl1pxpZ7ZxWJsg6lqUrW-26oY1-9bMOPVrYqxoGNVTbizzHd4FsThuHPp73MXly9t2a-xZX-BIrRtAqBtmtcwU7IHx1hpYRXUq1fTFRZKwlNWQsk5a2vdc95iVyPJo0xEZznU81wZlMzIcT5u10TmjDhf2Idg-6gjidDIPhqihuzLDEgvDlHHecyEmEw-7e4W6KWTiXdOVfRx-eksZTiuf-xyWCFv84KMlEaJihqhor"/>
+<div class="min-w-0 flex-1">
+<div class="flex items-center gap-2">
+<span class="font-headline-md text-headline-md font-semibold text-on-surface truncate">Gin and Juice</span>
+<span class="font-label-mono-sm text-label-mono-sm text-outline">• 3:31</span>
+</div>
+<div class="flex items-center gap-2 text-outline font-body-sm text-body-sm truncate">
+<span class="text-on-surface-variant">Snoop Dogg</span>
+<span>—</span>
+<span class="truncate">Doggystyle</span>
+</div>
+</div>
+</div>
+<!-- Badges and Actions -->
+<div class="flex items-center gap-3 shrink-0">
+<span class="px-2.5 py-1 rounded bg-amber-500/15 border border-amber-500/40 text-amber-300 font-label-mono-sm text-label-mono-sm font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">bolt</span>
+<span>money: 2x</span>
+</span>
+<span class="px-2.5 py-1 rounded bg-primary-container/20 border border-primary-container/40 text-primary font-label-mono-sm text-label-mono-sm font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">celebration</span>
+<span>party: 1x</span>
+</span>
+<button class="border border-outline-variant/30 hover:bg-surface-container text-on-surface-variant hover:text-on-surface px-2.5 py-1 rounded-lg text-body-sm font-medium flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">lyrics</span>
+<span>View Lyrics</span>
+</button>
+<button class="border border-outline-variant/30 hover:bg-surface-container text-on-surface-variant hover:text-on-surface px-2.5 py-1 rounded-lg text-body-sm font-medium flex items-center gap-1 transition-colors">
+<span>Open Track</span>
+<span class="material-symbols-outlined text-[14px]">north_east</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-bright flex items-center justify-center text-on-surface transition-colors" title="Collapse view">
+<span class="material-symbols-outlined text-[16px]">keyboard_arrow_up</span>
+</button>
+</div>
+</div>
+<!-- Expanded Inset Box -->
+<div class="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-4 mt-2.5 ml-9 space-y-2.5 shadow-inner">
+<div class="flex items-center justify-between text-outline font-label-mono-sm text-[11px] pb-2 border-b border-outline-variant/15">
+<span>Timestamped Transcription Excerpts</span>
+<span>Matched Patterns: [exact: "money", exact: "party"]</span>
+</div>
+<!-- Excerpt line L13 -->
+<div class="flex items-baseline gap-3 text-body-sm font-body-sm text-on-surface-variant">
+<span class="font-label-mono-sm text-outline shrink-0">[L13] 1:04</span>
+<p class="leading-relaxed">
+                Laid back with my mind on my <mark class="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.5 rounded font-label-mono-sm font-bold">money</mark> and my <mark class="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.5 rounded font-label-mono-sm font-bold">money</mark> on my mind
+              </p>
+</div>
+<!-- Excerpt line L28 -->
+<div class="flex items-baseline gap-3 text-body-sm font-body-sm text-on-surface-variant">
+<span class="font-label-mono-sm text-outline shrink-0">[L28] 2:19</span>
+<p class="leading-relaxed">
+                Rollin' through the hood, tonight we gonna <mark class="bg-primary-container/30 text-primary border border-primary-container/50 px-1.5 py-0.5 rounded font-label-mono-sm font-bold">party</mark> right
+              </p>
+</div>
+</div>
+</div>
+<!-- MATCH 3 (Collapsed) -->
+<div class="py-4">
+<div class="flex items-center justify-between gap-4 p-2 rounded-xl hover:bg-surface-container-high/40 transition-colors">
+<div class="flex items-center gap-3.5 flex-1 min-w-0">
+<span class="font-label-mono-md text-label-mono-md text-outline font-bold w-6 text-center">03</span>
+<!-- Album artwork placeholder -->
+<img class="w-10 h-10 rounded-md object-cover border border-outline-variant/50 shadow-sm shrink-0" data-alt="A vintage 90s Brooklyn hip-hop album cover graphic with soft monochromatic sepia photo tones, deep burgundy borders, and minimalist typography set in an authentic audio mastering studio cassette jewel case format." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAalBrU1uzxoBOWMkRzmOCIFKEZhM1Vv1hagjUdJe5Xn8cpkAbWG3Lc5ejpE9edEuSz1TZ7sY1hSlzwA3iSqeXAOoeET9tbE4DBrCmSUj7kK3q_nJ_Gfexluz68Ajz_HcdTX78rRxhY8tvTvdRV1abq0VRtD23wQxe4ovqYLYVwUbKj3m_69RdzqHNBG7BrV_8x5lWKsHrhWY3Ai7Cegd51TRWZ-p6SnrXP1CjAiO4ZQAaHUKD5H5uV4BpACczecMMSindflRvEKu6j"/>
+<div class="min-w-0 flex-1">
+<div class="flex items-center gap-2">
+<span class="font-headline-md text-headline-md font-semibold text-on-surface truncate">Juicy - Radio Edit</span>
+<span class="font-label-mono-sm text-label-mono-sm text-outline">• 4:11</span>
+<span class="px-1.5 py-0.2 rounded bg-tertiary/10 text-tertiary border border-tertiary/30 text-[10px] font-label-mono-sm">CLEAN EDIT</span>
+</div>
+<div class="flex items-center gap-2 text-outline font-body-sm text-body-sm truncate">
+<span class="text-on-surface-variant">The Notorious B.I.G.</span>
+<span>—</span>
+<span class="truncate">Ready to Die</span>
+</div>
+</div>
+</div>
+<!-- Badges and Actions -->
+<div class="flex items-center gap-3 shrink-0">
+<span class="px-2.5 py-1 rounded bg-primary-container/20 border border-primary-container/40 text-primary font-label-mono-sm text-label-mono-sm font-bold flex items-center gap-1">
+<span>party: 1x</span>
+</span>
+<button class="px-2.5 py-1 rounded bg-surface-container border border-outline-variant/30 text-outline hover:text-on-surface text-body-sm font-medium flex items-center gap-1 transition-colors">
+<span>1 matching line</span>
+<span class="material-symbols-outlined text-[14px]">arrow_drop_down</span>
+</button>
+<button class="border border-outline-variant/30 hover:bg-surface-container text-on-surface-variant hover:text-on-surface px-2.5 py-1 rounded-lg text-body-sm font-medium flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">lyrics</span>
+<span>View Lyrics</span>
+</button>
+<button class="border border-outline-variant/30 hover:bg-surface-container text-on-surface-variant hover:text-on-surface px-2.5 py-1 rounded-lg text-body-sm font-medium flex items-center gap-1 transition-colors">
+<span>Open Track</span>
+<span class="material-symbols-outlined text-[14px]">north_east</span>
+</button>
+</div>
+</div>
+</div>
+<!-- MATCH 4 (Collapsed) -->
+<div class="py-4">
+<div class="flex items-center justify-between gap-4 p-2 rounded-xl hover:bg-surface-container-high/40 transition-colors">
+<div class="flex items-center gap-3.5 flex-1 min-w-0">
+<span class="font-label-mono-md text-label-mono-md text-outline font-bold w-6 text-center">04</span>
+<!-- Album artwork placeholder -->
+<img class="w-10 h-10 rounded-md object-cover border border-outline-variant/50 shadow-sm shrink-0" data-alt="An atmospheric California sunset over palm trees silhouettes in dusty bronze, violet, and deep slate hues, stylized with subtle studio audio waveform graphic overlays and 90s dual-disc CD album artwork framing." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA48Po1VwZYqIn_RL6c6sGMMVUiNLxgWB0fieNI7Fqf6TvU0pDRCMj18jtWZY0zvPiI0YX0sIhxdrQUJsnzpBPEF31RWYnYZ1J01rRlGJO4UCf8LiaNxMmXNCJfZPf9FQTC5fsvcZsnb-j-TnkvUMxKXSc6763XEiGyBOMmkmZAe3qIYn7-cNXWJLR6C_QQsfusq9nmlOG4apCQ7CkHEADLU2-Fi7i-nPOZpDtuRKTYE_6FfPT3j4Tk3-ysqPGpQ_PUALr2ct1FrISy"/>
+<div class="min-w-0 flex-1">
+<div class="flex items-center gap-2">
+<span class="font-headline-md text-headline-md font-semibold text-on-surface truncate">California Love (Clean Edit)</span>
+<span class="font-label-mono-sm text-label-mono-sm text-outline">• 4:45</span>
+<span class="px-1.5 py-0.2 rounded bg-tertiary/10 text-tertiary border border-tertiary/30 text-[10px] font-label-mono-sm">CLEAN EDIT</span>
+</div>
+<div class="flex items-center gap-2 text-outline font-body-sm text-body-sm truncate">
+<span class="text-on-surface-variant">2Pac, Dr. Dre</span>
+<span>—</span>
+<span class="truncate">All Eyez on Me</span>
+</div>
+</div>
+</div>
+<!-- Badges and Actions -->
+<div class="flex items-center gap-3 shrink-0">
+<span class="px-2.5 py-1 rounded bg-primary-container/20 border border-primary-container/40 text-primary font-label-mono-sm text-label-mono-sm font-bold flex items-center gap-1">
+<span>party: 2x</span>
+</span>
+<span class="px-2.5 py-1 rounded bg-red-500/15 border border-red-500/40 text-red-300 font-label-mono-sm text-label-mono-sm font-bold flex items-center gap-1">
+<span>drugs: 1x</span>
+</span>
+<button class="px-2.5 py-1 rounded bg-surface-container border border-outline-variant/30 text-outline hover:text-on-surface text-body-sm font-medium flex items-center gap-1 transition-colors">
+<span>2 matching lines</span>
+<span class="material-symbols-outlined text-[14px]">arrow_drop_down</span>
+</button>
+<button class="border border-outline-variant/30 hover:bg-surface-container text-on-surface-variant hover:text-on-surface px-2.5 py-1 rounded-lg text-body-sm font-medium flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">lyrics</span>
+<span>View Lyrics</span>
+</button>
+<button class="border border-outline-variant/30 hover:bg-surface-container text-on-surface-variant hover:text-on-surface px-2.5 py-1 rounded-lg text-body-sm font-medium flex items-center gap-1 transition-colors">
+<span>Open Track</span>
+<span class="material-symbols-outlined text-[14px]">north_east</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- ========================================== -->
+<!-- 5. FOOTER BAR / STATUS STRIP               -->
+<!-- ========================================== -->
+<footer class="fixed bottom-0 inset-x-0 h-10 bg-surface-container-lowest/90 backdrop-blur-md border-t border-outline-variant/30 px-6 flex items-center justify-between z-40 text-outline font-label-mono-sm text-[11px]">
+<div class="flex items-center gap-3">
+<span class="inline-flex items-center gap-1.5 text-tertiary">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span>Engine: Keyword Hunter v2.4</span>
+</span>
+<span class="text-outline-variant">•</span>
+<span>28/28 Transcriptions Scanned</span>
+<span class="text-outline-variant">•</span>
+<span class="text-on-surface">0 False Negatives</span>
+<span class="text-outline-variant">•</span>
+<span>Latency 18ms</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-outline hover:text-primary transition-colors flex items-center gap-1 font-body-sm">
+<span class="material-symbols-outlined text-[14px]">flag</span>
+<span>Bulk Flag Tracks</span>
+</button>
+<span class="text-outline-variant">•</span>
+<button class="text-outline hover:text-on-surface transition-colors flex items-center gap-1 font-body-sm">
+<span class="material-symbols-outlined text-[14px]">content_copy</span>
+<span>Copy Report Links</span>
+</button>
+</div>
+</footer>
+</body></html>
