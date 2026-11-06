@@ -78,7 +78,7 @@ describe('App Header & Platform Switch Integration', () => {
     });
 
     // Populate working list by fetching a playlist
-    const urlInput = screen.getByPlaceholderText(/playlist/i);
+    const urlInput = screen.getByPlaceholderText(/e\.g\. https/i);
     await user.type(urlInput, 'https://open.spotify.com/playlist/test123');
     await user.click(screen.getByRole('button', { name: /load playlist/i }));
 
