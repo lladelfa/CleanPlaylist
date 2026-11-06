@@ -235,4 +235,25 @@ describe('SmartInputBar', () => {
 
     expect(handleAddAlbum).toHaveBeenCalledWith(mockAlbums[0]);
   });
+
+  it('intercepts multi-line paste and delegates to onOpenPastePanel', async () => {
+    const handleOpenPastePanel = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <SmartInputBar
+        activePlatform="spotify"
+        onAddSong={vi.fn()}
+        onAddAlbum={vi.fn()}
+        onOpenPastePanel={handleOpenPastePanel}
+      />
+    );
+
+    const input = screen.getByPlaceholderText(/search songs or albums/i);
+    await user.click(input);
+    await user.paste('Song One\nSong Two');
+
+    expect(handleOpenPastePanel).toHaveBeenCalledWith('Song One\nSong Two');
+    expect(input.value).toBe('');
+  });
 });

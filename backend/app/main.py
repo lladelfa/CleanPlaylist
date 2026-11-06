@@ -1,6 +1,7 @@
 """Main FastAPI application for CleanPlaylist."""
 
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -79,6 +80,19 @@ class CatalogAlbumResponse(BaseModel):
     thumbnail: Optional[str] = None
     track_count: int
     tracks: List[TrackScanItem]
+
+class CatalogResolveRequest(BaseModel):
+    lines: List[str] = Field(default_factory=list, max_length=50)
+    platform: Optional[str] = "ytmusic"
+
+class UnresolvedLineItem(BaseModel):
+    line: str
+    reason: str
+    target_platform: Optional[str] = None
+
+class CatalogResolveResponse(BaseModel):
+    resolved: List[TrackScanItem]
+    unresolved: List[UnresolvedLineItem]
 
 class PlaylistFetchRequest(BaseModel):
     url_or_id: str
@@ -177,6 +191,105 @@ def get_catalog_album(req: CatalogAlbumRequest):
         "track_count": result.get("track_count", len(result.get("tracks", []))),
         "tracks": [TrackScanItem(**t) for t in result.get("tracks", [])],
     }
+
+@app.post("/api/catalog/resolve", response_model=CatalogResolveResponse)
+def resolve_catalog_lines(req: CatalogResolveRequest):
+    if len(req.lines) > 50:
+        raise HTTPException(status_code=400, detail="Cannot resolve more than 50 lines at once.")
+    platform = req.platform or "ytmusic"
+    resolved: List[TrackScanItem] = []
+    unresolved: List[UnresolvedLineItem] = []
+
+    for raw_line in req.lines:
+        line = (raw_line or "").strip()
+        if not line:
+            continue
+
+        lower_line = line.lower()
+        is_spotify = "spotify.com" in lower_line or lower_line.startswith("spotify:")
+        is_ytm = (
+            "music.youtube.com" in lower_line
+            or "youtube.com" in lower_line
+            or "youtu.be" in lower_line
+        )
+
+        if platform == "spotify":
+            if is_ytm:
+                unresolved.append(
+                    UnresolvedLineItem(
+                        line=line,
+                        reason="wrong_platform",
+                        target_platform="ytmusic",
+                    )
+                )
+                continue
+            is_spotify_track = (
+                bool(re.search(r"spotify\.com/(?:intl-[a-zA-Z-]+/)?track/", lower_line))
+                or lower_line.startswith("spotify:track:")
+            )
+            if is_spotify_track:
+                try:
+                    track_data = spotify_service.resolve_track(line)
+                    resolved.append(TrackScanItem(**track_data))
+                except Exception:
+                    unresolved.append(
+                        UnresolvedLineItem(line=line, reason="not_found")
+                    )
+                continue
+            # Text line search fallback
+            try:
+                search_res = spotify_service.search_catalog(query=line, limit=1)
+                songs = search_res.get("songs", [])
+                if songs:
+                    resolved.append(TrackScanItem(**songs[0]))
+                else:
+                    unresolved.append(
+                        UnresolvedLineItem(line=line, reason="not_found")
+                    )
+            except Exception:
+                unresolved.append(
+                    UnresolvedLineItem(line=line, reason="not_found")
+                )
+        else:
+            # platform == "ytmusic"
+            if is_spotify:
+                unresolved.append(
+                    UnresolvedLineItem(
+                        line=line,
+                        reason="wrong_platform",
+                        target_platform="spotify",
+                    )
+                )
+                continue
+            if (
+                "music.youtube.com/watch" in lower_line
+                or "youtube.com/watch" in lower_line
+                or "youtu.be/" in lower_line
+            ):
+                try:
+                    track_data = ytmusic_service.resolve_track(line)
+                    resolved.append(TrackScanItem(**track_data))
+                except Exception:
+                    unresolved.append(
+                        UnresolvedLineItem(line=line, reason="not_found")
+                    )
+                continue
+            # Text line search fallback
+            try:
+                search_res = ytmusic_service.search_catalog(query=line, limit=1)
+                songs = search_res.get("songs", [])
+                if songs:
+                    resolved.append(TrackScanItem(**songs[0]))
+                else:
+                    unresolved.append(
+                        UnresolvedLineItem(line=line, reason="not_found")
+                    )
+            except Exception:
+                unresolved.append(
+                    UnresolvedLineItem(line=line, reason="not_found")
+                )
+
+    return {"resolved": resolved, "unresolved": unresolved}
 
 @app.post("/api/playlist/fetch")
 def fetch_playlist(req: PlaylistFetchRequest, request: Request, response: Response):

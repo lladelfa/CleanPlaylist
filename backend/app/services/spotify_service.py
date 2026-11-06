@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import time
 import hmac
@@ -193,6 +194,18 @@ class SpotifyService:
         if response is not None:
             self.clear_session_cookie(response)
         self.sp = None
+
+    @staticmethod
+    def extract_track_id(url_or_id: str) -> str:
+        raw = (url_or_id or "").strip()
+        match = re.search(r"spotify\.com/(?:intl-[a-zA-Z-]+/)?track/([a-zA-Z0-9_-]+)", raw)
+        if match:
+            return match.group(1)
+        if "spotify.com/track/" in raw:
+            return raw.split("spotify.com/track/")[-1].split("?")[0].split("/")[0]
+        if raw.startswith("spotify:track:"):
+            return raw.split(":")[-1]
+        return raw
 
     @staticmethod
     def extract_album_id(url_or_id: str) -> str:
@@ -560,6 +573,44 @@ class SpotifyService:
             "thumbnail": thumbnail,
             "track_count": album.get("total_tracks", len(tracks)),
             "tracks": tracks,
+        }
+
+    def resolve_track(self, track_id: str) -> Dict[str, Any]:
+        clean_id = self.extract_track_id(track_id)
+        if not clean_id:
+            raise ValueError("Invalid Spotify track ID.")
+        sp = self.get_catalog_client()
+        try:
+            track = sp.track(clean_id)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise ValueError(f"Could not load Spotify track '{clean_id}': {e}")
+
+        if not track or not isinstance(track, dict) or "id" not in track:
+            raise ValueError(f"No metadata found for Spotify track '{clean_id}'")
+
+        artists = [(a.get("name") or "Unknown") for a in track.get("artists", []) if isinstance(a, dict)]
+        album_info = track.get("album") or {}
+        images = album_info.get("images") or []
+        thumbnail = images[0]["url"] if images and isinstance(images[0], dict) else None
+        duration_ms = track.get("duration_ms", 0)
+        duration_sec = duration_ms // 1000
+        m, s = divmod(duration_sec, 60)
+
+        return {
+            "id": track["id"],
+            "title": track.get("name", "Unknown"),
+            "artist": ", ".join(artists) or "Unknown Artist",
+            "artists_list": artists,
+            "album": album_info.get("name", ""),
+            "duration": f"{m}:{s:02d}",
+            "duration_seconds": duration_sec,
+            "is_explicit": track.get("explicit", False),
+            "thumbnail": thumbnail,
+            "video_url": (track.get("external_urls") or {}).get("spotify", f"https://open.spotify.com/track/{track['id']}"),
+            "verification_status": "unscanned",
+            "source_platform": "spotify",
         }
 
 spotify_service = SpotifyService()

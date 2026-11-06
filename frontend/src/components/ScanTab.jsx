@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Search,
   AlertCircle,
@@ -21,6 +21,8 @@ import SavePlaylistModal from "./SavePlaylistModal";
 import PlaylistPickerModal from "./PlaylistPickerModal";
 import SmartInputBar from "./SmartInputBar";
 import NoticeBanner from "./NoticeBanner";
+import PasteTrackListPanel from "./PasteTrackListPanel";
+import PlatformSwitchModal from "./PlatformSwitchModal";
 
 export default function ScanTab({
   playlist,
@@ -28,7 +30,7 @@ export default function ScanTab({
   scannedTracks,
   setScannedTracks,
   workingList = [],
-  _setWorkingList,
+  setWorkingList,
   onOpenLyrics,
   customBlocklist,
   setCustomBlocklist,
@@ -37,6 +39,8 @@ export default function ScanTab({
   isAuthenticated,
   onOpenAuth,
   activePlatform = "spotify",
+  onSwitchPlatform,
+  onRequestPlatformChange,
 }) {
   const [urlInput, setUrlInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -52,11 +56,22 @@ export default function ScanTab({
 
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isPickerModalOpen, setIsPickerModalOpen] = useState(false);
+  const [isPasteOpen, setIsPasteOpen] = useState(false);
+  const [pasteInitialText, setPasteInitialText] = useState('');
+  const [isResolvingPaste, setIsResolvingPaste] = useState(false);
+  const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
+  const [pendingPlatform, setPendingPlatform] = useState(null);
+
+  const currentTracks = workingList && workingList.length > 0 ? workingList : scannedTracks;
+  const currentTracksRef = useRef(currentTracks);
+  useEffect(() => {
+    currentTracksRef.current = workingList && workingList.length > 0 ? workingList : scannedTracks;
+  }, [workingList, scannedTracks]);
 
   const handleAddSong = (song) => {
-    const currentTracks = workingList && workingList.length > 0 ? workingList : scannedTracks;
+    const activeTracks = currentTracksRef.current;
 
-    if (currentTracks.some((t) => t.id === song.id)) {
+    if (activeTracks.some((t) => t.id === song.id)) {
       setActiveNotice({
         type: "caution",
         message: `"${song.title}" is already in Working List.`,
@@ -64,7 +79,7 @@ export default function ScanTab({
       return;
     }
 
-    if (currentTracks.length >= 50) {
+    if (activeTracks.length >= 50) {
       setActiveNotice({
         type: "caution",
         message: "Working list is at capacity (50 tracks maximum).",
@@ -128,8 +143,8 @@ export default function ScanTab({
       }
 
       const data = await res.json();
-      const currentTracks = workingList && workingList.length > 0 ? workingList : scannedTracks;
-      const remaining = 50 - currentTracks.length;
+      const activeTracks = currentTracksRef.current;
+      const remaining = 50 - activeTracks.length;
 
       if (remaining <= 0) {
         setActiveNotice({
@@ -140,7 +155,7 @@ export default function ScanTab({
       }
 
       const rawTracks = data.tracks || [];
-      const existingIds = new Set(currentTracks.map((t) => t.id));
+      const existingIds = new Set(activeTracks.map((t) => t.id));
       const dedupedTracks = rawTracks.filter((t) => !existingIds.has(t.id));
 
       if (dedupedTracks.length === 0) {
@@ -169,6 +184,7 @@ export default function ScanTab({
         const omittedCount = normalizedTracks.length - remaining;
 
         setScannedTracks((prev) => [...prev, ...toAdd]);
+      currentTracksRef.current = [...activeTracks, ...toAdd];
 
         if (!playlist) {
           setPlaylist({
@@ -214,6 +230,160 @@ export default function ScanTab({
       setActiveNotice({
         type: "error",
         message: err.message || "Failed to load album tracks",
+      });
+    }
+  };
+
+  const handleOpenPastePanel = (initialText = "") => {
+    setPasteInitialText(typeof initialText === "string" ? initialText : "");
+    setIsPasteOpen(true);
+  };
+
+  const handleTriggerPlatformSwitch = (targetPlatform) => {
+    if (onRequestPlatformChange) {
+      onRequestPlatformChange(targetPlatform);
+      return;
+    }
+    const activeTracks = currentTracksRef.current;
+    if (activeTracks && activeTracks.length > 0) {
+      setPendingPlatform(targetPlatform);
+      setIsSwitchModalOpen(true);
+    } else {
+      if (onSwitchPlatform) onSwitchPlatform(targetPlatform);
+    }
+  };
+
+  const handleConfirmPlatformSwitch = () => {
+    setScannedTracks([]);
+    if (setWorkingList) setWorkingList([]);
+    setPlaylist(null);
+    setIsSwitchModalOpen(false);
+    if (onSwitchPlatform) onSwitchPlatform(pendingPlatform);
+    setPendingPlatform(null);
+  };
+
+  const handleCancelPlatformSwitch = () => {
+    setIsSwitchModalOpen(false);
+    setPendingPlatform(null);
+  };
+
+  const handleResolvePaste = async (linesToResolve) => {
+    if (!linesToResolve || linesToResolve.length === 0) return;
+
+    const activeTracks = currentTracksRef.current;
+    const remainingSlots = 50 - activeTracks.length;
+    if (remainingSlots <= 0) {
+      setActiveNotice({
+        type: "caution",
+        message: "Working list is at capacity (50 tracks maximum).",
+      });
+      return;
+    }
+
+    setIsResolvingPaste(true);
+
+    const BATCH_SIZE = 15;
+    const chunks = [];
+    for (let i = 0; i < linesToResolve.length; i += BATCH_SIZE) {
+      chunks.push(linesToResolve.slice(i, i + BATCH_SIZE));
+    }
+
+    const allResolved = [];
+    const allUnresolved = [];
+
+    try {
+      for (const chunk of chunks) {
+        const res = await fetch("/api/catalog/resolve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lines: chunk,
+            platform: activePlatform,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.resolved)) {
+            allResolved.push(...data.resolved);
+          }
+          if (Array.isArray(data.unresolved)) {
+            allUnresolved.push(...data.unresolved);
+          }
+        } else {
+          chunk.forEach((l) => allUnresolved.push({ line: l, reason: "error" }));
+        }
+      }
+    } catch (err) {
+      console.error("Paste resolution error:", err);
+    } finally {
+      setIsResolvingPaste(false);
+      setIsPasteOpen(false);
+    }
+
+    const existingIds = new Set(activeTracks.map((t) => t.id));
+
+    const seenIds = new Set(existingIds);
+    const dedupedResolved = allResolved.filter((t) => !seenIds.has(t.id) && seenIds.add(t.id));
+
+    let toAdd = [];
+    if (dedupedResolved.length > 0 && remainingSlots > 0) {
+      toAdd = dedupedResolved.slice(0, remainingSlots).map((t) => ({
+        ...t,
+        verification_status: "unscanned",
+        source_platform: activePlatform,
+        is_flagged: Boolean(t.is_explicit),
+        reasons: t.is_explicit
+          ? [`Marked Explicit by ${activePlatform === "spotify" ? "Spotify" : "YouTube Music"}`]
+          : [],
+        detected_terms: [],
+        snippets: [],
+        has_lyrics: false,
+      }));
+
+      setScannedTracks((prev) => [...prev, ...toAdd]);
+
+      if (!playlist) {
+        setPlaylist({
+          id: "working_list",
+          title: "Working List",
+          author: "User",
+          tracks: toAdd,
+        });
+      } else {
+        setPlaylist((prev) => ({
+          ...prev,
+          tracks: [...(prev.tracks || []), ...toAdd],
+        }));
+      }
+    }
+
+    const wrongPlatformItems = allUnresolved.filter((item) => item.reason === "wrong_platform");
+    const failedItems = allUnresolved.filter((item) => item.reason !== "wrong_platform");
+    if (wrongPlatformItems.length > 0) {
+      const targetPlatform = wrongPlatformItems[0].target_platform || (activePlatform === "spotify" ? "ytmusic" : "spotify");
+      const targetLabel = targetPlatform === "spotify" ? "Spotify" : "YouTube Music";
+
+      setActiveNotice({
+        type: "caution",
+        message: `${wrongPlatformItems.length} track URL${wrongPlatformItems.length > 1 ? "s are" : " is"} for ${targetLabel} and ${wrongPlatformItems.length > 1 ? "were" : "was"} skipped.`,
+        actionLabel: `Switch to ${targetLabel}`,
+        onAction: () => handleTriggerPlatformSwitch(targetPlatform),
+      });
+    } else if (allResolved.length === 0 && allUnresolved.length > 0) {
+      setActiveNotice({
+        type: "caution",
+        message: "No matching tracks could be resolved from the pasted list.",
+      });
+    } else if (failedItems.length > 0) {
+      setActiveNotice({
+        type: "caution",
+        message: `Added ${toAdd.length} track${toAdd.length !== 1 ? "s" : ""}. ${failedItems.length} line${failedItems.length !== 1 ? "s" : ""} could not be resolved.`,
+      });
+    } else if (dedupedResolved.length > remainingSlots) {
+      setActiveNotice({
+        type: "caution",
+        message: `Added ${remainingSlots} tracks. Working list capped at 50 tracks (${dedupedResolved.length - remainingSlots} tracks omitted).`,
       });
     }
   };
@@ -447,6 +617,16 @@ export default function ScanTab({
         activePlatform={activePlatform}
         onAddSong={handleAddSong}
         onAddAlbum={handleAddAlbum}
+        onOpenPastePanel={handleOpenPastePanel}
+      />
+
+      {/* 1.1 Paste Track List Panel */}
+      <PasteTrackListPanel
+        isOpen={isPasteOpen}
+        initialText={pasteInitialText}
+        onClose={() => setIsPasteOpen(false)}
+        onResolve={handleResolvePaste}
+        isLoading={isResolvingPaste}
       />
 
       {/* Legacy / Direct Playlist Input Bar */}
@@ -903,6 +1083,15 @@ export default function ScanTab({
           handleFetchPlaylist(selectedUrl);
         }}
       />
+
+      {!onRequestPlatformChange && (
+        <PlatformSwitchModal
+          isOpen={isSwitchModalOpen}
+          targetPlatform={pendingPlatform}
+          onConfirm={handleConfirmPlatformSwitch}
+          onCancel={handleCancelPlatformSwitch}
+        />
+      )}
     </div>
   );
 }

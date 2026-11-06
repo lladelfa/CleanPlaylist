@@ -11,6 +11,17 @@ class YTMusicService:
         self._lyrics_cache: Dict[str, Optional[str]] = {}
 
     @staticmethod
+    def extract_track_id(url_or_id: str) -> str:
+        raw = (url_or_id or "").strip()
+        match_short = re.search(r"youtu\.be/([a-zA-Z0-9_-]+)", raw)
+        if match_short:
+            return match_short.group(1).split("?")[0]
+        match_watch = re.search(r"[?&]v=([a-zA-Z0-9_-]+)", raw)
+        if match_watch:
+            return match_watch.group(1)
+        return raw
+
+    @staticmethod
     def extract_album_id(url_or_id: str) -> str:
         raw = url_or_id.strip()
         match = re.search(r"[?&]list=([a-zA-Z0-9_-]+)", raw)
@@ -336,6 +347,49 @@ class YTMusicService:
             "thumbnail": cover_image,
             "track_count": track_count,
             "tracks": tracks,
+        }
+
+    def resolve_track(self, video_id: str) -> Dict[str, Any]:
+        clean_id = self.extract_track_id(video_id)
+        if not clean_id:
+            raise ValueError("Invalid YouTube Music track ID.")
+        try:
+            raw = self.yt.get_song(clean_id)
+        except Exception as e:
+            raise ValueError(f"Could not load YouTube Music song '{clean_id}': {e}")
+
+        status = (raw.get("playabilityStatus") or {}).get("status")
+        if status and status != "OK":
+            raise ValueError(f"YouTube Music track '{clean_id}' is not playable: {status}")
+
+        details = raw.get("videoDetails") or {}
+        if not details or not details.get("title"):
+            raise ValueError(f"No metadata found for YouTube Music song '{clean_id}'")
+
+        author = details.get("author") or "Unknown Artist"
+        try:
+            duration_sec = int(details.get("lengthSeconds") or 0)
+        except (ValueError, TypeError):
+            duration_sec = 0
+        m, s = divmod(duration_sec, 60)
+        duration_text = f"{m}:{s:02d}"
+
+        thumbs = (details.get("thumbnail") or {}).get("thumbnails", [])
+        thumb = thumbs[-1]["url"] if thumbs else None
+
+        return {
+            "id": clean_id,
+            "title": details.get("title", "Untitled Track"),
+            "artist": author,
+            "artists_list": [author],
+            "album": "",
+            "duration": duration_text,
+            "duration_seconds": duration_sec,
+            "is_explicit": False,
+            "thumbnail": thumb,
+            "video_url": f"https://music.youtube.com/watch?v={clean_id}",
+            "verification_status": "unscanned",
+            "source_platform": "ytmusic",
         }
 
 ytmusic_service = YTMusicService()

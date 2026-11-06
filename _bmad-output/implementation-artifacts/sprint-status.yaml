@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 11-06-2026 10:39
-last_updated: 11-06-2026 15:00
+last_updated: 11-06-2026 15:40
 project: CleanPlaylist
 project_key: NOKEY
 tracking_system: file-system
@@ -39,8 +39,8 @@ development_status:
   1-1-project-foundation-dependency-hygiene-obsidian-design-tokens: done
   1-2-dual-catalog-backend-search-album-loading-sliced-playlist-fe: done
   1-3-unified-header-active-platform-context-atomic-switch-confirm: done
-  1-4-smart-input-bar-catalog-preview-tray-instant-staging: review
-  1-5-multi-line-pasted-track-list-import-cross-platform-url-guard: backlog
+  1-4-smart-input-bar-catalog-preview-tray-instant-staging: done
+  1-5-multi-line-pasted-track-list-import-cross-platform-url-guard: review
   1-6-public-spotify-playlist-helper-responsive-working-list-workb: backlog
   epic-1-retrospective: optional
 
