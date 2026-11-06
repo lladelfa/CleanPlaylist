@@ -110,6 +110,17 @@ export default function SmartInputBar({
     }
   };
 
+  const handlePaste = (e) => {
+    const pasted = e.clipboardData?.getData('text') || '';
+    if (pasted.includes('\n')) {
+      e.preventDefault();
+      handleClear();
+      if (onOpenPastePanel) {
+        onOpenPastePanel(pasted);
+      }
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -160,6 +171,7 @@ export default function SmartInputBar({
             value={query}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             aria-label="Search catalog or paste"
             aria-expanded={isTrayOpen}
             aria-controls="catalog-matches-tray"
@@ -190,7 +202,7 @@ export default function SmartInputBar({
         {onOpenPastePanel && (
           <button
             type="button"
-            onClick={onOpenPastePanel}
+            onClick={() => onOpenPastePanel && onOpenPastePanel('')}
             aria-label="Paste Track List"
             className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-surface-elevated hover:bg-surface-highest border border-border-subtle rounded-lg text-sm font-medium text-text-primary hover:text-brand-tint transition-all whitespace-nowrap active:scale-[0.98]"
           >

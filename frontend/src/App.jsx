@@ -137,6 +137,8 @@ export default function App() {
             isAuthenticated={isAuthenticated}
             onOpenAuth={handleLogin}
             activePlatform={activePlatform}
+            onSwitchPlatform={setActivePlatform}
+            onRequestPlatformChange={handleRequestPlatformChange}
           />
         )}
 
