@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CleanPlaylist Studio - Stitch Studio</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "primary-fixed-dim": "#d2bbff",
+            "on-secondary-container": "#b0b2ff",
+            "on-primary-fixed-variant": "#5a00c6",
+            "on-tertiary-fixed-variant": "#005236",
+            "outline-variant": "#4a4455",
+            "tertiary-container": "#007650",
+            "on-secondary-fixed-variant": "#2f2ebe",
+            "on-background": "#dce1fb",
+            "outline": "#958da1",
+            "secondary-fixed-dim": "#c0c1ff",
+            "primary-fixed": "#eaddff",
+            "primary-container": "#7c3aed",
+            "on-primary": "#3f008e",
+            "error-container": "#93000a",
+            "tertiary": "#4edea3",
+            "on-tertiary-container": "#76ffc2",
+            "secondary-fixed": "#e1e0ff",
+            "inverse-surface": "#dce1fb",
+            "inverse-primary": "#732ee4",
+            "surface-dim": "#0c1324",
+            "tertiary-fixed-dim": "#4edea3",
+            "surface-tint": "#d2bbff",
+            "surface-container": "#191f31",
+            "surface-container-highest": "#2e3447",
+            "on-tertiary-fixed": "#002113",
+            "inverse-on-surface": "#2a3043",
+            "on-surface": "#dce1fb",
+            "tertiary-fixed": "#6ffbbe",
+            "surface-container-lowest": "#070d1f",
+            "surface": "#0c1324",
+            "on-secondary": "#1000a9",
+            "surface-container-low": "#151b2d",
+            "on-primary-container": "#ede0ff",
+            "surface-bright": "#33394c",
+            "on-surface-variant": "#ccc3d8",
+            "on-primary-fixed": "#25005a",
+            "error": "#ffb4ab",
+            "surface-variant": "#2e3447",
+            "surface-container-high": "#23293c",
+            "on-secondary-fixed": "#07006c",
+            "on-error": "#690005",
+            "secondary-container": "#3131c0",
+            "on-tertiary": "#003824"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "margin-desktop": "1.5rem",
+            "space-md": "0.75rem",
+            "space-sm": "0.5rem",
+            "space-xs": "0.25rem",
+            "space-xl": "2rem",
+            "space-lg": "1.25rem",
+            "margin": "1rem",
+            "gutter": "1rem",
+            "gutter-desktop": "1.25rem"
+          },
+          "fontFamily": {
+            "headline-xl": ["Plus Jakarta Sans"],
+            "body-lg": ["Plus Jakarta Sans"],
+            "body-sm": ["Plus Jakarta Sans"],
+            "label-mono-sm": ["JetBrains Mono"],
+            "label-mono-md": ["JetBrains Mono"],
+            "label-sans-bold": ["Plus Jakarta Sans"],
+            "headline-md": ["Plus Jakarta Sans"],
+            "body-md": ["Plus Jakarta Sans"],
+            "headline-lg": ["Plus Jakarta Sans"],
+            "headline-xl-mobile": ["Plus Jakarta Sans"]
+          },
+          "fontSize": {
+            "headline-xl": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.005em", "fontWeight": "500" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-mono-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "400" }],
+            "label-mono-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "label-sans-bold": ["11px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "700" }],
+            "headline-md": ["18px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "headline-xl-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "700" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #070d1f;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #23293c;
+      border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #4a4455;
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface min-h-screen antialiased selection:bg-primary-container selection:text-on-primary-container">
+<!-- ==================== 1. STICKY GLOBAL HEADER ==================== -->
+<header class="sticky top-0 z-40 w-full h-14 px-4 flex items-center justify-between gap-4 border-b border-outline-variant/30 bg-surface/95 backdrop-blur-md">
+<!-- Left: Brand / Studio Identity -->
+<div class="flex items-center gap-3 shrink-0">
+<div class="w-8 h-8 rounded bg-primary-container flex items-center justify-center text-on-primary shadow-sm shadow-primary-container/20">
+<span class="material-symbols-outlined text-lg" data-icon="graphic_eq">graphic_eq</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-headline-md font-headline-md font-bold tracking-tight text-on-surface">CleanPlaylist</span>
+<span class="px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm tracking-wider uppercase font-semibold bg-surface-container-highest text-primary border border-outline-variant/40">Studio</span>
+</div>
+</div>
+<!-- Center Navigation Tabs -->
+<nav class="hidden md:flex items-center gap-6 h-full">
+<a class="text-outline hover:text-on-surface font-body-md text-body-md font-medium py-4 transition-colors" href="#">Scan &amp; Clean</a>
+<a class="text-outline hover:text-on-surface font-body-md text-body-md font-medium py-4 transition-colors" href="#">Keyword Search</a>
+<a class="text-primary border-b-2 border-primary font-body-md text-body-md font-semibold py-4 flex items-center gap-1.5" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="merge_type">merge_type</span>
+        Stitch Studio
+      </a>
+<a class="text-outline hover:text-on-surface font-body-md text-body-md font-medium py-4 transition-colors" href="#">Screening Rules</a>
+<a class="text-outline hover:text-on-surface font-body-md text-body-md font-medium py-4 transition-colors" href="#">Export History</a>
+</nav>
+<!-- Right Section: Source Switcher & Profile -->
+<div class="flex items-center gap-3 shrink-0">
+<!-- Catalog pill toggle -->
+<div class="flex items-center bg-surface-container-lowest p-0.5 rounded-lg border border-outline-variant/40">
+<button class="px-2.5 py-1 text-label-mono-sm font-label-mono-sm text-outline hover:text-on-surface rounded transition-colors flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-outline/60"></span>
+          Spotify
+        </button>
+<button class="px-2.5 py-1 text-label-mono-sm font-label-mono-sm rounded bg-surface-container-highest text-primary font-semibold border border-primary/40 flex items-center gap-1.5 shadow-sm shadow-primary/10">
+<span class="material-symbols-outlined text-red-500 text-sm" data-icon="play_circle">play_circle</span>
+          YouTube Music
+        </button>
+</div>
+<div class="h-4 w-px bg-outline-variant/30 hidden sm:block"></div>
+<!-- Action Icons -->
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 rounded flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors" title="Notifications">
+<span class="material-symbols-outlined text-base" data-icon="notifications">notifications</span>
+</button>
+<button class="w-8 h-8 rounded flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors" title="Settings">
+<span class="material-symbols-outlined text-base" data-icon="settings">settings</span>
+</button>
+<button class="w-8 h-8 rounded flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors" title="Help Guide">
+<span class="material-symbols-outlined text-base" data-icon="help_outline">help_outline</span>
+</button>
+</div>
+<!-- User Avatar / Role -->
+<div class="flex items-center gap-2 pl-1 border-l border-outline-variant/30">
+<div class="w-7 h-7 rounded-full bg-primary-container/80 text-on-primary flex items-center justify-center font-label-sans-bold text-xs tracking-wider">
+          ED
+        </div>
+<div class="hidden xl:flex flex-col">
+<span class="text-body-sm font-body-sm font-semibold text-on-surface leading-none">Curator Edu</span>
+<span class="text-[10px] text-tertiary font-label-mono-sm leading-tight">Verified Staff</span>
+</div>
+</div>
+</div>
+</header>
+<!-- ==================== MAIN WORKSPACE ==================== -->
+<main class="max-w-[1480px] mx-auto px-4 sm:px-6 py-6 space-y-6">
+<!-- ==================== 2. PAGE HEADER & INPUT QUOTA ==================== -->
+<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-sm">
+<div class="space-y-1.5">
+<div class="flex items-center flex-wrap gap-2.5">
+<h1 class="text-headline-lg font-headline-lg text-on-surface">Stitch Studio</h1>
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-mono-sm font-label-mono-sm bg-tertiary/10 text-tertiary border border-tertiary/30">
+<span class="material-symbols-outlined text-xs" data-icon="school">school</span>
+            Zero-Login Classroom Queue
+          </span>
+<span class="px-2 py-0.5 rounded text-[10px] font-label-mono-sm bg-surface-container-highest text-primary-fixed-dim border border-outline-variant/40">
+            Engine v4.2
+          </span>
+</div>
+<p class="text-body-md font-body-md text-outline">
+          Merge playlists, student request lists, and public URLs into a single, broadcast-safe classroom queue.
+        </p>
+</div>
+<!-- Right Track Quota Budget Card -->
+<div class="w-full lg:w-80 bg-surface-container-low p-3.5 rounded-lg border border-outline-variant/30 shrink-0">
+<div class="flex items-center justify-between text-body-sm font-body-sm mb-1.5">
+<span class="text-on-surface font-semibold flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-base" data-icon="data_usage">data_usage</span>
+            Combined Track Quota
+          </span>
+<span class="font-label-mono-md text-label-mono-md text-primary font-bold">38 / 50 Staged</span>
+</div>
+<!-- Progress Bar -->
+<div class="w-full h-2 rounded-full bg-surface-container-highest overflow-hidden p-0.5">
+<div class="h-full bg-gradient-to-r from-primary-container to-primary rounded-full" style="width: 76%;"></div>
+</div>
+<div class="flex items-center justify-between mt-2 text-[11px] font-label-mono-sm text-outline">
+<span class="text-tertiary flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary inline-block"></span>
+            12 Slots Free
+          </span>
+<span>Max safe queue: 50 items</span>
+</div>
+</div>
+</div>
+<!-- ==================== 3. MULTI-SOURCE INPUT POOL CARD ==================== -->
+<section class="bg-surface-container-low rounded-xl border border-outline-variant/30 p-5 space-y-4 shadow-sm">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-outline-variant/20 pb-3">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="input">input</span>
+<h2 class="text-headline-md font-headline-md text-on-surface">Multi-Source Input Pool</h2>
+<span class="px-2 py-0.5 rounded text-label-mono-sm font-label-mono-sm bg-primary-container/20 text-primary border border-primary/30">
+            2 Sources Loaded
+          </span>
+</div>
+<div class="text-label-mono-sm font-label-mono-sm text-outline flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm" data-icon="info">info</span>
+          Supported: YouTube Music Public Links • Plaintext Title - Artist
+        </div>
+</div>
+<!-- Unified Input Action Bar -->
+<div class="flex flex-col md:flex-row items-stretch gap-2.5">
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline text-lg" data-icon="link">link</span>
+<input class="w-full h-11 pl-10 pr-16 bg-surface-container-lowest text-on-surface placeholder:text-outline/70 border border-outline-variant/40 rounded-lg text-body-md font-body-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all" placeholder="Paste public YouTube Music playlist link or drop track list... ⌘V" type="text"/>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-surface-container-highest text-outline text-label-mono-sm font-label-mono-sm">⌘V</span>
+</div>
+<button class="h-11 px-4 rounded-lg bg-primary-container text-on-primary font-body-md font-semibold hover:bg-inverse-primary transition-all flex items-center justify-center gap-2 shadow-sm shadow-primary-container/30 active:scale-[0.98]">
+<span class="material-symbols-outlined text-base" data-icon="add_circle">add_circle</span>
+<span>+ Add Playlist URL</span>
+</button>
+<button class="h-11 px-4 rounded-lg bg-surface-container-highest text-on-surface border border-outline-variant/40 hover:bg-surface-bright transition-all flex items-center justify-center gap-2 font-body-md font-medium active:scale-[0.98]">
+<span class="material-symbols-outlined text-base text-outline" data-icon="content_paste">content_paste</span>
+<span>Paste Track List (Artist - Title)</span>
+</button>
+</div>
+<!-- Side-by-Side 2 Loaded Source Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+<!-- Card 1: Source 1 Friday Art Class Pop -->
+<div class="bg-surface-container-lowest p-4 rounded-lg border border-outline-variant/30 hover:border-outline-variant/60 transition-colors relative flex flex-col justify-between group">
+<div class="space-y-2">
+<div class="flex items-start justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded text-[11px] font-label-mono-sm bg-red-950/50 text-red-400 border border-red-800/40 flex items-center gap-1 font-semibold">
+<span class="material-symbols-outlined text-xs" data-icon="smart_display">smart_display</span>
+                  Source 1: YT Music
+                </span>
+<span class="px-2 py-0.5 rounded text-[11px] font-label-mono-sm bg-tertiary-container/30 text-tertiary border border-tertiary/30 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs" data-icon="check_circle">check_circle</span>
+                  26/26 scanned
+                </span>
+</div>
+<button class="w-6 h-6 rounded flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors" title="Remove Source">
+<span class="material-symbols-outlined text-sm" data-icon="close">close</span>
+</button>
+</div>
+<div>
+<h3 class="text-body-lg font-body-lg font-bold text-on-surface flex items-center gap-1.5">
+                Friday Art Class Pop
+              </h3>
+<p class="text-body-sm font-body-sm text-outline mt-0.5">
+                YouTube Music Playlist • 26 tracks • Clean baseline source
+              </p>
+</div>
+</div>
+<div class="flex items-center justify-between pt-3 mt-3 border-t border-outline-variant/20 text-body-sm font-body-sm">
+<div class="flex items-center gap-1.5 text-tertiary text-label-mono-sm font-label-mono-sm">
+<span class="material-symbols-outlined text-sm" data-icon="verified_user">verified_user</span>
+              Verified Safe Link
+            </div>
+<a class="text-primary hover:text-on-primary-container text-label-mono-sm font-label-mono-sm font-semibold flex items-center gap-0.5" href="#">
+              Preview tracks (26) →
+            </a>
+</div>
+</div>
+<!-- Card 2: Source 2 5th Grade Student Requests -->
+<div class="bg-surface-container-lowest p-4 rounded-lg border border-outline-variant/30 hover:border-outline-variant/60 transition-colors relative flex flex-col justify-between group">
+<div class="space-y-2">
+<div class="flex items-start justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded text-[11px] font-label-mono-sm bg-secondary-container/30 text-secondary-fixed border border-secondary-container flex items-center gap-1 font-semibold">
+<span class="material-symbols-outlined text-xs" data-icon="subject">subject</span>
+                  Source 2: Text Paste
+                </span>
+<span class="px-2 py-0.5 rounded text-[11px] font-label-mono-sm bg-amber-950/40 text-amber-400 border border-amber-800/40 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs" data-icon="warning">warning</span>
+                  10 matched, 2 unresolved
+                </span>
+</div>
+<button class="w-6 h-6 rounded flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors" title="Remove Source">
+<span class="material-symbols-outlined text-sm" data-icon="close">close</span>
+</button>
+</div>
+<div>
+<h3 class="text-body-lg font-body-lg font-bold text-on-surface">
+                5th Grade Student Requests
+              </h3>
+<p class="text-body-sm font-body-sm text-outline mt-0.5">
+                Pasted Track List • 12 lines • Awaiting clean filter
+              </p>
+</div>
+</div>
+<div class="flex items-center justify-between pt-3 mt-3 border-t border-outline-variant/20 text-body-sm font-body-sm">
+<a class="flex items-center gap-1.5 text-amber-400 text-label-mono-sm font-label-mono-sm hover:underline" href="#unresolved">
+<span class="material-symbols-outlined text-sm" data-icon="error_outline">error_outline</span>
+              2 Typo/Unresolved Items
+            </a>
+<div class="flex items-center gap-2">
+<button class="px-2 py-0.5 rounded bg-surface-container-highest text-outline hover:text-on-surface text-label-mono-sm font-label-mono-sm">
+                Edit
+              </button>
+<a class="text-primary hover:text-on-primary-container text-label-mono-sm font-label-mono-sm font-semibold flex items-center gap-0.5" href="#">
+                Re-parse text →
+              </a>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ==================== 4. BATCH CLEAN & MERGE RULES BAR ==================== -->
+<div class="bg-surface-container-low p-3.5 rounded-xl border border-outline-variant/30 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 shadow-sm">
+<div class="flex flex-wrap items-center gap-2.5 flex-1">
+<!-- Rule 1: Sensitivity -->
+<div class="flex items-center gap-2 bg-surface-container-lowest px-3 py-1.5 rounded-lg border border-outline-variant/30 text-body-sm font-body-sm">
+<span class="material-symbols-outlined text-tertiary text-base" data-icon="shield">shield</span>
+<span class="text-outline text-xs">Sensitivity:</span>
+<select class="bg-transparent text-on-surface text-xs font-semibold focus:outline-none border-none p-0 cursor-pointer">
+<option class="bg-surface-container">Kid Safe (Strict)</option>
+<option class="bg-surface-container">Teen Safe (Mild)</option>
+<option class="bg-surface-container">Radio Edit Only</option>
+</select>
+</div>
+<!-- Rule 2: Clean Policy -->
+<div class="flex items-center gap-2 bg-surface-container-lowest px-3 py-1.5 rounded-lg border border-outline-variant/30 text-body-sm font-body-sm">
+<span class="material-symbols-outlined text-primary text-base" data-icon="sync">sync</span>
+<span class="text-outline text-xs">Clean Policy:</span>
+<select class="bg-transparent text-on-surface text-xs font-semibold focus:outline-none border-none p-0 cursor-pointer">
+<option class="bg-surface-container">Swap or Drop Flagged</option>
+<option class="bg-surface-container">Swap Only</option>
+<option class="bg-surface-container">Drop All Explicit</option>
+</select>
+</div>
+<!-- Rule 3: Track Order -->
+<div class="flex items-center gap-2 bg-surface-container-lowest px-3 py-1.5 rounded-lg border border-outline-variant/30 text-body-sm font-body-sm">
+<span class="material-symbols-outlined text-secondary text-base" data-icon="shuffle">shuffle</span>
+<span class="text-outline text-xs">Track Order:</span>
+<select class="bg-transparent text-on-surface text-xs font-semibold focus:outline-none border-none p-0 cursor-pointer">
+<option class="bg-surface-container">Interleave Sources</option>
+<option class="bg-surface-container">Source 1 Then 2</option>
+<option class="bg-surface-container">BPM Matched Flow</option>
+</select>
+</div>
+<!-- Rule 4: Deduplicate Toggle -->
+<label class="flex items-center gap-2 bg-surface-container-lowest px-3 py-2 rounded-lg border border-outline-variant/30 cursor-pointer select-none">
+<input checked="" class="w-4 h-4 rounded text-primary-container bg-surface-container-highest border-outline-variant/40 focus:ring-0 focus:ring-offset-0" type="checkbox"/>
+<span class="text-xs font-semibold text-on-surface">Deduplicate: Track + Artist</span>
+</label>
+</div>
+<!-- Stitch & Clean Button -->
+<button class="h-10 px-5 rounded-lg bg-gradient-to-r from-primary-container via-purple-600 to-indigo-600 text-on-primary font-body-md font-bold flex items-center justify-center gap-2 hover:opacity-95 shadow-md shadow-primary-container/20 transition-transform active:scale-[0.98] shrink-0">
+<span class="material-symbols-outlined text-lg" data-icon="auto_fix_high">auto_fix_high</span>
+<span>Stitch &amp; Clean</span>
+</button>
+</div>
+<!-- ==================== 5. DISMISSIBLE UNRESOLVED LINES NOTICE ==================== -->
+<div class="bg-amber-950/20 border border-amber-600/40 rounded-xl p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 text-body-sm font-body-sm" id="unresolved">
+<div class="flex items-start md:items-center gap-3">
+<div class="w-7 h-7 rounded bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+<span class="material-symbols-outlined text-base" data-icon="warning">warning</span>
+</div>
+<div class="space-y-1">
+<div class="text-amber-200 font-semibold flex items-center gap-1.5 flex-wrap">
+<span>2 pasted student lines could not be matched and were skipped (auto-excluded from output):</span>
+</div>
+<div class="flex flex-wrap items-center gap-2 pt-0.5">
+<span class="px-2 py-0.5 rounded text-label-mono-sm font-label-mono-sm bg-surface-container-lowest text-amber-300 border border-amber-600/30">
+              "bruno mras - aptt" <span class="text-outline text-[10px]">(Typo detected)</span>
+</span>
+<span class="px-2 py-0.5 rounded text-label-mono-sm font-label-mono-sm bg-surface-container-lowest text-amber-300 border border-amber-600/30">
+              "wknd - blinding lite" <span class="text-outline text-[10px]">(Unresolved metadata)</span>
+</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3 self-end md:self-auto shrink-0">
+<button class="text-amber-400 hover:text-amber-300 font-label-mono-sm text-label-mono-sm font-semibold hover:underline flex items-center gap-1">
+          Fix Manually →
+        </button>
+<button class="w-6 h-6 rounded flex items-center justify-center text-outline hover:text-amber-200 transition-colors" onclick="this.closest('#unresolved').style.display='none'" title="Dismiss Notice">
+<span class="material-symbols-outlined text-base" data-icon="close">close</span>
+</button>
+</div>
+</div>
+<!-- ==================== 6. STITCHED CLEAN QUEUE OUTPUT CARD ==================== -->
+<section class="bg-surface-container-low rounded-xl border border-outline-variant/30 overflow-hidden shadow-sm">
+<!-- Output Header & Controls -->
+<div class="p-5 border-b border-outline-variant/20 flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-surface-container/30">
+<div class="space-y-2">
+<div class="flex items-center gap-2.5">
+<h2 class="text-headline-lg font-headline-lg text-on-surface">Stitched Clean Queue</h2>
+<span class="text-label-mono-sm font-label-mono-sm text-outline flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+              Generated 1m ago
+            </span>
+</div>
+<!-- Summary Metric Pill Group -->
+<div class="flex flex-wrap items-center gap-2">
+<!-- 32 Ready to Play -->
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-mono-sm font-label-mono-sm bg-emerald-950/40 text-emerald-400 border border-emerald-800/40 font-semibold">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              32 Ready to Play
+            </span>
+<!-- 6 Clean Swapped -->
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-mono-sm font-label-mono-sm bg-primary-container/20 text-primary border border-primary/30 font-semibold">
+<span class="material-symbols-outlined text-xs" data-icon="published_with_changes">published_with_changes</span>
+              6 Clean Swapped
+            </span>
+<!-- 2 Flagged Dropped -->
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-mono-sm font-label-mono-sm bg-red-950/40 text-red-400 border border-red-800/40 font-semibold">
+<span class="material-symbols-outlined text-xs" data-icon="block">block</span>
+              2 Flagged Dropped
+            </span>
+<!-- 2 Duplicates Removed -->
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-mono-sm font-label-mono-sm bg-surface-container-highest text-outline border border-outline-variant/30">
+<span class="material-symbols-outlined text-xs" data-icon="filter_none">filter_none</span>
+              2 Duplicates Removed
+            </span>
+</div>
+</div>
+<!-- Finish-Line CTA Cluster -->
+<div class="flex flex-wrap items-center gap-2.5 shrink-0">
+<!-- Primary Public Play Button -->
+<button class="h-10 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-body-md font-bold flex items-center gap-2 shadow-sm shadow-emerald-900/30 transition-transform active:scale-[0.98]">
+<span class="material-symbols-outlined text-lg" data-icon="play_arrow">play_arrow</span>
+<div class="text-left flex flex-col leading-tight">
+<span>Play Clean Queue (32 tracks)</span>
+<span class="text-[10px] font-label-mono-sm text-emerald-100 font-normal">Zero-login public stream tab</span>
+</div>
+</button>
+<!-- Copy Track Links -->
+<button class="h-10 px-3.5 rounded-lg bg-surface-container-highest text-on-surface border border-outline-variant/40 hover:bg-surface-bright transition-colors flex items-center gap-1.5 font-body-md font-medium text-xs">
+<span class="material-symbols-outlined text-base text-outline" data-icon="link">link</span>
+<span>Copy Clean Track Links</span>
+</button>
+<!-- Export Dropdown -->
+<div class="relative inline-block">
+<button class="h-10 px-3 rounded-lg bg-surface-container-highest text-on-surface border border-outline-variant/40 hover:bg-surface-bright transition-colors flex items-center gap-1 font-body-md font-medium text-xs">
+<span class="material-symbols-outlined text-base text-outline" data-icon="file_download">file_download</span>
+<span>Export ▾</span>
+</button>
+</div>
+</div>
+</div>
+<!-- High-Fidelity Tracklist Table -->
+<div class="overflow-x-auto custom-scroll">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant/30 bg-surface-container-lowest text-outline text-label-mono-sm font-label-mono-sm">
+<th class="py-2.5 px-4 w-12 text-center">#</th>
+<th class="py-2.5 px-4">Song &amp; Artist</th>
+<th class="py-2.5 px-4 w-24">Duration</th>
+<th class="py-2.5 px-4 w-48">Source Origin</th>
+<th class="py-2.5 px-4 w-64">Safety Status</th>
+<th class="py-2.5 px-4 w-28 text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/20 text-body-md font-body-md">
+<!-- Row 1: APT. -->
+<tr class="hover:bg-surface-container-high/40 transition-colors group">
+<td class="py-3 px-4 text-center font-label-mono-md text-outline">
+                01
+              </td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded bg-surface-container-highest overflow-hidden shrink-0 border border-outline-variant/30 flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="Graphic album artwork with modern neon aesthetic showing vibrant magenta and purple hues designed for contemporary audio playlists in a dark mode digital studio application." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9CrpJlvFwZMVqMq1_7g4x6y9SE_hqP31yxzdnX-gUl6o0hWZcBH8BLbYvt8lo1fezBW-3fxtlOeBDM2oao2N7nhVW9wqUZDcjyWArkgeky7-SbxSpM77-I6poIyr3P-Sv7QBENKwTCXPjOr3PJ1nnHNHavhb75EepqDmodKASRbQhaF5wQZWbZ9isgvfoNu0Lf40FK5iFxjeC2ZckCCC96YwOOWnxJOuJZmQe5WFv6dkDIOwa_ei-3mv_54Lu7xUVheBdvgvjq9je"/>
+</div>
+<div class="min-w-0">
+<div class="text-on-surface font-semibold truncate flex items-center gap-1.5">
+<span>APT.</span>
+</div>
+<div class="text-outline text-body-sm font-body-sm truncate">
+                      ROSÉ &amp; Bruno Mars
+                    </div>
+</div>
+</div>
+</td>
+<td class="py-3 px-4 font-label-mono-sm text-outline">2:49</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-label-mono-sm bg-red-950/40 text-red-300 border border-red-800/30">
+<span class="material-symbols-outlined text-xs" data-icon="smart_display">smart_display</span>
+                  Friday Art Class
+                </span>
+</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-mono-sm font-label-mono-sm bg-emerald-950/40 text-emerald-400 border border-emerald-800/40">
+<span class="material-symbols-outlined text-xs" data-icon="verified">verified</span>
+                  Verified Clean (Zero infractions)
+                </span>
+</td>
+<td class="py-3 px-4 text-right">
+<div class="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+<button class="w-7 h-7 rounded flex items-center justify-center text-outline hover:text-primary hover:bg-surface-container transition-colors" title="Headphone Preview">
+<span class="material-symbols-outlined text-base" data-icon="headphones">headphones</span>
+</button>
+<button class="w-7 h-7 rounded flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="More Options">
+<span class="material-symbols-outlined text-base" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Espresso [Clean Edit] -->
+<tr class="hover:bg-surface-container-high/40 transition-colors group">
+<td class="py-3 px-4 text-center font-label-mono-md text-outline">
+                02
+              </td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded bg-surface-container-highest overflow-hidden shrink-0 border border-outline-variant/30 flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="Sleek square music album art depicting warm retro beach tones with dark obsidian background lighting for music production workspace." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDiGX9pKsm0FWofrfkX7XvJ3anx2eU8cF4yXFL4miU1cKqWISrlAovcSZxYkHuYmsKghsHjUB9HS-7M2QSRMhb54Nwz9QCocz2JJTgo9oeMXc59T9SANrVgckYUZfp5cKCxFHmGvTapojwoAeq3_5q-Pa6K5GTtdT0xJtfNHXD2Qg8Cpy_l7g-Md7bUp7LC8fNi9RvKYoucs0DMj_5lCsWDe6swXptU7J6ACXo1RSVGwpePOnVHWMreaciEhRTPY7Ngiz6gkXxzBCQ-"/>
+</div>
+<div class="min-w-0">
+<div class="text-on-surface font-semibold truncate flex items-center gap-1.5">
+<span>Espresso</span>
+<span class="text-[11px] font-label-mono-sm text-primary px-1 rounded bg-primary-container/20 border border-primary/30 font-normal">Clean Edit</span>
+</div>
+<div class="text-outline text-body-sm font-body-sm truncate">
+                      Sabrina Carpenter
+                    </div>
+</div>
+</div>
+</td>
+<td class="py-3 px-4 font-label-mono-sm text-outline">2:55</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-label-mono-sm bg-secondary-container/30 text-secondary-fixed border border-secondary-container">
+<span class="material-symbols-outlined text-xs" data-icon="subject">subject</span>
+                  Student Paste
+                </span>
+</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-mono-sm font-label-mono-sm bg-primary-container/20 text-primary border border-primary/30">
+<span class="material-symbols-outlined text-xs" data-icon="published_with_changes">published_with_changes</span>
+                  Clean Swapped (Explicit cut replaced)
+                </span>
+</td>
+<td class="py-3 px-4 text-right">
+<div class="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+<button class="w-7 h-7 rounded flex items-center justify-center text-outline hover:text-primary hover:bg-surface-container transition-colors" title="Headphone Preview">
+<span class="material-symbols-outlined text-base" data-icon="headphones">headphones</span>
+</button>
+<button class="w-7 h-7 rounded flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="More Options">
+<span class="material-symbols-outlined text-base" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Cruel Summer -->
+<tr class="hover:bg-surface-container-high/40 transition-colors group">
+<td class="py-3 px-4 text-center font-label-mono-md text-outline">
+                03
+              </td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded bg-surface-container-highest overflow-hidden shrink-0 border border-outline-variant/30 flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="Pastel cloudscape album cover thumbnail with high contrast artistic typography set in an audio player digital workstation." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvuNiTsocbhN1ZRJGUPod15rqbKKuxHeV6AcjvQlpHraPZ_945QXeXAMqg9eaWx63b35JfIy0_oZWOccchTArPj9buQ92jJmG1Sj3dl0f7y4LYdVt0cOCoRWRorycx40V7sZPy-BVyV_wQmsboKsaU4W4Xq1bHibTVuWD1jJH3wQJ6wD55K30MgZqW0o2jfqRnOuXGjZ54yLbdqFDfFsYHa9CSSX-kFy8rGin4KwnciGj6Se1-U3hq32IJt6AeZ35HIpd4vEbvHh1l"/>
+</div>
+<div class="min-w-0">
+<div class="text-on-surface font-semibold truncate flex items-center gap-1.5">
+<span>Cruel Summer</span>
+</div>
+<div class="text-outline text-body-sm font-body-sm truncate">
+                      Taylor Swift
+                    </div>
+</div>
+</div>
+</td>
+<td class="py-3 px-4 font-label-mono-sm text-outline">2:58</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-label-mono-sm bg-secondary-container/30 text-secondary-fixed border border-secondary-container">
+<span class="material-symbols-outlined text-xs" data-icon="subject">subject</span>
+                  Student Paste
+                </span>
+</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-mono-sm font-label-mono-sm bg-emerald-950/40 text-emerald-400 border border-emerald-800/40">
+<span class="material-symbols-outlined text-xs" data-icon="verified">verified</span>
+                  Verified Clean (Zero infractions)
+                </span>
+</td>
+<td class="py-3 px-4 text-right">
+<div class="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+<button class="w-7 h-7 rounded flex items-center justify-center text-outline hover:text-primary hover:bg-surface-container transition-colors" title="Headphone Preview">
+<span class="material-symbols-outlined text-base" data-icon="headphones">headphones</span>
+</button>
+<button class="w-7 h-7 rounded flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="More Options">
+<span class="material-symbols-outlined text-base" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Sunflower -->
+<tr class="hover:bg-surface-container-high/40 transition-colors group">
+<td class="py-3 px-4 text-center font-label-mono-md text-outline">
+                04
+              </td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded bg-surface-container-highest overflow-hidden shrink-0 border border-outline-variant/30 flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="Animated soundtrack album art with dynamic comic book style yellow and amber splashes on deep slate blue background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBaOZlUzR5Mt0NRaG5uCsMbwBdPdP1uSClvKN7QuVG1GWpN_OlvvmarVksWQtmix1j3k0moykrscIK3EvyjjdemowcgB7wEeSUTytQ9WXAAE5W73Td4ZsGZPWJGxobhTLvTeK7MfJwv2FsXHfjHpc9EDoYvLY94ByiBbaIN64nd3UUatR6ica0sQNcdhkM-PhAUrm-ToPqV9FNieag3mVXtr3wYBnbAG1-i4JFA0bDZTT2l5pW5asU7uLTP_zMwja-ExBIRrZzyuPRN"/>
+</div>
+<div class="min-w-0">
+<div class="text-on-surface font-semibold truncate flex items-center gap-1.5">
+<span>Sunflower</span>
+</div>
+<div class="text-outline text-body-sm font-body-sm truncate">
+                      Post Malone &amp; Swae Lee
+                    </div>
+</div>
+</div>
+</td>
+<td class="py-3 px-4 font-label-mono-sm text-outline">2:38</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-label-mono-sm bg-red-950/40 text-red-300 border border-red-800/30">
+<span class="material-symbols-outlined text-xs" data-icon="smart_display">smart_display</span>
+                  Friday Art Class
+                </span>
+</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-mono-sm font-label-mono-sm bg-emerald-950/40 text-emerald-400 border border-emerald-800/40">
+<span class="material-symbols-outlined text-xs" data-icon="verified">verified</span>
+                  Verified Clean (Zero infractions)
+                </span>
+</td>
+<td class="py-3 px-4 text-right">
+<div class="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+<button class="w-7 h-7 rounded flex items-center justify-center text-outline hover:text-primary hover:bg-surface-container transition-colors" title="Headphone Preview">
+<span class="material-symbols-outlined text-base" data-icon="headphones">headphones</span>
+</button>
+<button class="w-7 h-7 rounded flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="More Options">
+<span class="material-symbols-outlined text-base" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5: Starboy [Clean Version] -->
+<tr class="hover:bg-surface-container-high/40 transition-colors group">
+<td class="py-3 px-4 text-center font-label-mono-md text-outline">
+                05
+              </td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded bg-surface-container-highest overflow-hidden shrink-0 border border-outline-variant/30 flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="Intense electric blue and crimson illuminated neon cross visual album thumbnail from modern synthwave production." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9eQwleoKTmXMv-XUgPzwpBBvjX8D-YK-W_82egkEHLkODBrU8sbZ478ZAg714OutCB9ewwJgi_vbe0Sn1vUXcJndh-BvBmAezia0nuP5CSW1ALbVmYjwFGPpC7AgavtMx3W4EezOnaNRQllVpauHSHruuNe9kUpijiEEbQ1EgJiFK8NBmFQ4rrdmUgfiDf6Yymugi4hRtWcJdlFyvaftp6iUUaFmX48yXvb0ZFQM3ArQwQWb7M8Hs1qEGWgicU2KnhbAZvR703W7h"/>
+</div>
+<div class="min-w-0">
+<div class="text-on-surface font-semibold truncate flex items-center gap-1.5">
+<span>Starboy</span>
+<span class="text-[11px] font-label-mono-sm text-primary px-1 rounded bg-primary-container/20 border border-primary/30 font-normal">Clean Version</span>
+</div>
+<div class="text-outline text-body-sm font-body-sm truncate">
+                      The Weeknd ft. Daft Punk
+                    </div>
+</div>
+</div>
+</td>
+<td class="py-3 px-4 font-label-mono-sm text-outline">3:50</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-label-mono-sm bg-secondary-container/30 text-secondary-fixed border border-secondary-container">
+<span class="material-symbols-outlined text-xs" data-icon="subject">subject</span>
+                  Student Paste
+                </span>
+</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-mono-sm font-label-mono-sm bg-primary-container/20 text-primary border border-primary/30">
+<span class="material-symbols-outlined text-xs" data-icon="published_with_changes">published_with_changes</span>
+                  Clean Swapped (Explicit cut replaced)
+                </span>
+</td>
+<td class="py-3 px-4 text-right">
+<div class="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+<button class="w-7 h-7 rounded flex items-center justify-center text-outline hover:text-primary hover:bg-surface-container transition-colors" title="Headphone Preview">
+<span class="material-symbols-outlined text-base" data-icon="headphones">headphones</span>
+</button>
+<button class="w-7 h-7 rounded flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="More Options">
+<span class="material-symbols-outlined text-base" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Floating Queue Status Bar -->
+<div class="p-3.5 bg-surface-container-lowest border-t border-outline-variant/30 flex flex-col md:flex-row items-center justify-between gap-3 text-body-sm font-body-sm">
+<div class="flex items-center gap-2 text-outline">
+<span class="material-symbols-outlined text-emerald-400 text-base" data-icon="check_circle">check_circle</span>
+<span class="text-on-surface font-medium">32 safe classroom tracks compiled</span>
+<span class="text-outline/60">•</span>
+<span class="text-outline text-xs">No account or login required for playback</span>
+<span class="text-outline/60">•</span>
+<span class="text-tertiary text-xs font-semibold">Ready to stream</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-label-mono-sm font-label-mono-sm text-outline">Showing 5 of 32 tracks (interleaved 1:1)</span>
+<button class="px-2.5 py-1 rounded bg-surface-container-highest text-on-surface hover:bg-surface-bright text-xs font-medium border border-outline-variant/30 flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-xs" data-icon="share">share</span>
+            Share Link
+          </button>
+<button class="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="play_arrow">play_arrow</span>
+            Play Clean Queue (32)
+          </button>
+</div>
+</div>
+</section>
+</main>
+</body></html>

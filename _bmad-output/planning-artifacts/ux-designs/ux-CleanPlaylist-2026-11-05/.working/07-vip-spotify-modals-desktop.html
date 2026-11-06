@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CleanPlaylist VIP Authenticated Modals Showcase</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            surface: {
+              DEFAULT: '#0c1324',
+              dim: '#080d19',
+              bright: '#33394c',
+              lowest: '#070d1f',
+              low: '#151b2d',
+              container: '#1b2236',
+              high: '#232b43',
+              highest: '#2e3752'
+            },
+            primary: {
+              DEFAULT: '#7c3aed',
+              hover: '#6d28d9',
+              container: '#2b1b54',
+              glow: 'rgba(124, 58, 237, 0.25)'
+            },
+            spotify: {
+              DEFAULT: '#1ed760',
+              hover: '#1db954',
+              dim: 'rgba(30, 215, 96, 0.12)',
+              border: 'rgba(30, 215, 96, 0.3)'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.4);
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #2e3752;
+      border-radius: 9999px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #434e70;
+    }
+    .grid-bg {
+      background-size: 32px 32px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    }
+  </style>
+</head>
+<body class="bg-[#070d1f] text-slate-100 font-sans antialiased min-h-screen relative overflow-x-hidden selection:bg-purple-500 selection:text-white">
+
+  <!-- BACKGROUND BENCHMARK (Dimmed & Blurred Workbench with Active VIP Actions) -->
+  <div class="absolute inset-0 z-0 opacity-40 blur-[2px] pointer-events-none grid-bg">
+    <!-- Mocked Background Page Content -->
+    <div class="max-w-7xl mx-auto pt-24 px-8 space-y-6">
+      <div class="flex items-center justify-between py-2">
+        <div class="flex items-center gap-3">
+          <div class="h-8 w-8 rounded-lg bg-purple-600/30 border border-purple-500/40 flex items-center justify-center">
+            <span class="material-symbols-outlined text-purple-400 text-lg">shield</span>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold text-slate-200">Scan & Clean Studio</h1>
+            <p class="text-xs text-slate-400">Authenticated Spotify session actively synchronized with catalog</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button class="px-3.5 py-1.5 rounded-lg bg-surface-high border border-slate-700/60 text-xs font-medium text-slate-300 flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm">library_music</span> Browse Library
+          </button>
+          <button class="px-3.5 py-1.5 rounded-lg bg-purple-600/30 border border-purple-500/50 text-xs font-semibold text-purple-300 flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm">playlist_add</span> Save to Spotify
+          </button>
+        </div>
+      </div>
+
+      <!-- Mocked Tracklist preview in background -->
+      <div class="bg-surface-low/80 border border-slate-800 rounded-xl p-5 shadow-2xl">
+        <div class="h-6 w-48 bg-slate-800 rounded mb-4"></div>
+        <div class="space-y-3">
+          <div class="h-12 bg-surface-container/60 rounded-lg flex items-center px-4 justify-between border border-slate-800/40">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded bg-slate-700/50"></div>
+              <div class="w-40 h-3.5 bg-slate-700 rounded"></div>
+            </div>
+            <div class="w-20 h-4 bg-emerald-500/20 rounded-full"></div>
+          </div>
+          <div class="h-12 bg-surface-container/60 rounded-lg flex items-center px-4 justify-between border border-slate-800/40">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded bg-slate-700/50"></div>
+              <div class="w-36 h-3.5 bg-slate-700 rounded"></div>
+            </div>
+            <div class="w-24 h-4 bg-purple-500/20 rounded-full"></div>
+          </div>
+          <div class="h-12 bg-surface-container/60 rounded-lg flex items-center px-4 justify-between border border-slate-800/40">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded bg-slate-700/50"></div>
+              <div class="w-44 h-3.5 bg-slate-700 rounded"></div>
+            </div>
+            <div class="w-20 h-4 bg-emerald-500/20 rounded-full"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STICKY GLOBAL HEADER (VIP MODE ACTIVE) -->
+  <header class="sticky top-0 z-40 w-full h-14 bg-[#0c1324]/95 backdrop-blur-md border-b border-slate-800/80 px-6 flex items-center justify-between">
+    <!-- Left: Brand + VIP Pill -->
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-700 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+          <span class="material-symbols-outlined text-white text-base">graphic_eq</span>
+        </div>
+        <span class="text-base font-bold tracking-tight text-white font-sans">CleanPlaylist</span>
+      </div>
+      
+      <!-- VIP Mode Badge -->
+      <div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-purple-500/20 border border-amber-500/40 text-amber-300 text-[11px] font-mono font-medium shadow-sm">
+        <span class="material-symbols-outlined text-[13px] text-amber-400">verified</span>
+        <span>VIP MODE (?vip=1)</span>
+      </div>
+    </div>
+
+    <!-- Center: Primary 3 Navigation Tabs -->
+    <nav class="flex items-center gap-1 bg-surface-low/80 p-1 rounded-lg border border-slate-800/70">
+      <a href="#" class="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold bg-surface-highest text-purple-300 border border-purple-500/30 shadow-sm transition-all">
+        <span class="material-symbols-outlined text-sm">shield</span>
+        Scan & Clean
+      </a>
+      <a href="#" class="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-surface-high/50 transition-colors">
+        <span class="material-symbols-outlined text-sm">manage_search</span>
+        Keyword Search
+      </a>
+      <a href="#" class="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-surface-high/50 transition-colors">
+        <span class="material-symbols-outlined text-sm">merge_type</span>
+        Stitch Studio
+      </a>
+    </nav>
+
+    <!-- Right: Catalog Selector + Spotify Connected Status + Exit VIP -->
+    <div class="flex items-center gap-3">
+      <!-- Catalog Segmented Toggle -->
+      <div class="flex items-center p-0.5 bg-surface-lowest border border-slate-800 rounded-lg text-xs font-mono">
+        <span class="text-slate-500 px-2 text-[10px] uppercase font-bold tracking-wider">Catalog</span>
+        <button class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#1ed760]/15 border border-[#1ed760]/40 text-[#1ed760] font-semibold text-xs">
+          <span class="w-1.5 h-1.5 rounded-full bg-[#1ed760] animate-pulse"></span>
+          Spotify
+        </button>
+        <button class="px-2 py-1 text-slate-400 hover:text-slate-200 text-xs">
+          YouTube Music
+        </button>
+      </div>
+
+      <!-- Spotify Connected Emerald Pill -->
+      <div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#1ed760]/10 border border-[#1ed760]/30 text-[#1ed760] text-xs font-medium">
+        <span class="material-symbols-outlined text-sm text-[#1ed760]">check_circle</span>
+        <span>Spotify Connected</span>
+        <span class="text-[10px] text-emerald-400/70 font-mono">@djcurator</span>
+      </div>
+
+      <!-- Exit VIP Mode Link -->
+      <button class="text-xs text-slate-400 hover:text-rose-300 hover:underline transition-colors flex items-center gap-1 pl-1">
+        <span class="material-symbols-outlined text-xs">logout</span>
+        Exit VIP Mode
+      </button>
+    </div>
+  </header>
+
+  <!-- OVERLAY / MODAL SHOWCASE CONTAINER -->
+  <main class="relative z-30 max-w-[1440px] mx-auto px-6 py-8">
+    <!-- Top Context Ribbon for the Modal Showcase -->
+    <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-lowest/90 border border-slate-800/90 rounded-xl px-5 py-3 shadow-lg">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex p-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/30">
+          <span class="material-symbols-outlined text-lg">layers</span>
+        </span>
+        <div>
+          <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            VIP Authenticated Modal Architecture
+            <span class="text-[10px] font-mono px-2 py-0.5 bg-slate-800 text-purple-300 rounded border border-slate-700">Specification View</span>
+          </h2>
+          <p class="text-xs text-slate-400">Comparing the authenticated Spotify OAuth dialogs: library ingestion and non-destructive cloud export.</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 text-xs font-mono text-slate-400">
+        <span class="flex items-center gap-1 text-emerald-400"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Token: Active (3540s)</span>
+        <span class="text-slate-600">•</span>
+        <span>Scope: playlist-read-private playlist-modify</span>
+      </div>
+    </div>
+
+    <!-- DUAL MODAL SHOWCASE (SIDE-BY-SIDE CLEAN STUDIO DIALOGS) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+
+      <!-- LEFT MODAL: BROWSE SPOTIFY LIBRARY (PlaylistPickerModal) -->
+      <div class="bg-surface-low border border-slate-700/70 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden transition-all duration-200 hover:border-slate-600 flex flex-col">
+        <!-- Dialog Header -->
+        <div class="px-6 py-4 bg-surface-container border-b border-slate-800/90 flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-[#1ed760]/10 border border-[#1ed760]/30 flex items-center justify-center">
+              <span class="material-symbols-outlined text-[#1ed760] text-lg">folder_open</span>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white tracking-wide">Browse Your Spotify Playlists</h3>
+              <p class="text-[11px] text-slate-400 font-mono">Select a playlist to import into the clean screening engine</p>
+            </div>
+          </div>
+          <button class="w-7 h-7 rounded-lg text-slate-400 hover:text-white hover:bg-surface-high flex items-center justify-center transition-colors">
+            <span class="material-symbols-outlined text-base">close</span>
+          </button>
+        </div>
+
+        <!-- Filter Search Bar -->
+        <div class="p-4 bg-surface-low border-b border-slate-800/80">
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+            <input 
+              type="text" 
+              placeholder="Filter your playlists..." 
+              value="" 
+              class="w-full bg-surface-lowest text-xs text-slate-200 placeholder-slate-500 rounded-lg pl-9 pr-8 py-2.5 border border-slate-700/70 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all font-sans"
+            />
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-slate-500 bg-surface-high px-1.5 py-0.5 rounded border border-slate-700">⌘F</span>
+          </div>
+        </div>
+
+        <!-- Playlist Items List (5 items) -->
+        <div class="p-4 space-y-2.5 max-h-[380px] overflow-y-auto custom-scroll">
+          
+          <!-- Item 1 -->
+          <div class="group flex items-center justify-between p-2.5 rounded-xl bg-surface-container/70 border border-slate-800 hover:border-purple-500/40 hover:bg-surface-high/60 transition-all">
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-lg bg-gradient-to-br from-amber-600 via-rose-600 to-indigo-800 flex-shrink-0 flex items-center justify-center shadow-md relative overflow-hidden">
+                <span class="material-symbols-outlined text-white/80 text-xl">directions_car</span>
+                <span class="absolute bottom-0 right-0 px-1 bg-black/60 text-[9px] font-mono text-amber-300">MIX</span>
+              </div>
+              <div class="min-w-0">
+                <h4 class="text-xs font-semibold text-white group-hover:text-purple-300 transition-colors truncate">Saturday Family Roadtrip</h4>
+                <div class="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                  <span class="font-medium text-slate-300">By Alex Morgan</span>
+                  <span class="text-slate-600">•</span>
+                  <span class="font-mono text-slate-400">34 tracks</span>
+                  <span class="text-slate-600">•</span>
+                  <span class="text-[10px] text-emerald-400 font-mono flex items-center gap-0.5">
+                    <span class="material-symbols-outlined text-[11px]">lock</span> Private
+                  </span>
+                </div>
+              </div>
+            </div>
+            <button class="px-3.5 py-1.5 rounded-lg bg-surface-high group-hover:bg-purple-600 group-hover:text-white text-xs font-semibold text-slate-200 border border-slate-700/60 group-hover:border-purple-500 transition-all shadow-sm flex items-center gap-1.5 flex-shrink-0">
+              <span>Load</span>
+              <span class="material-symbols-outlined text-xs">arrow_forward</span>
+            </button>
+          </div>
+
+          <!-- Item 2 (Active/Hovered Highlight) -->
+          <div class="group flex items-center justify-between p-2.5 rounded-xl bg-purple-950/20 border border-purple-500/40 hover:bg-purple-950/30 transition-all shadow-sm">
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-lg bg-gradient-to-br from-purple-800 to-indigo-950 flex-shrink-0 flex items-center justify-center shadow-md relative overflow-hidden border border-purple-500/30">
+                <span class="material-symbols-outlined text-purple-300 text-xl">album</span>
+                <span class="absolute bottom-0 right-0 px-1 bg-black/60 text-[9px] font-mono text-purple-300">RAP</span>
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <h4 class="text-xs font-semibold text-purple-200 truncate">90s Hip-Hop Classics</h4>
+                  <span class="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 text-[10px] font-mono border border-purple-500/30">Current Working</span>
+                </div>
+                <div class="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                  <span class="font-medium text-slate-300">By Alex Morgan</span>
+                  <span class="text-slate-600">•</span>
+                  <span class="font-mono text-amber-300 font-medium">68 tracks (loads first 50)</span>
+                </div>
+              </div>
+            </div>
+            <button class="px-3.5 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-semibold border border-purple-400 hover:bg-purple-500 transition-all shadow-md shadow-purple-600/30 flex items-center gap-1.5 flex-shrink-0">
+              <span class="material-symbols-outlined text-xs">sync</span>
+              <span>Loaded</span>
+            </button>
+          </div>
+
+          <!-- Item 3 -->
+          <div class="group flex items-center justify-between p-2.5 rounded-xl bg-surface-container/70 border border-slate-800 hover:border-purple-500/40 hover:bg-surface-high/60 transition-all">
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-lg bg-gradient-to-br from-emerald-700 via-teal-800 to-slate-900 flex-shrink-0 flex items-center justify-center shadow-md relative overflow-hidden">
+                <span class="material-symbols-outlined text-teal-200 text-xl">school</span>
+                <span class="absolute bottom-0 right-0 px-1 bg-black/60 text-[9px] font-mono text-teal-300">EDU</span>
+              </div>
+              <div class="min-w-0">
+                <h4 class="text-xs font-semibold text-white group-hover:text-purple-300 transition-colors truncate">Middle School PE Warmups</h4>
+                <div class="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                  <span class="font-medium text-slate-300">By Coach Miller (Collaborative)</span>
+                  <span class="text-slate-600">•</span>
+                  <span class="font-mono text-slate-400">22 tracks</span>
+                </div>
+              </div>
+            </div>
+            <button class="px-3.5 py-1.5 rounded-lg bg-surface-high group-hover:bg-purple-600 group-hover:text-white text-xs font-semibold text-slate-200 border border-slate-700/60 group-hover:border-purple-500 transition-all shadow-sm flex items-center gap-1.5 flex-shrink-0">
+              <span>Load</span>
+              <span class="material-symbols-outlined text-xs">arrow_forward</span>
+            </button>
+          </div>
+
+          <!-- Item 4 -->
+          <div class="group flex items-center justify-between p-2.5 rounded-xl bg-surface-container/70 border border-slate-800 hover:border-purple-500/40 hover:bg-surface-high/60 transition-all">
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-lg bg-gradient-to-br from-cyan-600 via-blue-700 to-slate-900 flex-shrink-0 flex items-center justify-center shadow-md relative overflow-hidden">
+                <span class="material-symbols-outlined text-cyan-200 text-xl">coffee</span>
+                <span class="absolute bottom-0 right-0 px-1 bg-black/60 text-[9px] font-mono text-cyan-300">CHILL</span>
+              </div>
+              <div class="min-w-0">
+                <h4 class="text-xs font-semibold text-white group-hover:text-purple-300 transition-colors truncate">Sunday Morning Acoustic & Lo-Fi</h4>
+                <div class="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                  <span class="font-medium text-slate-300">By Alex Morgan</span>
+                  <span class="text-slate-600">•</span>
+                  <span class="font-mono text-slate-400">45 tracks</span>
+                </div>
+              </div>
+            </div>
+            <button class="px-3.5 py-1.5 rounded-lg bg-surface-high group-hover:bg-purple-600 group-hover:text-white text-xs font-semibold text-slate-200 border border-slate-700/60 group-hover:border-purple-500 transition-all shadow-sm flex items-center gap-1.5 flex-shrink-0">
+              <span>Load</span>
+              <span class="material-symbols-outlined text-xs">arrow_forward</span>
+            </button>
+          </div>
+
+          <!-- Item 5 -->
+          <div class="group flex items-center justify-between p-2.5 rounded-xl bg-surface-container/70 border border-slate-800 hover:border-purple-500/40 hover:bg-surface-high/60 transition-all">
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-lg bg-gradient-to-br from-pink-600 via-purple-700 to-slate-950 flex-shrink-0 flex items-center justify-center shadow-md relative overflow-hidden">
+                <span class="material-symbols-outlined text-pink-200 text-xl">party_mode</span>
+                <span class="absolute bottom-0 right-0 px-1 bg-black/60 text-[9px] font-mono text-pink-300">POP</span>
+              </div>
+              <div class="min-w-0">
+                <h4 class="text-xs font-semibold text-white group-hover:text-purple-300 transition-colors truncate">Art Class Friday Bops</h4>
+                <div class="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                  <span class="font-medium text-slate-300">By Studio Staff</span>
+                  <span class="text-slate-600">•</span>
+                  <span class="font-mono text-slate-400">18 tracks</span>
+                </div>
+              </div>
+            </div>
+            <button class="px-3.5 py-1.5 rounded-lg bg-surface-high group-hover:bg-purple-600 group-hover:text-white text-xs font-semibold text-slate-200 border border-slate-700/60 group-hover:border-purple-500 transition-all shadow-sm flex items-center gap-1.5 flex-shrink-0">
+              <span>Load</span>
+              <span class="material-symbols-outlined text-xs">arrow_forward</span>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Dialog Footer: Pagination & Meta -->
+        <div class="px-6 py-3.5 bg-surface-lowest border-t border-slate-800 flex items-center justify-between">
+          <div class="text-[11px] font-mono text-slate-400">
+            Showing <span class="text-slate-200 font-semibold">1–20</span> of <span class="text-slate-200 font-semibold">42</span> playlists
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="px-3 py-1.5 rounded-lg bg-surface-low border border-slate-800 text-xs font-medium text-slate-500 cursor-not-allowed flex items-center gap-1">
+              <span class="material-symbols-outlined text-xs">chevron_left</span>
+              Previous
+            </button>
+            <button class="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-high border border-slate-700 text-xs font-medium text-slate-200 hover:text-white transition-colors flex items-center gap-1">
+              Next
+              <span class="material-symbols-outlined text-xs">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT MODAL: SAVE TO SPOTIFY (SavePlaylistModal) -->
+      <div class="bg-surface-low border border-slate-700/70 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden transition-all duration-200 hover:border-slate-600 flex flex-col">
+        <!-- Dialog Header -->
+        <div class="px-6 py-4 bg-surface-container border-b border-slate-800/90 flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center">
+              <span class="material-symbols-outlined text-purple-400 text-lg">cloud_upload</span>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white tracking-wide">Save Clean Playlist to Spotify</h3>
+              <p class="text-[11px] text-slate-400 font-mono">Sync screened safe tracks back to your Spotify account</p>
+            </div>
+          </div>
+          <button class="w-7 h-7 rounded-lg text-slate-400 hover:text-white hover:bg-surface-high flex items-center justify-center transition-colors">
+            <span class="material-symbols-outlined text-base">close</span>
+          </button>
+        </div>
+
+        <div class="p-6 space-y-5">
+          <!-- Segmented Mode Cards -->
+          <div class="space-y-3">
+            <label class="text-[11px] font-mono text-slate-400 uppercase tracking-wider font-semibold">Target Destination Strategy</label>
+            
+            <!-- Selected Card: Create New Clean Playlist (Recommended) -->
+            <div class="p-4 rounded-xl bg-purple-950/25 border-2 border-purple-500/80 relative shadow-lg shadow-purple-950/50">
+              <div class="flex items-start justify-between">
+                <div class="flex items-start gap-3">
+                  <div class="w-5 h-5 rounded-full bg-purple-600 flex items-center justify-center mt-0.5 text-white flex-shrink-0">
+                    <span class="material-symbols-outlined text-xs">check</span>
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-bold text-white">Create New Clean Playlist</span>
+                      <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-mono font-medium border border-emerald-500/30">RECOMMENDED</span>
+                    </div>
+                    <p class="text-[11px] text-slate-300 mt-1">Keeps original untouched. Creates a dedicated broadcast-safe playlist clone.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Nested Form inside selected mode -->
+              <div class="mt-4 pt-3.5 border-t border-purple-900/60 space-y-3">
+                <div>
+                  <label class="block text-[11px] font-mono text-slate-400 mb-1.5">New Playlist Title</label>
+                  <div class="relative">
+                    <input 
+                      type="text" 
+                      value="90s Hip-Hop Classics (Clean)" 
+                      class="w-full bg-surface-lowest text-xs text-white rounded-lg px-3 py-2 border border-slate-700 focus:border-purple-400 focus:ring-1 focus:ring-purple-400 font-sans"
+                    />
+                    <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-purple-300/80 bg-purple-950/60 px-1.5 py-0.5 rounded border border-purple-500/20">Auto-Tagged</span>
+                  </div>
+                </div>
+
+                <!-- Privacy Toggle -->
+                <div class="flex items-center justify-between pt-1">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-slate-400 text-sm">lock</span>
+                    <span class="text-xs text-slate-200">Private Playlist</span>
+                    <span class="text-[10px] text-slate-500">(Only visible to you on Spotify)</span>
+                  </div>
+                  <!-- Custom Toggle Switch -->
+                  <div class="w-9 h-5 bg-purple-600 rounded-full p-0.5 cursor-pointer flex items-center justify-end transition-colors shadow-inner">
+                    <div class="w-4 h-4 bg-white rounded-full shadow-md"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Unselected Card: Replace Tracks in Original Playlist -->
+            <div class="p-3.5 rounded-xl bg-surface-container/40 border border-slate-800 hover:border-slate-700 transition-all cursor-pointer opacity-75 hover:opacity-100">
+              <div class="flex items-start gap-3">
+                <div class="w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center mt-0.5 flex-shrink-0">
+                  <span class="w-2 h-2 rounded-full bg-transparent"></span>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-300">Replace Tracks in Original Playlist</span>
+                    <span class="text-[10px] font-mono text-rose-400/90 bg-rose-950/40 px-1.5 py-0.2 rounded border border-rose-900/60">Destructive</span>
+                  </div>
+                  <p class="text-[11px] text-slate-500 mt-0.5">Overwrites track items directly in &quot;90s Hip-Hop Classics&quot; on your Spotify account.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary Inset Box -->
+          <div class="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center flex-shrink-0">
+                <span class="material-symbols-outlined text-emerald-400 text-base">verified</span>
+              </div>
+              <div>
+                <div class="text-xs font-medium text-emerald-200">
+                  <span class="font-bold text-white">24 verified / swapped tracks</span> will be written to Spotify
+                </div>
+                <div class="text-[10px] font-mono text-emerald-400/80 mt-0.5">
+                  15 verified radio clean • 9 clean edit replacements
+                </div>
+              </div>
+            </div>
+            <span class="text-[11px] font-mono text-slate-400 bg-surface-lowest px-2 py-1 rounded border border-slate-800">
+              ~2.4 sec sync
+            </span>
+          </div>
+        </div>
+
+        <!-- Dialog Footer Actions -->
+        <div class="px-6 py-4 bg-surface-lowest border-t border-slate-800 flex items-center justify-between mt-auto">
+          <button class="px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-high border border-slate-700/80 text-xs font-semibold text-slate-300 hover:text-white transition-colors">
+            Cancel
+          </button>
+          <div class="flex items-center gap-2.5">
+            <span class="text-[11px] font-mono text-slate-500">Destination: Alex Morgan</span>
+            <button class="px-4 py-2 rounded-lg bg-gradient-to-r from-[#1ed760] to-emerald-500 hover:from-[#1db954] hover:to-emerald-600 text-black text-xs font-bold transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 active:scale-[0.98]">
+              <span class="material-symbols-outlined text-base">cloud_sync</span>
+              Save to Spotify
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- SPECIFICATION AUDIT FOOTER -->
+    <div class="mt-8 pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-slate-500 gap-3">
+      <div class="flex items-center gap-4">
+        <span>CleanPlaylist Studio v2.4 (VIP Engine Active)</span>
+        <span>•</span>
+        <span class="text-purple-400">Obsidian Audio Core Theme</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="flex items-center gap-1 text-slate-400"><span class="material-symbols-outlined text-xs text-emerald-400">check</span> Zero audio re-encoding</span>
+        <span>•</span>
+        <span>Desktop Modals Benchmark</span>
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>
