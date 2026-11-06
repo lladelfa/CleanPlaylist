@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import FastAPI, HTTPException, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from dotenv import load_dotenv
 
 from app.config import PRESET_PROFILES, WORD_CATEGORIES
@@ -33,19 +33,56 @@ app.add_middleware(
 )
 
 class TrackScanItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     id: str
     setVideoId: Optional[str] = None
+    index: Optional[int] = None
     title: str
     artist: str
+    artists_list: List[str] = Field(default_factory=list)
+    album: Optional[str] = ""
     duration: Optional[str] = ""
     duration_seconds: Optional[int] = 0
     is_explicit: Optional[bool] = False
     thumbnail: Optional[str] = None
     video_url: Optional[str] = None
+    verification_status: Optional[str] = "unscanned"
+    source_platform: Optional[str] = None
+
+class AlbumSummary(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    title: str
+    artist: str
+    thumbnail: Optional[str] = None
+    track_count: Optional[int] = None
+    year: Optional[str] = None
+    source_platform: Optional[str] = None
+
+class CatalogSearchRequest(BaseModel):
+    query: str
+    platform: Optional[str] = "ytmusic"
+    limit: Optional[int] = 10
+
+class CatalogSearchResponse(BaseModel):
+    songs: List[TrackScanItem]
+    albums: List[AlbumSummary]
+
+class CatalogAlbumRequest(BaseModel):
+    album_id: str
+    platform: Optional[str] = "ytmusic"
+
+class CatalogAlbumResponse(BaseModel):
+    id: str
+    title: str
+    artist: str
+    thumbnail: Optional[str] = None
+    track_count: int
+    tracks: List[TrackScanItem]
 
 class PlaylistFetchRequest(BaseModel):
     url_or_id: str
-    limit: Optional[int] = 150
+    limit: Optional[int] = 50
     platform: Optional[str] = "ytmusic"
 
 class PlaylistScanRequest(BaseModel):
@@ -103,14 +140,52 @@ def get_presets():
         "categories": {k: sorted(list(v)) for k, v in WORD_CATEGORIES.items()}
     }
 
+@app.post("/api/catalog/search", response_model=CatalogSearchResponse)
+def search_catalog(req: CatalogSearchRequest):
+    query = (req.query or "").strip()
+    if not query:
+        return {"songs": [], "albums": []}
+    limit = min(max(1, req.limit or 10), 10)
+    if req.platform == "spotify":
+        result = spotify_service.search_catalog(query=query, limit=limit)
+    else:
+        result = ytmusic_service.search_catalog(query=query, limit=limit)
+    return {
+        "songs": [TrackScanItem(**s) for s in result.get("songs", [])],
+        "albums": [AlbumSummary(**a) for a in result.get("albums", [])],
+    }
+
+@app.post("/api/catalog/album", response_model=CatalogAlbumResponse)
+def get_catalog_album(req: CatalogAlbumRequest):
+    try:
+        if req.platform == "spotify":
+            result = spotify_service.get_album(album_id=req.album_id)
+        else:
+            result = ytmusic_service.get_album(album_id=req.album_id)
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {
+        "id": result["id"],
+        "title": result["title"],
+        "artist": result["artist"],
+        "thumbnail": result.get("thumbnail"),
+        "track_count": result.get("track_count", len(result.get("tracks", []))),
+        "tracks": [TrackScanItem(**t) for t in result.get("tracks", [])],
+    }
+
 @app.post("/api/playlist/fetch")
 def fetch_playlist(req: PlaylistFetchRequest, request: Request, response: Response):
     try:
         if req.platform == "spotify":
             sp_client = spotify_service.get_client(request=request, response=response)
-            return spotify_service.get_playlist(req.url_or_id, sp_client=sp_client)
+            return spotify_service.get_playlist(req.url_or_id, sp_client=sp_client, limit=req.limit or 50)
         else:
-            return ytmusic_service.get_playlist(req.url_or_id, limit=req.limit or 100)
+            return ytmusic_service.get_playlist(req.url_or_id, limit=req.limit or 50)
     except HTTPException as he:
         raise he
     except Exception as e:
