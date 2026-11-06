@@ -1,7 +1,7 @@
 """YouTube Music API service wrapper using ytmusicapi."""
 
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from ytmusicapi import YTMusic
 
 class YTMusicService:
@@ -9,6 +9,16 @@ class YTMusicService:
         # YTM is now strictly a read-only unauthenticated utility.
         self.yt = YTMusic()
         self._lyrics_cache: Dict[str, Optional[str]] = {}
+
+    @staticmethod
+    def extract_album_id(url_or_id: str) -> str:
+        raw = url_or_id.strip()
+        match = re.search(r"[?&]list=([a-zA-Z0-9_-]+)", raw)
+        if match:
+            return match.group(1)
+        if "music.youtube.com/browse/" in raw:
+            return raw.split("music.youtube.com/browse/")[-1].split("?")[0].split("/")[0]
+        return raw
 
     @staticmethod
     def extract_playlist_id(url_or_id: str) -> str:
@@ -89,12 +99,25 @@ class YTMusicService:
                 "video_url": f"https://music.youtube.com/watch?v={video_id}",
             })
 
+        raw_tc = raw_playlist.get("trackCount")
+        try:
+            source_track_count = int(raw_tc) if raw_tc is not None else len(tracks)
+        except (ValueError, TypeError):
+            source_track_count = len(tracks)
+
+        truncated = source_track_count > len(tracks)
+        if limit and len(tracks) > limit:
+            tracks = tracks[:limit]
+            truncated = True
+
         return {
             "id": playlist_id,
             "title": raw_playlist.get("title", "YouTube Music Playlist"),
             "description": raw_playlist.get("description", ""),
             "author": (raw_playlist.get("author") or {}).get("name", "Unknown"),
             "track_count": len(tracks),
+            "source_track_count": source_track_count,
+            "truncated": truncated,
             "thumbnail": cover_image,
             "tracks": tracks,
         }
@@ -182,4 +205,138 @@ class YTMusicService:
         candidates.sort(key=lambda x: x["confidence_score"], reverse=True)
         return candidates[0]
 
+    def search_catalog(self, query: str, limit: int = 10) -> Dict[str, Any]:
+        capped_limit = min(max(1, limit), 10)
+        songs = []
+        try:
+            song_results = self.yt.search(query, filter="songs", limit=capped_limit)
+            for item in song_results:
+                video_id = item.get("videoId")
+                if not video_id:
+                    continue
+                artists = [a.get("name", "") for a in item.get("artists", []) if a.get("name")]
+                artist_name = ", ".join(artists) if artists else "Unknown Artist"
+                duration_text = item.get("duration", "")
+                duration_sec = item.get("duration_seconds") or self.parse_duration_to_seconds(duration_text)
+                track_thumbs = item.get("thumbnails", [])
+                thumb = track_thumbs[-1]["url"] if track_thumbs else None
+
+                songs.append({
+                    "id": video_id,
+                    "title": item.get("title", "Untitled Track"),
+                    "artist": artist_name,
+                    "artists_list": artists,
+                    "album": (item.get("album") or {}).get("name", ""),
+                    "duration": duration_text,
+                    "duration_seconds": duration_sec,
+                    "is_explicit": bool(item.get("isExplicit", False)),
+                    "thumbnail": thumb,
+                    "video_url": f"https://music.youtube.com/watch?v={video_id}",
+                    "verification_status": "unscanned",
+                    "source_platform": "ytmusic",
+                })
+        except Exception as e:
+            print(f"[YTMusicService] Song search error for '{query}': {e}")
+
+        albums = []
+        try:
+            album_results = self.yt.search(query, filter="albums", limit=capped_limit)
+            for item in album_results:
+                browse_id = item.get("browseId")
+                if not browse_id:
+                    continue
+                artists = [a.get("name", "") for a in item.get("artists", []) if a.get("name")]
+                artist_name = ", ".join(artists) if artists else "Unknown Artist"
+                thumb_list = item.get("thumbnails", [])
+                thumb = thumb_list[-1]["url"] if thumb_list else None
+                year = str(item.get("year", "")) if item.get("year") else None
+
+                raw_tc = item.get("track_count") or item.get("trackCount")
+                parsed_tc = None
+                if raw_tc is not None:
+                    try:
+                        if isinstance(raw_tc, str):
+                            digits = re.findall(r"\d+", raw_tc)
+                            parsed_tc = int(digits[0]) if digits else None
+                        else:
+                            parsed_tc = int(raw_tc)
+                    except Exception:
+                        parsed_tc = None
+
+                albums.append({
+                    "id": browse_id,
+                    "title": item.get("title", "Untitled Album"),
+                    "artist": artist_name,
+                    "thumbnail": thumb,
+                    "track_count": parsed_tc,
+                    "year": year,
+                    "source_platform": "ytmusic",
+                })
+        except Exception as e:
+            print(f"[YTMusicService] Album search error for '{query}': {e}")
+
+        return {"songs": songs, "albums": albums}
+
+    def get_album(self, album_id: str) -> Dict[str, Any]:
+        clean_id = self.extract_album_id(album_id)
+        try:
+            raw = self.yt.get_album(clean_id)
+        except Exception as e:
+            raise ValueError(f"Could not load YouTube Music album '{album_id}': {e}")
+
+        artists = [a.get("name", "") for a in raw.get("artists", []) if a.get("name")]
+        artist_str = ", ".join(artists) if artists else "Unknown Artist"
+        thumb_list = raw.get("thumbnails", [])
+        cover_image = thumb_list[-1]["url"] if thumb_list else None
+        album_title = raw.get("title", "YouTube Music Album")
+
+        tracks = []
+        for idx, item in enumerate(raw.get("tracks", [])):
+            if not item:
+                continue
+            video_id = item.get("videoId")
+            if not video_id:
+                continue
+            t_artists = [a.get("name", "") for a in item.get("artists", []) if a.get("name")]
+            t_artist_str = ", ".join(t_artists) if t_artists else artist_str
+            duration_text = item.get("duration", "")
+            duration_sec = item.get("duration_seconds") or self.parse_duration_to_seconds(duration_text)
+            t_thumbs = item.get("thumbnails", [])
+            thumb = t_thumbs[-1]["url"] if t_thumbs else cover_image
+
+            tracks.append({
+                "id": video_id,
+                "index": idx + 1,
+                "title": item.get("title", "Untitled Track"),
+                "artist": t_artist_str,
+                "artists_list": t_artists or artists,
+                "album": album_title,
+                "duration": duration_text,
+                "duration_seconds": duration_sec,
+                "is_explicit": bool(item.get("isExplicit", False)),
+                "thumbnail": thumb,
+                "video_url": f"https://music.youtube.com/watch?v={video_id}",
+                "verification_status": "unscanned",
+                "source_platform": "ytmusic",
+            })
+
+        track_count = raw.get("trackCount")
+        if track_count is None:
+            track_count = len(tracks)
+        else:
+            try:
+                track_count = int(track_count)
+            except (ValueError, TypeError):
+                track_count = len(tracks)
+
+        return {
+            "id": album_id,
+            "title": album_title,
+            "artist": artist_str,
+            "thumbnail": cover_image,
+            "track_count": track_count,
+            "tracks": tracks,
+        }
+
 ytmusic_service = YTMusicService()
+

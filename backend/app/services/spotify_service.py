@@ -5,10 +5,10 @@ import hmac
 import hashlib
 import base64
 import zlib
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from pathlib import Path
 import spotipy
-from spotipy.oauth2 import SpotifyOAuth
+from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
 from spotipy.cache_handler import MemoryCacheHandler
 from fastapi import HTTPException, Request, Response
 
@@ -68,6 +68,7 @@ class SpotifyService:
         self._lyrics_cache = {}
         self.sp_oauth: Optional[SpotifyOAuth] = None
         self.sp: Optional[spotipy.Spotify] = None
+        self._catalog_client: Optional[spotipy.Spotify] = None
         self._init_oauth()
 
     @staticmethod
@@ -194,6 +195,15 @@ class SpotifyService:
         self.sp = None
 
     @staticmethod
+    def extract_album_id(url_or_id: str) -> str:
+        raw = url_or_id.strip()
+        if "spotify.com/album/" in raw:
+            return raw.split("spotify.com/album/")[-1].split("?")[0].split("/")[0]
+        if raw.startswith("spotify:album:"):
+            return raw.split(":")[-1]
+        return raw
+
+    @staticmethod
     def extract_playlist_id(url: str) -> str:
         if "spotify.com" in url:
             return url.split("/")[-1].split("?")[0]
@@ -201,7 +211,28 @@ class SpotifyService:
             return url.split(":")[-1]
         return url
 
-    def get_client(
+    def get_catalog_client(self) -> spotipy.Spotify:
+        """Returns an isolated, process-cached Spotify client credentials client for zero-login catalog calls."""
+        if self._catalog_client is not None:
+            return self._catalog_client
+
+        client_id = os.environ.get("SPOTIFY_CLIENT_ID")
+        client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET")
+        if not client_id or not client_secret:
+            raise HTTPException(
+                status_code=500,
+                detail="Spotify developer credentials not configured in environment.",
+            )
+
+        cred_manager = SpotifyClientCredentials(
+            client_id=client_id,
+            client_secret=client_secret,
+            cache_handler=MemoryCacheHandler(),
+        )
+        self._catalog_client = spotipy.Spotify(client_credentials_manager=cred_manager)
+        return self._catalog_client
+
+    def get_oauth_client(
         self, request: Optional[Request] = None, response: Optional[Response] = None
     ) -> spotipy.Spotify:
         if request is not None:
@@ -211,6 +242,12 @@ class SpotifyService:
         if self.sp is not None:
             return self.sp
         raise HTTPException(status_code=401, detail="You must log in to Spotify to perform this action.")
+
+    def get_client(
+        self, request: Optional[Request] = None, response: Optional[Response] = None
+    ) -> spotipy.Spotify:
+        return self.get_oauth_client(request=request, response=response)
+
 
     def _get_client(
         self, request: Optional[Request] = None, response: Optional[Response] = None
@@ -257,7 +294,7 @@ class SpotifyService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to fetch Spotify playlists: {e}")
 
-    def get_playlist(self, url_or_id: str, sp_client: Optional[spotipy.Spotify] = None) -> Dict:
+    def get_playlist(self, url_or_id: str, sp_client: Optional[spotipy.Spotify] = None, limit: Optional[int] = None) -> Dict:
         sp = sp_client or self._get_client()
         playlist_id = self.extract_playlist_id(url_or_id)
 
@@ -334,12 +371,20 @@ class SpotifyService:
 
             cover_image = pl.get('images', [{}])[0].get('url') if pl.get('images') else None
 
+            source_track_count = len(tracks)
+            truncated = False
+            if limit and len(tracks) > limit:
+                tracks = tracks[:limit]
+                truncated = True
+
             return {
                 "id": playlist_id,
                 "title": pl.get('name', 'Spotify Playlist'),
                 "description": pl.get('description', ''),
-                "author": pl.get('owner', {}).get('display_name', 'Unknown'),
+                "author": (pl.get('owner') or {}).get('display_name', 'Unknown'),
                 "track_count": len(tracks),
+                "source_track_count": source_track_count,
+                "truncated": truncated,
                 "thumbnail": cover_image,
                 "tracks": tracks,
             }
@@ -397,4 +442,125 @@ class SpotifyService:
             print(f"Spotify search error: {e}")
         return None
 
+    def search_catalog(self, query: str, limit: int = 10) -> Dict[str, Any]:
+        capped_limit = min(max(1, limit), 10)
+        sp = self.get_catalog_client()
+        try:
+            results = sp.search(q=query, type="track,album", limit=capped_limit)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Spotify catalog search failed: {e}")
+
+        songs = []
+        for track in results.get("tracks", {}).get("items", []):
+            if not track or not isinstance(track, dict) or "id" not in track:
+                continue
+            artists = [(a.get("name") or "Unknown") for a in track.get("artists", []) if isinstance(a, dict)]
+            album_info = track.get("album") or {}
+            images = album_info.get("images") or []
+            thumbnail = images[0]["url"] if images and isinstance(images[0], dict) else None
+            duration_ms = track.get("duration_ms", 0)
+            duration_sec = duration_ms // 1000
+            m, s = divmod(duration_sec, 60)
+
+            songs.append({
+                "id": track["id"],
+                "title": track.get("name", "Unknown"),
+                "artist": ", ".join(artists) or "Unknown Artist",
+                "artists_list": artists,
+                "album": album_info.get("name", ""),
+                "duration": f"{m}:{s:02d}",
+                "duration_seconds": duration_sec,
+                "is_explicit": track.get("explicit", False),
+                "thumbnail": thumbnail,
+                "video_url": (track.get("external_urls") or {}).get("spotify", ""),
+                "verification_status": "unscanned",
+                "source_platform": "spotify",
+            })
+
+        albums = []
+        for album in results.get("albums", {}).get("items", []):
+            if not album or not isinstance(album, dict) or "id" not in album:
+                continue
+            artists = [(a.get("name") or "Unknown") for a in album.get("artists", []) if isinstance(a, dict)]
+            images = album.get("images") or []
+            thumbnail = images[0]["url"] if images and isinstance(images[0], dict) else None
+            year = str(album.get("release_date", ""))[:4] if album.get("release_date") else None
+
+            albums.append({
+                "id": album["id"],
+                "title": album.get("name", "Unknown Album"),
+                "artist": ", ".join(artists) or "Unknown Artist",
+                "thumbnail": thumbnail,
+                "track_count": album.get("total_tracks"),
+                "year": year,
+                "source_platform": "spotify",
+            })
+
+        return {"songs": songs, "albums": albums}
+
+    def get_album(self, album_id: str) -> Dict[str, Any]:
+        sp = self.get_catalog_client()
+        clean_id = self.extract_album_id(album_id)
+        try:
+            album = sp.album(clean_id)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to fetch Spotify album: {e}")
+
+        artists = [(a.get("name") or "Unknown") for a in album.get("artists", []) if isinstance(a, dict)]
+        artist_str = ", ".join(artists) or "Unknown Artist"
+        images = album.get("images") or []
+        thumbnail = images[0]["url"] if images and isinstance(images[0], dict) else None
+        album_name = album.get("name", "Unknown Album")
+
+        tracks_items = []
+        results = album.get("tracks") or {}
+        tracks_items.extend(results.get("items", []))
+        while results and results.get("next"):
+            try:
+                results = sp.next(results)
+                if not results:
+                    break
+                tracks_items.extend(results.get("items", []))
+            except Exception:
+                break
+
+        tracks = []
+        for idx, item in enumerate(tracks_items):
+            if not item or not isinstance(item, dict) or "id" not in item:
+                continue
+            t_artists = [(a.get("name") or "Unknown") for a in item.get("artists", []) if isinstance(a, dict)]
+            duration_ms = item.get("duration_ms", 0)
+            duration_sec = duration_ms // 1000
+            m, s = divmod(duration_sec, 60)
+
+            tracks.append({
+                "id": item["id"],
+                "index": idx + 1,
+                "title": item.get("name", "Unknown Track"),
+                "artist": ", ".join(t_artists) or artist_str,
+                "artists_list": t_artists or artists,
+                "album": album_name,
+                "duration": f"{m}:{s:02d}",
+                "duration_seconds": duration_sec,
+                "is_explicit": item.get("explicit", False),
+                "thumbnail": thumbnail,
+                "video_url": (item.get("external_urls") or {}).get("spotify", ""),
+                "verification_status": "unscanned",
+                "source_platform": "spotify",
+            })
+
+        return {
+            "id": clean_id,
+            "title": album_name,
+            "artist": artist_str,
+            "thumbnail": thumbnail,
+            "track_count": album.get("total_tracks", len(tracks)),
+            "tracks": tracks,
+        }
+
 spotify_service = SpotifyService()
+
