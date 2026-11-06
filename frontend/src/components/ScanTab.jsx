@@ -9,7 +9,6 @@ import {
   FileText,
   ExternalLink,
   RefreshCw,
-  Filter,
   SlidersHorizontal,
   Plus,
   X,
@@ -20,12 +19,16 @@ import {
 
 import SavePlaylistModal from "./SavePlaylistModal";
 import PlaylistPickerModal from "./PlaylistPickerModal";
+import SmartInputBar from "./SmartInputBar";
+import NoticeBanner from "./NoticeBanner";
 
 export default function ScanTab({
   playlist,
   setPlaylist,
   scannedTracks,
   setScannedTracks,
+  workingList = [],
+  _setWorkingList,
   onOpenLyrics,
   customBlocklist,
   setCustomBlocklist,
@@ -33,7 +36,7 @@ export default function ScanTab({
   setPreset,
   isAuthenticated,
   onOpenAuth,
-  activePlatform,
+  activePlatform = "spotify",
 }) {
   const [urlInput, setUrlInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,9 +48,175 @@ export default function ScanTab({
   const [cleanCandidates, setCleanCandidates] = useState({});
   const [searchingClean, setSearchingClean] = useState({});
   const [statusMessage, setStatusMessage] = useState(null);
+  const [activeNotice, setActiveNotice] = useState(null);
 
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isPickerModalOpen, setIsPickerModalOpen] = useState(false);
+
+  const handleAddSong = (song) => {
+    const currentTracks = workingList && workingList.length > 0 ? workingList : scannedTracks;
+
+    if (currentTracks.some((t) => t.id === song.id)) {
+      setActiveNotice({
+        type: "caution",
+        message: `"${song.title}" is already in Working List.`,
+      });
+      return;
+    }
+
+    if (currentTracks.length >= 50) {
+      setActiveNotice({
+        type: "caution",
+        message: "Working list is at capacity (50 tracks maximum).",
+      });
+      return;
+    }
+
+    const newTrack = {
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      artists_list: song.artists_list || [song.artist],
+      album: song.album || "",
+      duration: song.duration || "",
+      duration_seconds: song.duration_seconds || 0,
+      is_explicit: Boolean(song.is_explicit),
+      thumbnail: song.thumbnail || "",
+      video_url: song.video_url || "",
+      verification_status: "unscanned",
+      source_platform: activePlatform,
+      is_flagged: Boolean(song.is_explicit),
+      reasons: song.is_explicit
+        ? [`Marked Explicit by ${activePlatform === "spotify" ? "Spotify" : "YouTube Music"}`]
+        : [],
+      detected_terms: [],
+      snippets: [],
+      has_lyrics: false,
+    };
+
+    setScannedTracks((prev) => [...prev, newTrack]);
+
+    if (!playlist) {
+      setPlaylist({
+        id: "working_list",
+        title: "Working List",
+        author: "User",
+        tracks: [newTrack],
+      });
+    } else {
+      setPlaylist((prev) => ({
+        ...prev,
+        tracks: [...(prev.tracks || []), newTrack],
+      }));
+    }
+  };
+
+  const handleAddAlbum = async (album) => {
+    try {
+      const res = await fetch("/api/catalog/album", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          album_id: album.id,
+          platform: activePlatform,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to fetch album tracks");
+      }
+
+      const data = await res.json();
+      const currentTracks = workingList && workingList.length > 0 ? workingList : scannedTracks;
+      const remaining = 50 - currentTracks.length;
+
+      if (remaining <= 0) {
+        setActiveNotice({
+          type: "caution",
+          message: "Working list is at capacity (50 tracks maximum).",
+        });
+        return;
+      }
+
+      const rawTracks = data.tracks || [];
+      const existingIds = new Set(currentTracks.map((t) => t.id));
+      const dedupedTracks = rawTracks.filter((t) => !existingIds.has(t.id));
+
+      if (dedupedTracks.length === 0) {
+        setActiveNotice({
+          type: "caution",
+          message: `All tracks from "${album.title}" are already in Working List.`,
+        });
+        return;
+      }
+
+      const normalizedTracks = dedupedTracks.map((t) => ({
+        ...t,
+        verification_status: "unscanned",
+        source_platform: activePlatform,
+        is_flagged: Boolean(t.is_explicit),
+        reasons: t.is_explicit
+          ? [`Marked Explicit by ${activePlatform === "spotify" ? "Spotify" : "YouTube Music"}`]
+          : [],
+        detected_terms: [],
+        snippets: [],
+        has_lyrics: false,
+      }));
+
+      if (normalizedTracks.length > remaining) {
+        const toAdd = normalizedTracks.slice(0, remaining);
+        const omittedCount = normalizedTracks.length - remaining;
+
+        setScannedTracks((prev) => [...prev, ...toAdd]);
+
+        if (!playlist) {
+          setPlaylist({
+            id: album.id,
+            title: album.title,
+            author: album.artist,
+            tracks: toAdd,
+          });
+        } else {
+          setPlaylist((prev) => ({
+            ...prev,
+            tracks: [...(prev.tracks || []), ...toAdd],
+          }));
+        }
+
+        setActiveNotice({
+          type: "caution",
+          message: `Added ${remaining} tracks from "${album.title}". Working list capped at 50 tracks (${omittedCount} tracks omitted).`,
+        });
+      } else {
+        setScannedTracks((prev) => [...prev, ...normalizedTracks]);
+
+        if (!playlist) {
+          setPlaylist({
+            id: album.id,
+            title: album.title,
+            author: album.artist,
+            tracks: normalizedTracks,
+          });
+        } else {
+          setPlaylist((prev) => ({
+            ...prev,
+            tracks: [...(prev.tracks || []), ...normalizedTracks],
+          }));
+        }
+
+        setActiveNotice({
+          type: "success",
+          message: `Added ${normalizedTracks.length} tracks from "${album.title}".`,
+        });
+      }
+    } catch (err) {
+      setActiveNotice({
+        type: "error",
+        message: err.message || "Failed to load album tracks",
+      });
+    }
+  };
 
   // Sample playlists for instant testing
   const samplePlaylists = [
@@ -262,7 +431,25 @@ export default function ScanTab({
 
   return (
     <div className="space-y-6">
-      {/* 1. Playlist Input Bar */}
+      {/* 0. Notice Banner */}
+      {activeNotice && (
+        <NoticeBanner
+          type={activeNotice.type}
+          message={activeNotice.message}
+          actionLabel={activeNotice.actionLabel}
+          onAction={activeNotice.onAction}
+          onDismiss={() => setActiveNotice(null)}
+        />
+      )}
+
+      {/* 1. Smart Input Bar */}
+      <SmartInputBar
+        activePlatform={activePlatform}
+        onAddSong={handleAddSong}
+        onAddAlbum={handleAddAlbum}
+      />
+
+      {/* Legacy / Direct Playlist Input Bar */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
         <label className="block text-sm font-semibold text-slate-200 mb-2">
           YouTube Music Playlist URL or Playlist ID
@@ -337,7 +524,7 @@ export default function ScanTab({
       </div>
 
       {/* 2. Filter & Preset Settings (shown when playlist loaded) */}
-      {playlist && (
+      {(playlist || scannedTracks.length > 0) && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center space-x-2">
@@ -453,14 +640,14 @@ export default function ScanTab({
       )}
 
       {/* 3. Scanned Tracks Results */}
-      {playlist && (
+      {(playlist || scannedTracks.length > 0) && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
           {/* Header Stats */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
             <div>
-              <h2 className="text-xl font-bold text-white">{playlist.title}</h2>
+              <h2 className="text-xl font-bold text-white">{playlist?.title || "Working List"}</h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                By {playlist.author} • {scannedTracks.length} tracks total
+                {playlist?.author ? `By ${playlist.author} • ` : ""}{scannedTracks.length} tracks total
               </p>
             </div>
 
