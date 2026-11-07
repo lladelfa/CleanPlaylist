@@ -174,7 +174,8 @@ def health_check():
 def get_presets():
     return {
         "presets": list(PRESET_PROFILES.values()),
-        "categories": {k: sorted(list(v)) for k, v in WORD_CATEGORIES.items()}
+        "categories": {k: sorted(list(v)) for k, v in WORD_CATEGORIES.items()},
+        "morphological_suffix_pattern": "(?:ing|ed|s|es)?",
     }
 
 @app.post("/api/catalog/search", response_model=CatalogSearchResponse)

@@ -12,6 +12,7 @@ export default function App() {
   const [pendingPlatform, setPendingPlatform] = useState(null);
   const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [presetsData, setPresetsData] = useState(null);
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -28,6 +29,14 @@ export default function App() {
         .then(data => setIsAuthenticated(data.authenticated))
         .catch(err => console.error("Failed to check auth status", err));
     }
+
+    fetch('/api/presets')
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch presets');
+        return res.json();
+      })
+      .then(data => setPresetsData(data))
+      .catch(err => console.warn('Failed to load presets, using defaults:', err));
   }, []);
 
   const [playlist, setPlaylist] = useState(null);
@@ -136,6 +145,7 @@ export default function App() {
             setCustomBlocklist={setCustomBlocklist}
             preset={preset}
             setPreset={setPreset}
+            presetsData={presetsData}
             isAuthenticated={isAuthenticated}
             onOpenAuth={handleLogin}
             activePlatform={activePlatform}

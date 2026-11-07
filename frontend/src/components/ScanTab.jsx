@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Search,
   AlertCircle,
@@ -8,9 +8,6 @@ import {
   ArrowRight,
   FileText,
   RefreshCw,
-  SlidersHorizontal,
-  Plus,
-  X,
   Save,
   Trash2,
   Library,
@@ -23,6 +20,8 @@ import NoticeBanner from "./NoticeBanner";
 import PasteTrackListPanel from "./PasteTrackListPanel";
 import PlatformSwitchModal from "./PlatformSwitchModal";
 import WorkingListWorkbench from "./WorkingListWorkbench";
+import ScreeningControlsBar from "./ScreeningControlsBar";
+import { reevaluateTracks } from "../utils/lyricEvaluator";
 import { runScreeningPipeline } from "../utils/screeningPipeline";
 
 export default function ScanTab({
@@ -32,13 +31,14 @@ export default function ScanTab({
   setScannedTracks,
   workingList = [],
   setWorkingList,
-  _lyricsByTrackId = {},
+  lyricsByTrackId = {},
   setLyricsByTrackId,
   onOpenLyrics,
   customBlocklist,
   setCustomBlocklist,
   preset,
   setPreset,
+  presetsData = null,
   isAuthenticated,
   onOpenAuth,
   activePlatform = "spotify",
@@ -48,8 +48,6 @@ export default function ScanTab({
   const [urlInput, setUrlInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [deepScan, setDeepScan] = useState(false);
-  const [newKeyword, setNewKeyword] = useState("");
   const [filterMode, setFilterMode] = useState("all"); // 'all' | 'flagged' | 'clean'
   const [searchQuery, setSearchQuery] = useState("");
   const [cleanCandidates, setCleanCandidates] = useState({});
@@ -607,18 +605,69 @@ export default function ScanTab({
     });
   };
 
-  const handleAddKeyword = (e) => {
-    e.preventDefault();
-    if (!newKeyword.trim()) return;
-    const word = newKeyword.trim().toLowerCase();
-    if (!customBlocklist.includes(word)) {
-      setCustomBlocklist([...customBlocklist, word]);
+  const reevaluateWith = useCallback((newPreset, newBlocklist) => {
+    const activePreset = newPreset !== undefined ? newPreset : preset;
+    const activeBlocklist = newBlocklist !== undefined ? newBlocklist : customBlocklist;
+    const targetTracks = workingList && workingList.length > 0 ? workingList : scannedTracks;
+    if (!targetTracks || targetTracks.length === 0) return;
+
+    try {
+      const { tracks: evaluatedTracks } = reevaluateTracks(targetTracks, {
+        lyricsByTrackId,
+        preset: activePreset,
+        customBlocklist: activeBlocklist,
+        presets: presetsData?.presets
+          ? Object.fromEntries(presetsData.presets.map((p) => [p.id, p]))
+          : undefined,
+        categories: presetsData?.categories,
+        suffixPattern: presetsData?.morphological_suffix_pattern,
+        platform: activePlatform,
+      });
+
+      setScannedTracks(evaluatedTracks);
+      if (setWorkingList) {
+        setWorkingList(evaluatedTracks);
+      }
+      if (playlist && setPlaylist) {
+        setPlaylist((prev) => (prev ? { ...prev, tracks: evaluatedTracks } : prev));
+      }
+    } catch (err) {
+      console.error("Failed to re-evaluate tracks client-side:", err);
     }
-    setNewKeyword("");
+  }, [preset, customBlocklist, workingList, scannedTracks, lyricsByTrackId, presetsData, activePlatform, setScannedTracks, setWorkingList, playlist, setPlaylist]);
+
+  const lastScreeningConfigRef = useRef({ preset, customBlocklist, presetsData });
+  useEffect(() => {
+    if (
+      lastScreeningConfigRef.current.preset !== preset ||
+      lastScreeningConfigRef.current.customBlocklist !== customBlocklist ||
+      lastScreeningConfigRef.current.presetsData !== presetsData
+    ) {
+      lastScreeningConfigRef.current = { preset, customBlocklist, presetsData };
+      reevaluateWith(preset, customBlocklist);
+    }
+  }, [preset, customBlocklist, presetsData, reevaluateWith]);
+
+  const handleSelectPreset = (newPreset) => {
+    lastScreeningConfigRef.current = { preset: newPreset, customBlocklist };
+    setPreset(newPreset);
+    reevaluateWith(newPreset, customBlocklist);
   };
 
-  const handleRemoveKeyword = (word) => {
-    setCustomBlocklist(customBlocklist.filter((w) => w !== word));
+  const handleAddBlocklistTerm = (term) => {
+    const currentList = Array.isArray(customBlocklist) ? customBlocklist : [];
+    const next = [...currentList, term];
+    lastScreeningConfigRef.current = { preset, customBlocklist: next };
+    setCustomBlocklist(next);
+    reevaluateWith(preset, next);
+  };
+
+  const handleRemoveBlocklistTerm = (term) => {
+    const currentList = Array.isArray(customBlocklist) ? customBlocklist : [];
+    const next = currentList.filter((w) => w !== term);
+    lastScreeningConfigRef.current = { preset, customBlocklist: next };
+    setCustomBlocklist(next);
+    reevaluateWith(preset, next);
   };
 
   const handleRemoveTrack = (trackToRemove) => {
@@ -768,129 +817,18 @@ export default function ScanTab({
       </div>
 
 
-      {/* 2. Filter & Preset Settings (shown when playlist loaded) */}
+      {/* 2. Screening Controls Bar (shown when playlist loaded) */}
       {(playlist || scannedTracks.length > 0) && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <div className="flex items-center space-x-2">
-              <SlidersHorizontal className="w-5 h-5 text-purple-400" />
-              <h3 className="font-semibold text-slate-200">
-                Scan & Content Settings
-              </h3>
-            </div>
-            <span className="text-xs text-slate-400">
-              Choose sensitivity & custom blocklist
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Preset Selector */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Filter Preset
-              </label>
-              <select
-                value={preset}
-                onChange={(e) => setPreset(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="moderate">
-                  Moderate (Standard Explicit & Slurs)
-                </option>
-                <option value="kid_safe">
-                  Kid-Safe / Strict (All profanity & vulgarity)
-                </option>
-                <option value="slurs_only">Slurs & Hate Speech Only</option>
-                <option value="custom">Custom Blocklist Only</option>
-              </select>
-            </div>
-
-            {/* Deep Scan Toggle */}
-            <div className="flex flex-col justify-end">
-              <label className="flex items-center space-x-2 cursor-pointer bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={deepScan}
-                  onChange={(e) => setDeepScan(e.target.checked)}
-                  className="rounded text-purple-600 focus:ring-purple-500"
-                />
-                <span className="text-slate-200 text-xs font-medium">
-                  Deep Lyric Scan (fetches full lyrics)
-                </span>
-              </label>
-            </div>
-
-            {/* Action Button */}
-            <div className="flex flex-col justify-end">
-              <div
-                role="status"
-                aria-live="polite"
-                aria-atomic="true"
-                className="sr-only"
-              >
-                {scanProgressAnnouncement}
-              </div>
-              <button
-                onClick={handleRunScan}
-                disabled={scanning}
-                aria-label="Scan Lyrics"
-                className="flex items-center justify-center space-x-2 w-full py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-medium text-sm rounded-xl transition shadow-lg shadow-purple-600/20 disabled:opacity-50"
-              >
-                {scanning ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-                <span>
-                  {scanning ? (scanProgressAnnouncement || "Scanning Lyrics...") : "Scan Lyrics"}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* Custom Keywords Blocklist */}
-          <div className="pt-2">
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Custom Keyword Blocklist (words you want flagged specifically)
-            </label>
-            <form onSubmit={handleAddKeyword} className="flex gap-2 mb-2">
-              <input
-                type="text"
-                placeholder="Add custom word (e.g. beer, gun, shut up) and press Enter"
-                value={newKeyword}
-                onChange={(e) => setNewKeyword(e.target.value)}
-                className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-              <button
-                type="submit"
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-xl flex items-center space-x-1"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Word</span>
-              </button>
-            </form>
-
-            {customBlocklist.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {customBlocklist.map((word) => (
-                  <span
-                    key={word}
-                    className="inline-flex items-center space-x-1 bg-purple-950/60 text-purple-300 text-xs px-2.5 py-1 rounded-full border border-purple-800/60"
-                  >
-                    <span>{word}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveKeyword(word)}
-                      className="hover:text-purple-100"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <ScreeningControlsBar
+          preset={preset}
+          onSelectPreset={handleSelectPreset}
+          customBlocklist={customBlocklist}
+          onAddBlocklistTerm={handleAddBlocklistTerm}
+          onRemoveBlocklistTerm={handleRemoveBlocklistTerm}
+          onRunScan={handleRunScan}
+          scanning={scanning}
+          scanProgressAnnouncement={scanProgressAnnouncement}
+        />
       )}
 
       {/* 3. Scanned Tracks Results */}
