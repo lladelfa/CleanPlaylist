@@ -1,0 +1,141 @@
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import WorkingListWorkbench from '../WorkingListWorkbench';
+
+describe('WorkingListWorkbench component', () => {
+  const sampleTracks = [
+    {
+      id: 'track_1',
+      title: 'First Song',
+      artist: 'First Artist',
+      album: 'First Album',
+      duration: '3:30',
+      duration_seconds: 210,
+      thumbnail: 'https://example.com/art1.jpg',
+      verification_status: 'unscanned',
+    },
+    {
+      id: 'track_2',
+      title: 'Second Song',
+      artist: 'Second Artist',
+      album: '',
+      thumbnail: '',
+      verification_status: 'unscanned',
+    },
+  ];
+
+  const originalInnerWidth = window.innerWidth;
+
+  beforeEach(() => {
+    window.innerWidth = 1024;
+  });
+
+  afterEach(() => {
+    window.innerWidth = originalInnerWidth;
+  });
+
+  it('renders nothing or returns null when workingList is empty', () => {
+    const { container, rerender } = render(<WorkingListWorkbench tracks={[]} />);
+    expect(container.firstChild).toBeNull();
+
+    rerender(<WorkingListWorkbench tracks={null} />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders header with track count and "Clear List" button', () => {
+    const handleClear = vi.fn();
+    render(
+      <WorkingListWorkbench
+        tracks={sampleTracks}
+        onClearList={handleClear}
+      />
+    );
+
+    expect(screen.getByText(/Working List/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 \/ 50 tracks/i)).toBeInTheDocument();
+
+    const clearBtn = screen.getByRole('button', { name: /Clear List/i });
+    expect(clearBtn).toBeInTheDocument();
+    fireEvent.click(clearBtn);
+    expect(handleClear).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders dense 6-column desktop table with column headers and track data on desktop (>= 768px)', () => {
+    window.innerWidth = 1024;
+    render(<WorkingListWorkbench tracks={sampleTracks} />);
+
+    // Table elements
+    const table = screen.getByRole('table');
+    expect(table).toBeInTheDocument();
+
+    // Check headers
+    const headers = screen.getAllByRole('columnheader');
+    expect(headers).toHaveLength(6);
+    expect(headers[0]).toHaveTextContent('#');
+    expect(headers[1]).toHaveTextContent(/Title & Artist/i);
+    expect(headers[2]).toHaveTextContent(/Album/i);
+    expect(headers[3]).toHaveTextContent(/Duration/i);
+    expect(headers[4]).toHaveTextContent(/Status/i);
+    expect(headers[5]).toHaveTextContent(/Actions/i);
+
+    // Track 1
+    expect(screen.getByText('First Song')).toBeInTheDocument();
+    expect(screen.getByText('First Artist')).toBeInTheDocument();
+    expect(screen.getByText('First Album')).toBeInTheDocument();
+    expect(screen.getByText('3:30')).toBeInTheDocument();
+
+    // Fallbacks for Track 2 (empty thumbnail, missing duration)
+    expect(screen.getByText('Second Song')).toBeInTheDocument();
+    expect(screen.getByText('0:00')).toBeInTheDocument();
+
+    // VerificationStatusBadge "Unscanned"
+    const badges = screen.getAllByText('Unscanned');
+    expect(badges.length).toBeGreaterThan(0);
+  });
+
+  it('adapts to stacked MobileTrackCard components below 768px with min 44px touch targets', () => {
+    window.innerWidth = 500;
+    const handleRemove = vi.fn();
+
+    render(
+      <WorkingListWorkbench
+        tracks={sampleTracks}
+        onRemoveTrack={handleRemove}
+      />
+    );
+
+    // Table should not be rendered on mobile
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+
+    // Tracks rendered as cards
+    expect(screen.getByText('First Song')).toBeInTheDocument();
+    expect(screen.getByText('Second Song')).toBeInTheDocument();
+
+    // Remove buttons have >= 44px touch target
+    const removeBtns = screen.getAllByRole('button', { name: 'Remove track' });
+    expect(removeBtns).toHaveLength(2);
+    expect(removeBtns[0].className).toMatch(/min-h-\[44px\]/);
+    expect(removeBtns[0].className).toMatch(/min-w-\[44px\]/);
+
+    fireEvent.click(removeBtns[0]);
+    expect(handleRemove).toHaveBeenCalledWith(sampleTracks[0]);
+  });
+
+  it('allows removing an individual track with aria-label="Remove track"', () => {
+    window.innerWidth = 1024;
+    const handleRemove = vi.fn();
+    render(
+      <WorkingListWorkbench
+        tracks={sampleTracks}
+        onRemoveTrack={handleRemove}
+      />
+    );
+
+    const removeBtns = screen.getAllByRole('button', { name: 'Remove track' });
+    expect(removeBtns).toHaveLength(2);
+
+    fireEvent.click(removeBtns[0]);
+    expect(handleRemove).toHaveBeenCalledWith(sampleTracks[0]);
+  });
+});

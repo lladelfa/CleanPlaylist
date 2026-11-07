@@ -45,6 +45,7 @@ const mockPlaylist = {
 function StatefulScanTabWrapper({ initialPlaylist = mockPlaylist, initialTracks = mockPlaylist.tracks }) {
   const [playlist, setPlaylist] = useState(initialPlaylist);
   const [scannedTracks, setScannedTracks] = useState(initialTracks);
+  const [workingList, setWorkingList] = useState(initialTracks);
   const [customBlocklist, setCustomBlocklist] = useState([]);
   const [preset, setPreset] = useState("moderate");
 
@@ -54,6 +55,8 @@ function StatefulScanTabWrapper({ initialPlaylist = mockPlaylist, initialTracks 
       setPlaylist={setPlaylist}
       scannedTracks={scannedTracks}
       setScannedTracks={setScannedTracks}
+      workingList={workingList}
+      setWorkingList={setWorkingList}
       onOpenLyrics={vi.fn()}
       customBlocklist={customBlocklist}
       setCustomBlocklist={setCustomBlocklist}
@@ -286,5 +289,38 @@ describe("ScanTab - Spotify Playlist Picker Integration", () => {
         }),
       })
     );
+  });
+
+  it("resets workingList, scannedTracks, and playlist when Clear List button is clicked", async () => {
+    const user = userEvent.setup();
+    const setPlaylist = vi.fn();
+    const setScannedTracks = vi.fn();
+    const setWorkingList = vi.fn();
+
+    render(
+      <ScanTab
+        playlist={mockPlaylist}
+        setPlaylist={setPlaylist}
+        scannedTracks={mockPlaylist.tracks}
+        setScannedTracks={setScannedTracks}
+        workingList={mockPlaylist.tracks}
+        setWorkingList={setWorkingList}
+        onOpenLyrics={vi.fn()}
+        customBlocklist={[]}
+        setCustomBlocklist={vi.fn()}
+        preset="moderate"
+        setPreset={vi.fn()}
+        isAuthenticated={false}
+        onOpenAuth={vi.fn()}
+        activePlatform="spotify"
+      />
+    );
+
+    const clearBtn = screen.getByRole("button", { name: /clear list/i });
+    await user.click(clearBtn);
+
+    expect(setScannedTracks).toHaveBeenCalledWith([]);
+    expect(setWorkingList).toHaveBeenCalledWith([]);
+    expect(setPlaylist).toHaveBeenCalledWith(null);
   });
 });

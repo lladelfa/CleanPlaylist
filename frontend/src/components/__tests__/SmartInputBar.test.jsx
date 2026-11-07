@@ -256,4 +256,81 @@ describe('SmartInputBar', () => {
     expect(handleOpenPastePanel).toHaveBeenCalledWith('Song One\nSong Two');
     expect(input.value).toBe('');
   });
+
+  it('intercepts Spotify playlist URL client-side with 0 network calls and displays SpotifyPlaylistHelper', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch');
+    const handleOpenPastePanel = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <SmartInputBar
+        activePlatform="spotify"
+        onAddSong={vi.fn()}
+        onAddAlbum={vi.fn()}
+        onOpenPastePanel={handleOpenPastePanel}
+      />
+    );
+
+    const input = screen.getByPlaceholderText(/search songs or albums/i);
+    await user.click(input);
+    await user.paste('https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M');
+
+    // 0 fetch calls made
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    // SpotifyPlaylistHelper banner rendered
+    expect(
+      screen.getByText(/Public Spotify playlist links require a quick copy-paste/i)
+    ).toBeInTheDocument();
+
+    // Clicking "Focus Paste Box" calls onOpenPastePanel
+    const focusPasteBtn = screen.getByRole('button', { name: /Focus Paste Box/i });
+    await user.click(focusPasteBtn);
+    expect(handleOpenPastePanel).toHaveBeenCalledWith('');
+
+    // Clicking "Search Albums Instead" clears query and dismisses helper
+    const searchAlbumsBtn = screen.getByRole('button', { name: /Search Albums Instead/i });
+    await user.click(searchAlbumsBtn);
+    expect(input.value).toBe('');
+    expect(
+      screen.queryByText(/Public Spotify playlist links require a quick copy-paste/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('allows Spotify playlist URLs to proceed to catalog search when vipMode={true}', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ songs: mockSongs, albums: [] }),
+    });
+
+    const user = userEvent.setup();
+    render(
+      <SmartInputBar
+        activePlatform="spotify"
+        vipMode={true}
+        onAddSong={vi.fn()}
+        onAddAlbum={vi.fn()}
+      />
+    );
+
+    const input = screen.getByPlaceholderText(/search songs or albums/i);
+    await user.click(input);
+    await user.type(input, 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M{Enter}');
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/catalog/search',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          query: 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M',
+          platform: 'spotify',
+          limit: 10,
+        }),
+      })
+    );
+
+    expect(
+      screen.queryByText(/Public Spotify playlist links require a quick copy-paste/i)
+    ).not.toBeInTheDocument();
+  });
 });

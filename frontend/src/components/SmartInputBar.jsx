@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Plus, Music, Disc, Loader2, Sparkles, X } from 'lucide-react';
+import { isSpotifyPlaylistUrl } from '../utils/inputParser';
+import SpotifyPlaylistHelper from './SpotifyPlaylistHelper';
 
 const SAMPLE_CHIPS = [
   { label: '90s Hip-Hop Sample', query: '90s Hip-Hop' },
@@ -12,12 +14,16 @@ export default function SmartInputBar({
   onAddSong,
   onAddAlbum,
   onOpenPastePanel,
+  onSpotifyPlaylistDetected,
+  vipMode = false,
   className = '',
 }) {
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
+  const [showPlaylistHelper, setShowPlaylistHelper] = useState(false);
+  const inputRef = useRef(null);
   const debounceTimerRef = useRef(null);
   const abortControllerRef = useRef(null);
 
@@ -28,6 +34,7 @@ export default function SmartInputBar({
     setResults(null);
     setError(null);
     setIsSearching(false);
+    setShowPlaylistHelper(false);
   }, [activePlatform]);
 
   const executeSearch = useCallback(
@@ -36,6 +43,23 @@ export default function SmartInputBar({
       if (!trimmed) {
         setResults(null);
         setIsSearching(false);
+        return;
+      }
+
+      // If Spotify playlist URL and not authenticated VIP, intercept client-side with 0 network calls
+      if (isSpotifyPlaylistUrl(trimmed) && !vipMode) {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        setResults(null);
+        setIsSearching(false);
+        setShowPlaylistHelper(true);
+        if (onSpotifyPlaylistDetected) {
+          onSpotifyPlaylistDetected(trimmed);
+        }
         return;
       }
 
@@ -75,7 +99,7 @@ export default function SmartInputBar({
         setIsSearching(false);
       }
     },
-    [activePlatform]
+    [activePlatform, vipMode, onSpotifyPlaylistDetected]
   );
 
   useEffect(() => {
@@ -84,6 +108,16 @@ export default function SmartInputBar({
     }
 
     if (!query.trim()) {
+      return;
+    }
+
+    if (isSpotifyPlaylistUrl(query) && !vipMode) {
+      setShowPlaylistHelper(true);
+      setResults(null);
+      setIsSearching(false);
+      if (onSpotifyPlaylistDetected) {
+        onSpotifyPlaylistDetected(query);
+      }
       return;
     }
 
@@ -96,7 +130,7 @@ export default function SmartInputBar({
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [query, executeSearch]);
+  }, [query, executeSearch, vipMode, onSpotifyPlaylistDetected]);
 
   const handleInputChange = (e) => {
     const val = e.target.value;
@@ -107,7 +141,27 @@ export default function SmartInputBar({
       }
       setResults(null);
       setIsSearching(false);
+      setShowPlaylistHelper(false);
+      return;
     }
+
+    if (isSpotifyPlaylistUrl(val) && !vipMode) {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      setResults(null);
+      setIsSearching(false);
+      setShowPlaylistHelper(true);
+      if (onSpotifyPlaylistDetected) {
+        onSpotifyPlaylistDetected(val);
+      }
+      return;
+    }
+
+    setShowPlaylistHelper(false);
   };
 
   const handlePaste = (e) => {
@@ -117,6 +171,24 @@ export default function SmartInputBar({
       handleClear();
       if (onOpenPastePanel) {
         onOpenPastePanel(pasted);
+      }
+      return;
+    }
+
+    if (isSpotifyPlaylistUrl(pasted) && !vipMode) {
+      e.preventDefault();
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      setQuery(pasted);
+      setResults(null);
+      setIsSearching(false);
+      setShowPlaylistHelper(true);
+      if (onSpotifyPlaylistDetected) {
+        onSpotifyPlaylistDetected(pasted);
       }
     }
   };
@@ -135,6 +207,7 @@ export default function SmartInputBar({
 
   const handleChipClick = (chipQuery) => {
     setQuery(chipQuery);
+    setShowPlaylistHelper(false);
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
@@ -148,6 +221,7 @@ export default function SmartInputBar({
     setQuery('');
     setResults(null);
     setIsSearching(false);
+    setShowPlaylistHelper(false);
   };
 
   const totalResults =
@@ -167,6 +241,7 @@ export default function SmartInputBar({
           </div>
 
           <input
+            ref={inputRef}
             type="text"
             value={query}
             onChange={handleInputChange}
@@ -212,8 +287,24 @@ export default function SmartInputBar({
         )}
       </div>
 
-      {/* Sample Chips when empty */}
-      {!query.trim() && !results && (
+      {/* Guided Spotify Playlist Copy Helper Banner */}
+      {showPlaylistHelper && (
+        <div className="mt-3.5">
+          <SpotifyPlaylistHelper
+            onFocusPaste={() => onOpenPastePanel && onOpenPastePanel('')}
+            onSearchAlbumsInstead={() => {
+              setQuery('');
+              setShowPlaylistHelper(false);
+              setResults(null);
+              inputRef.current?.focus();
+            }}
+            onDismiss={() => setShowPlaylistHelper(false)}
+          />
+        </div>
+      )}
+
+      {/* Sample Chips when empty and no helper */}
+      {!query.trim() && !results && !showPlaylistHelper && (
         <div className="mt-3.5 pt-3 border-t border-border-subtle/40 flex items-center gap-2 flex-wrap text-xs text-text-muted">
           <span className="font-mono uppercase tracking-wider text-[11px] text-text-muted">
             Quick Samples:
