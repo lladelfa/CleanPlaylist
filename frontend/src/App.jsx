@@ -33,7 +33,7 @@ export default function App() {
   const [playlist, setPlaylist] = useState(null);
   const [scannedTracks, setScannedTracks] = useState([]);
   const [workingList, setWorkingList] = useState([]);
-  const [_lyricsByTrackId, setLyricsByTrackId] = useState({});
+  const [lyricsByTrackId, setLyricsByTrackId] = useState({});
   const [customBlocklist, setCustomBlocklist] = useState(['explicit', 'fuck', 'shit', 'bitch', 'asshole']);
   const [preset, setPreset] = useState('moderate');
   const [selectedTrackForLyrics, setSelectedTrackForLyrics] = useState(null);
@@ -129,6 +129,8 @@ export default function App() {
             setScannedTracks={handleSetScannedTracks}
             workingList={workingList}
             setWorkingList={setWorkingList}
+            lyricsByTrackId={lyricsByTrackId}
+            setLyricsByTrackId={setLyricsByTrackId}
             onOpenLyrics={(track) => setSelectedTrackForLyrics(track)}
             customBlocklist={customBlocklist}
             setCustomBlocklist={setCustomBlocklist}

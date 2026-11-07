@@ -1,5 +1,12 @@
 import React from 'react';
-import { CheckCircle2, ShieldAlert, RefreshCw, HelpCircle } from 'lucide-react';
+import {
+  CheckCircle2,
+  ShieldAlert,
+  RefreshCw,
+  HelpCircle,
+  FileQuestion,
+  AlertCircle,
+} from 'lucide-react';
 
 export default function VerificationStatusBadge({
   status,
@@ -10,22 +17,29 @@ export default function VerificationStatusBadge({
   const s = status ? String(status).toLowerCase() : null;
 
   if (track) {
-    if (track.was_replaced) {
+    const vs = track.verification_status
+      ? String(track.verification_status).toLowerCase()
+      : null;
+
+    if (track.was_replaced || vs === 'clean_swapped' || vs === 'swapped') {
       resolvedStatus = 'clean_swapped';
-    } else if (track.is_flagged) {
+    } else if (vs === 'scanning') {
+      resolvedStatus = 'scanning';
+    } else if (track.is_flagged || vs === 'flagged') {
       resolvedStatus = 'flagged';
-    } else if (track.verification_status === 'verified_clean' || track.is_clean) {
+    } else if (vs === 'lyrics_unavailable') {
+      resolvedStatus = 'lyrics_unavailable';
+    } else if (vs === 'verified_clean' || vs === 'clean') {
       resolvedStatus = 'verified_clean';
+    } else if (vs === 'scan_error' || vs === 'error') {
+      resolvedStatus = 'scan_error';
     } else if (s && s !== 'unscanned') {
       if (s === 'verified_clean' || s === 'clean') resolvedStatus = 'verified_clean';
       else if (s === 'clean_swapped' || s === 'swapped') resolvedStatus = 'clean_swapped';
       else if (s === 'flagged') resolvedStatus = 'flagged';
-    } else if (track.verification_status) {
-      const vs = String(track.verification_status).toLowerCase();
-      if (vs === 'verified_clean' || vs === 'clean') resolvedStatus = 'verified_clean';
-      else if (vs === 'clean_swapped' || vs === 'swapped') resolvedStatus = 'clean_swapped';
-      else if (vs === 'flagged') resolvedStatus = 'flagged';
-      else resolvedStatus = 'unscanned';
+      else if (s === 'lyrics_unavailable') resolvedStatus = 'lyrics_unavailable';
+      else if (s === 'scanning') resolvedStatus = 'scanning';
+      else if (s === 'scan_error' || s === 'error') resolvedStatus = 'scan_error';
     } else {
       resolvedStatus = 'unscanned';
     }
@@ -33,6 +47,9 @@ export default function VerificationStatusBadge({
     if (s === 'verified_clean' || s === 'clean') resolvedStatus = 'verified_clean';
     else if (s === 'clean_swapped' || s === 'swapped') resolvedStatus = 'clean_swapped';
     else if (s === 'flagged') resolvedStatus = 'flagged';
+    else if (s === 'lyrics_unavailable') resolvedStatus = 'lyrics_unavailable';
+    else if (s === 'scanning') resolvedStatus = 'scanning';
+    else if (s === 'scan_error' || s === 'error') resolvedStatus = 'scan_error';
     else resolvedStatus = 'unscanned';
   }
 
@@ -65,6 +82,39 @@ export default function VerificationStatusBadge({
       >
         <ShieldAlert className="w-3 h-3 text-status-flagged" aria-hidden="true" />
         <span>Flagged</span>
+      </span>
+    );
+  }
+
+  if (resolvedStatus === 'lyrics_unavailable') {
+    return (
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-950/40 border border-amber-900/50 text-amber-400 shrink-0 ${className}`}
+      >
+        <FileQuestion className="w-3 h-3 text-amber-400" aria-hidden="true" />
+        <span>Lyrics Unavailable</span>
+      </span>
+    );
+  }
+
+  if (resolvedStatus === 'scanning') {
+    return (
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-purple-950/40 border border-purple-800/50 text-purple-300 shrink-0 ${className}`}
+      >
+        <RefreshCw className="w-3 h-3 text-purple-400 animate-spin" aria-hidden="true" />
+        <span>Scanning</span>
+      </span>
+    );
+  }
+
+  if (resolvedStatus === 'scan_error') {
+    return (
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-rose-950/40 border border-rose-900/50 text-rose-400 shrink-0 ${className}`}
+      >
+        <AlertCircle className="w-3 h-3 text-rose-400" aria-hidden="true" />
+        <span>Scan Error</span>
       </span>
     );
   }

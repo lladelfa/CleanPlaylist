@@ -324,3 +324,133 @@ describe("ScanTab - Spotify Playlist Picker Integration", () => {
     expect(setPlaylist).toHaveBeenCalledWith(null);
   });
 });
+
+describe("ScanTab - Progressive Lyric Scan Integration", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("renders Scan Lyrics button with aria-label='Scan Lyrics', updates tracks, and announces live progress", async () => {
+    const user = userEvent.setup();
+    const setScannedTracks = vi.fn();
+    const setLyricsByTrackId = vi.fn();
+
+    const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+      if (url === "/api/scan/playlist") {
+        return {
+          ok: true,
+          json: async () => ({
+            tracks: [
+              {
+                id: "track_1",
+                title: "Clean Song One",
+                artist: "Artist A",
+                verification_status: "verified_clean",
+                is_flagged: false,
+                has_lyrics: true,
+                snippets: [],
+                detected_terms: [],
+                total_flagged_count: 0,
+              },
+            ],
+            summary: {
+              total_tracks: 1,
+              flagged_tracks: 0,
+              clean_tracks: 1,
+            },
+            lyrics_by_id: {
+              track_1: "These are clean lyrics",
+            },
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    render(
+      <ScanTab
+        playlist={mockPlaylist}
+        setPlaylist={vi.fn()}
+        scannedTracks={[mockPlaylist.tracks[0]]}
+        setScannedTracks={setScannedTracks}
+        workingList={[mockPlaylist.tracks[0]]}
+        lyricsByTrackId={{}}
+        setLyricsByTrackId={setLyricsByTrackId}
+        onOpenLyrics={vi.fn()}
+        customBlocklist={[]}
+        setCustomBlocklist={vi.fn()}
+        preset="moderate"
+        setPreset={vi.fn()}
+        isAuthenticated={true}
+        onOpenAuth={vi.fn()}
+        activePlatform="spotify"
+      />
+    );
+
+    const scanBtn = screen.getByRole("button", { name: "Scan Lyrics" });
+    expect(scanBtn).toBeInTheDocument();
+    await user.click(scanBtn);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/scan/playlist",
+      expect.objectContaining({
+        method: "POST",
+      })
+    );
+
+    // Verify setScannedTracks was called with updaters reflecting updated status
+    expect(setScannedTracks).toHaveBeenCalled();
+    const calls = setScannedTracks.mock.calls;
+    // Test the batch complete updater merges metadata cleanly
+    const batchCompleteUpdater = calls[calls.length - 1][0];
+    const initialTestList = [{ id: "track_1", title: "Clean Song One", was_replaced: true }];
+    const updatedTestList = batchCompleteUpdater(initialTestList);
+    expect(updatedTestList[0].verification_status).toBe("verified_clean");
+    expect(updatedTestList[0].was_replaced).toBe(true);
+
+    // Verify lyrics dictionary was merged
+    expect(setLyricsByTrackId).toHaveBeenCalled();
+
+    // Verify accessible role="status" live region receives completion announcement
+    const liveRegion = screen.getByRole("status");
+    expect(liveRegion).toHaveTextContent("Scan complete: 0 flagged tracks found out of 1 tracks.");
+  });
+
+  it("surfaces error notice and updates live region when all tracks end with scan_error", async () => {
+    const user = userEvent.setup();
+    const setScannedTracks = vi.fn();
+
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ detail: "Database connection failed" }),
+    });
+
+    render(
+      <ScanTab
+        playlist={mockPlaylist}
+        setPlaylist={vi.fn()}
+        scannedTracks={[mockPlaylist.tracks[0]]}
+        setScannedTracks={setScannedTracks}
+        workingList={[mockPlaylist.tracks[0]]}
+        lyricsByTrackId={{}}
+        setLyricsByTrackId={vi.fn()}
+        onOpenLyrics={vi.fn()}
+        customBlocklist={[]}
+        setCustomBlocklist={vi.fn()}
+        preset="moderate"
+        setPreset={vi.fn()}
+        isAuthenticated={true}
+        onOpenAuth={vi.fn()}
+        activePlatform="spotify"
+      />
+    );
+
+    const scanBtn = screen.getByRole("button", { name: "Scan Lyrics" });
+    await user.click(scanBtn);
+
+    const liveRegion = screen.getByRole("status");
+    expect(liveRegion).toHaveTextContent("Scan failed: All tracks encountered scanning errors.");
+    expect(screen.getAllByText("Scan failed: All tracks encountered scanning errors.").length).toBeGreaterThanOrEqual(2);
+  });
+});
