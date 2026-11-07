@@ -132,6 +132,11 @@ class PlaylistScanRequest(BaseModel):
 
 class SingleTrackScanRequest(BaseModel):
     video_id: str
+    title: Optional[str] = None
+    artist: Optional[str] = None
+    duration: Optional[str] = None
+    duration_seconds: Optional[int] = 0
+    ytmusic_video_id: Optional[str] = None
     preset: Optional[str] = "moderate"
     custom_blocklist: Optional[List[str]] = Field(default_factory=list)
     is_explicit: Optional[bool] = False
@@ -436,12 +441,26 @@ def scan_playlist(req: PlaylistScanRequest):
 
 @app.post("/api/scan/track-lyrics")
 def scan_single_track_lyrics(req: SingleTrackScanRequest):
-    service = spotify_service if req.platform == "spotify" else ytmusic_service
-    lyrics = service.get_track_lyrics(req.video_id)
+    platform = (req.platform or "ytmusic").strip().lower()
+    if platform == "spotify":
+        track_payload = {
+            "id": req.video_id,
+            "title": req.title or "",
+            "artist": req.artist or "",
+            "duration": req.duration,
+            "duration_seconds": req.duration_seconds or 0,
+            "ytmusic_video_id": req.ytmusic_video_id,
+        }
+        resolved_yt_id, lyrics = lyric_xref_service.resolve_lyrics_and_yt_id(track_payload, "spotify")
+    else:
+        resolved_yt_id = req.video_id
+        service = ytmusic_service
+        lyrics = service.get_track_lyrics(req.video_id)
     if not lyrics:
         return {
             "has_lyrics": False,
             "lyrics": None,
+            "ytmusic_video_id": resolved_yt_id,
             "scan_result": {
                 "is_flagged": req.is_explicit,
                 "reasons": ["Marked Explicit by Provider"] if req.is_explicit else [],
@@ -462,6 +481,7 @@ def scan_single_track_lyrics(req: SingleTrackScanRequest):
     return {
         "has_lyrics": True,
         "lyrics": lyrics,
+        "ytmusic_video_id": resolved_yt_id,
         "scan_result": scan_result
     }
 

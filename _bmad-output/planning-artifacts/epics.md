@@ -39,6 +39,7 @@ FR-12: Per-Track Clean Track Links and One-Click Copy Clean Track Links — Ever
 FR-13: Offline File Exports Continuity — Users can export approved tracks as CSV, M3U8, or JSON on either platform without authentication, preserving post-swap metadata and Clean Track Links.
 FR-14: Query-Parameter VIP Mode Activation and Public UI Isolation — Hides all Spotify OAuth login, library browsing, and direct playlist save controls by default. Visiting with `?vip=1` persists VIP Mode in browser storage, unlocking allowlisted Spotify OAuth login, `PlaylistPickerModal`, direct Spotify playlist URL loading, and `SavePlaylistModal`.
 FR-15: Privacy-Safe Usage Event Recording — Emits anonymous, zero-PII structured JSON Usage Events once per completed user action (`input_loaded`, `scan_completed`, `clean_swap_applied`, `stitch_completed`, `finish_action_clicked`) capturing viewport class and funnel counts without collecting queries, URLs, titles, blocklist terms, IPs, or tokens.
+FR-16: On-Screen Profanity Masking & Unmask Toggle — The UI defaults to masking all displayed profanity tokens, custom blocklist chips, and detected keyword matches (preserving only the first character followed by asterisks, e.g., `w***`), with a global toggle in the screening controls to mask/unmask on demand without altering internal regex evaluation or API payloads.
 
 ### NonFunctional Requirements
 
@@ -77,6 +78,7 @@ UX-DR13: FinishLineBar & Responsive Finish-Line Inversion — Sticky bottom dock
 UX-DR14: NoticeBanner System & VIP OAuth Error Banner — Non-blocking alert banner supporting caution (truncation, skipped cross-platform URLs, omitted queue tracks), HTTP 429 rate limit with `Retry` action, and rose `role="alert"` VIP OAuth failure banner with 1-click `Exit VIP Mode`.
 UX-DR15: Accessibility & Motion Floor — Verbatim `aria-label`s on all interactive elements, modal focus trap with `Escape` close and trigger focus restoration, `aria-live="polite"` on progress/status regions, and `prefers-reduced-motion: reduce` compliance.
 UX-DR16: VIP Modals (PlaylistPickerModal & SavePlaylistModal) — Paginated library picker (`limit=20`, filter input) and save modal with radio cards (`Create New Clean Playlist` with title input + `Private Playlist` toggle; `Update Original Playlist` with destructive warning) and 2-second confirmation state.
+UX-DR17: On-Screen Profanity Masking & Obfuscation Toggle — ScreeningControlsBar renders a compact toggle button (`EyeOff` when masked, `Eye` when unmasked, defaulting to masked `isMasked=true`) with `aria-label="Toggle profanity masking"`. Formats explicit tokens as `${word[0]}${'*'.repeat(word.length - 1)}` across Custom Blocklist chips, detected reasons/snippets, LyricsModal line highlights, and Keyword Search excerpts.
 
 ### FR Coverage Map
 
@@ -87,6 +89,7 @@ FR-4: Epic 1 - Playlist URL Handling and Public Spotify Playlist Fallback
 FR-5: Epic 2 - Cross-Platform Lyric Cross-Reference and Categorized Regex Scan
 FR-6: Epic 2 - Explicit Verification Status and Lyrics Unavailable Guardrail
 FR-7: Epic 2 - Lyric Snippet Inspection and Keyword Search Continuity
+FR-16: Epic 2 - On-Screen Profanity Masking & Unmask Toggle
 FR-8: Epic 3 - Per-Track Keep, Remove, and Clean Replacement Swap
 FR-9: Epic 3 - One-Click Bulk Clean Swap in Scan & Clean
 FR-10: Epic 4 - Zero-Login Multi-Source Stitching
@@ -410,6 +413,33 @@ So that I can discover thematic references (like drugs, money, or violence) with
 **Given** the `Keyword Search` tab opened with an empty `workingList`,
 **When** viewed,
 **Then** a centered studio card explains that tracks must be added first, with a 1-click button routing back to `Scan & Clean`.
+
+### Story 2.6: UI Profanity Masking Toggle & Global Asterisk Obfuscation
+
+As a parent, teacher, or presenter screening music,
+I want explicit words and custom search terms masked on-screen by default with an optional unmask toggle,
+So that vulgar language is never visibly exposed on my screen while setting up or reviewing playlists.
+
+**Acceptance Criteria:**
+
+**Given** the CleanPlaylist studio interface,
+**When** the app mounts,
+**Then** a global `isMasked` state initializes to `true` (masked by default),
+**And** a Masking toggle button (eye / eye-off icon with `aria-label="Toggle profanity masking"`) is accessible in `ScreeningControlsBar`,
+**And** clicking the toggle switches `isMasked` between `true` and `false`.
+
+**Given** any word displayed as an explicit token, blocklist chip, or flagged snippet,
+**When** `isMasked` is `true`,
+**Then** a formatting helper masks the word keeping only the initial character visible followed by asterisks (e.g., "fuck" -> "f***", "shit" -> "s***", single-character tokens unchanged),
+**And** masking applies consistently across:
+  1. Custom Blocklist chips in `ScreeningControlsBar`
+  2. Detected reason tags and snippets in `WorkingListWorkbench` and `MobileTrackCard`
+  3. Flagged line highlights and profanity badge tags in `LyricsModal`
+  4. Search keywords and highlighted excerpts in `KeywordSearchWorkbench`.
+
+**Given** underlying screening and search mechanisms,
+**When** words are masked in the UI,
+**Then** all internal regex matching, preset definitions, and API payloads continue to operate on the unmasked literal strings.
 
 
 ## Epic 3: Clean Replacement Workbench & Dual Zero-Auth Finish Lines

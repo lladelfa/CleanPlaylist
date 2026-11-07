@@ -270,6 +270,15 @@ The system records anonymous **Usage Events** across core funnel milestones with
   5. `finish_action_clicked` (action: `play_clean_queue`, `copy_clean_links`, `open_track_link`, `file_export`, `vip_spotify_save`; platform; device viewport class `mobile` vs `desktop`)
 - Automated unit tests verify telemetry payloads contain no raw song queries, playlist URLs, user emails, or Spotify tokens.
 
+#### FR-16: On-Screen Profanity Masking & Unmask Toggle
+The UI defaults to masking all displayed profanity tokens, custom blocklist chips, and detected keyword matches (preserving only the first character followed by asterisks, e.g., `w***`), with a global toggle in the screening controls to mask/unmask on demand without altering internal regex evaluation or API payloads.
+
+**Consequences (testable):**
+- Global `isMasked` state initializes to `true` on app mount.
+- A toggle button in `ScreeningControlsBar` allows switching `isMasked` between `true` and `false`.
+- When `isMasked` is `true`, formatting helper `${word[0]}${'*'.repeat(word.length - 1)}` masks displayed terms across blocklist chips, detected reasons, modal line highlights, and keyword search excerpts.
+- Internal screening regexes, sensitivity preset lists, and backend scan payloads continue to evaluate against raw unmasked strings.
+
 ## 5. Cross-Cutting Non-Functional Requirements & Guardrails
 
 - **NFR-1 — Serverless Scan Latency & Timeout Safety:** Each batched API request (`/api/scan`, `/api/replacements/find`, catalog search) must complete in `<= 8 seconds` at p95 (`< 10 seconds` Vercel Hobby function ceiling). Full 50-track **Working List** lyric scanning must stream or batch progressively so the user sees initial track results in `<= 3 seconds` and full completion in `<= 25 seconds` under normal upstream latency.

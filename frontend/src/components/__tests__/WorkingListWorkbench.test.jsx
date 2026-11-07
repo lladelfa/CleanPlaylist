@@ -138,4 +138,33 @@ describe('WorkingListWorkbench component', () => {
     fireEvent.click(removeBtns[0]);
     expect(handleRemove).toHaveBeenCalledWith(sampleTracks[0]);
   });
+it('calls onOpenLyrics with track and trigger element when clicking snippet button', () => {
+    window.innerWidth = 1024;
+    const handleOpenLyrics = vi.fn();
+    const tracksWithSnippet = [
+      {
+        ...sampleTracks[0],
+        is_flagged: true,
+        verification_status: 'flagged',
+        snippets: [{ line_number: 12, text: 'explicit lyric here', matched_terms: ['explicit'] }],
+        reasons: ['Found 1 Strong Profanity instance(s)'],
+      },
+    ];
+
+    render(
+      <WorkingListWorkbench
+        tracks={tracksWithSnippet}
+        onOpenLyrics={handleOpenLyrics}
+      />
+    );
+
+    const snippetBtn = screen.getByRole('button', { name: 'Inspect lyric snippet' });
+    expect(snippetBtn).toBeInTheDocument();
+    expect(screen.getByText('L12:')).toBeInTheDocument();
+    expect(screen.getByText('"explicit lyric here"')).toBeInTheDocument();
+
+    fireEvent.click(snippetBtn);
+    expect(handleOpenLyrics).toHaveBeenCalledTimes(1);
+    expect(handleOpenLyrics).toHaveBeenCalledWith(tracksWithSnippet[0], snippetBtn);
+  });
 });
