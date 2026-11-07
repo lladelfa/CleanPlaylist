@@ -3,6 +3,7 @@ import {
   isMultiLine,
   parseTrackListLines,
   isSpotifyUrl,
+  isSpotifyPlaylistUrl,
   isYouTubeUrl,
   classifyInput,
 } from '../inputParser';
@@ -38,6 +39,38 @@ describe('inputParser utility', () => {
     expect(isSpotifyUrl('spotify:track:4cOdK2wGLETKBW3PvgPWqT')).toBe(true);
     expect(isSpotifyUrl('https://music.youtube.com/watch?v=123')).toBe(false);
     expect(isSpotifyUrl('some random song title')).toBe(false);
+  });
+
+  it('identifies Spotify playlist URLs and URIs via isSpotifyPlaylistUrl', () => {
+    // Standard playlist URL
+    expect(isSpotifyPlaylistUrl('https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M')).toBe(true);
+    expect(isSpotifyPlaylistUrl('http://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=abc123xyz')).toBe(true);
+    expect(isSpotifyPlaylistUrl('open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M')).toBe(true);
+
+    // Localized intl routes
+    expect(isSpotifyPlaylistUrl('https://open.spotify.com/intl-es/playlist/37i9dQZF1DXcBWIGoYBM5M')).toBe(true);
+    expect(isSpotifyPlaylistUrl('https://open.spotify.com/intl-pt-BR/playlist/37i9dQZF1DXcBWIGoYBM5M?si=test')).toBe(true);
+    expect(isSpotifyPlaylistUrl('https://open.spotify.com/intl-de/playlist/37i9dQZF1DXcBWIGoYBM5M')).toBe(true);
+
+    // Legacy user playlist route
+    expect(isSpotifyPlaylistUrl('https://open.spotify.com/user/spotify/playlist/37i9dQZF1DXcBWIGoYBM5M')).toBe(true);
+
+    // Spotify playlist URI
+    expect(isSpotifyPlaylistUrl('spotify:playlist:37i9dQZF1DXcBWIGoYBM5M')).toBe(true);
+    expect(isSpotifyPlaylistUrl('  spotify:playlist:37i9dQZF1DXcBWIGoYBM5M  ')).toBe(true);
+
+    // Non-playlist Spotify URLs and URIs
+    expect(isSpotifyPlaylistUrl('https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT')).toBe(false);
+    expect(isSpotifyPlaylistUrl('https://open.spotify.com/album/4cOdK2wGLETKBW3PvgPWqT')).toBe(false);
+    expect(isSpotifyPlaylistUrl('spotify:track:4cOdK2wGLETKBW3PvgPWqT')).toBe(false);
+    expect(isSpotifyPlaylistUrl('spotify:album:4cOdK2wGLETKBW3PvgPWqT')).toBe(false);
+
+    // Non-Spotify URLs and non-string inputs
+    expect(isSpotifyPlaylistUrl('https://music.youtube.com/playlist?list=PLq9HLaXrThm0pOPOiFHy8a0WHlsIwRANk')).toBe(false);
+    expect(isSpotifyPlaylistUrl('Daft Punk - Discovery')).toBe(false);
+    expect(isSpotifyPlaylistUrl('')).toBe(false);
+    expect(isSpotifyPlaylistUrl(null)).toBe(false);
+    expect(isSpotifyPlaylistUrl(undefined)).toBe(false);
   });
 
   it('identifies YouTube and YouTube Music URLs', () => {

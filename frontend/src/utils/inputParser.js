@@ -20,6 +20,14 @@ export function isSpotifyUrl(urlOrUri) {
   return raw.includes('spotify.com') || raw.startsWith('spotify:');
 }
 
+export function isSpotifyPlaylistUrl(urlOrUri) {
+  if (typeof urlOrUri !== 'string') return false;
+  const raw = urlOrUri.trim().toLowerCase();
+  if (!raw) return false;
+  if (raw.startsWith('spotify:playlist:')) return true;
+  return /(?:open\.spotify\.com\/(?:intl-[a-z0-9_-]+\/)?(?:user\/[^/]+\/)?playlist\/)/i.test(raw);
+}
+
 export function isYouTubeUrl(url) {
   if (typeof url !== 'string') return false;
   const raw = url.trim().toLowerCase();

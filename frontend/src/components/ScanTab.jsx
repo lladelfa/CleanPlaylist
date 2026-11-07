@@ -7,7 +7,6 @@ import {
   Sparkles,
   ArrowRight,
   FileText,
-  ExternalLink,
   RefreshCw,
   SlidersHorizontal,
   Plus,
@@ -23,6 +22,7 @@ import SmartInputBar from "./SmartInputBar";
 import NoticeBanner from "./NoticeBanner";
 import PasteTrackListPanel from "./PasteTrackListPanel";
 import PlatformSwitchModal from "./PlatformSwitchModal";
+import WorkingListWorkbench from "./WorkingListWorkbench";
 
 export default function ScanTab({
   playlist,
@@ -532,23 +532,26 @@ export default function ScanTab({
   };
 
   const handleSwapTrack = (originalTrack, cleanTrack) => {
-    setScannedTracks((prev) =>
-      prev.map((t) => {
-        if (t.id === originalTrack.id) {
-          return {
-            ...cleanTrack,
-            is_flagged: false,
-            reasons: [],
-            is_explicit: false,
-            was_replaced: true,
-            original_title: originalTrack.title,
-            original_id: originalTrack.id,
-            original_set_video_id: originalTrack.setVideoId,
-          };
-        }
-        return t;
-      }),
-    );
+    const swapFn = (t) => {
+      if (t.id === originalTrack.id) {
+        return {
+          ...cleanTrack,
+          is_flagged: false,
+          reasons: [],
+          is_explicit: false,
+          was_replaced: true,
+          original_title: originalTrack.title,
+          original_id: originalTrack.id,
+          original_set_video_id: originalTrack.setVideoId,
+        };
+      }
+      return t;
+    };
+
+    setScannedTracks((prev) => prev.map(swapFn));
+    if (setWorkingList) {
+      setWorkingList((prev) => prev.map(swapFn));
+    }
     setCleanCandidates((prev) => {
       const updated = { ...prev };
       delete updated[originalTrack.id];
@@ -572,11 +575,23 @@ export default function ScanTab({
 
   const handleRemoveTrack = (trackToRemove) => {
     setScannedTracks((prev) => prev.filter((t) => t.id !== trackToRemove.id));
+    if (setWorkingList) {
+      setWorkingList((prev) => prev.filter((t) => t.id !== trackToRemove.id));
+    }
     setCleanCandidates((prev) => {
       const updated = { ...prev };
       delete updated[trackToRemove.id];
       return updated;
     });
+  };
+
+  const handleClearList = () => {
+    setScannedTracks([]);
+    if (setWorkingList) {
+      setWorkingList([]);
+    }
+    setPlaylist(null);
+    setCleanCandidates({});
   };
 
   // Filtered tracks
@@ -618,6 +633,7 @@ export default function ScanTab({
         onAddSong={handleAddSong}
         onAddAlbum={handleAddAlbum}
         onOpenPastePanel={handleOpenPastePanel}
+        vipMode={isAuthenticated}
       />
 
       {/* 1.1 Paste Track List Panel */}
@@ -702,6 +718,7 @@ export default function ScanTab({
           </div>
         )}
       </div>
+
 
       {/* 2. Filter & Preset Settings (shown when playlist loaded) */}
       {(playlist || scannedTracks.length > 0) && (
@@ -922,142 +939,23 @@ export default function ScanTab({
             </div>
           </div>
 
-          {/* Track List */}
-          <div className="space-y-2">
-            {displayedTracks.map((track, idx) => {
-              const cleanCand = cleanCandidates[track.id];
-              const isSearching = searchingClean[track.id];
-
-              return (
-                <div
-                  key={track.id || idx}
-                  className={`p-3 rounded-xl border transition flex flex-col md:flex-row items-start md:items-center justify-between gap-3 ${
-                    track.is_flagged
-                      ? "bg-red-950/15 border-red-900/40 hover:bg-red-950/25"
-                      : "bg-slate-950/60 border-slate-800/80 hover:bg-slate-850"
-                  }`}
-                >
-                  {/* Left: Thumbnail & Song Info */}
-                  <div className="flex items-center space-x-3 min-w-0 flex-1">
-                    <span className="text-slate-500 text-xs font-mono w-6 text-right select-none">
-                      {idx + 1}
-                    </span>
-                    {track.thumbnail ? (
-                      <img
-                        src={track.thumbnail}
-                        alt={track.title}
-                        className="w-10 h-10 rounded-lg object-cover border border-slate-800 shrink-0"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-slate-800 shrink-0" />
-                    )}
-                    <div className="min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <p className="text-sm font-semibold text-white truncate">
-                          {track.title}
-                        </p>
-                        {track.is_explicit && (
-                          <span className="bg-red-950 text-red-400 text-[10px] px-1 py-0.2 rounded border border-red-800 font-bold shrink-0">
-                            E
-                          </span>
-                        )}
-                        {track.was_replaced && (
-                          <span className="bg-emerald-950 text-emerald-300 text-[10px] px-1.5 py-0.5 rounded border border-emerald-800 font-medium shrink-0">
-                            Swapped Clean
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-400 truncate">
-                        {track.artist}
-                      </p>
-                      {track.reasons?.length > 0 && (
-                        <p className="text-[11px] text-red-400 mt-0.5">
-                          {track.reasons.join(" • ")}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Middle / Right: Actions & Clean Replacement */}
-                  <div className="flex items-center space-x-2 shrink-0 self-end md:self-center">
-                    <span className="text-xs text-slate-500 font-mono hidden sm:inline mr-2">
-                      {track.duration}
-                    </span>
-
-                    {/* View Lyrics */}
-                    <button
-                      onClick={() => onOpenLyrics(track)}
-                      className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg flex items-center space-x-1 transition"
-                    >
-                      <FileText className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Lyrics</span>
-                    </button>
-
-                    {/* Clean Replacement Search for Flagged Tracks */}
-                    {track.is_flagged && !cleanCand && (
-                      <button
-                        onClick={() => handleFindClean(track)}
-                        disabled={isSearching}
-                        className="px-2.5 py-1.5 bg-purple-950/80 hover:bg-purple-900 border border-purple-800/60 text-purple-200 text-xs font-medium rounded-lg flex items-center space-x-1 transition disabled:opacity-50"
-                      >
-                        {isSearching ? (
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                        )}
-                        <span>
-                          {isSearching ? "Searching..." : "Find Clean Edit"}
-                        </span>
-                      </button>
-                    )}
-
-                    {/* Candidate found */}
-                    {cleanCand && cleanCand !== "none" && (
-                      <button
-                        onClick={() => handleSwapTrack(track, cleanCand)}
-                        className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg flex items-center space-x-1 shadow transition"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Swap to Clean</span>
-                      </button>
-                    )}
-
-                    {cleanCand === "none" && (
-                      <span className="text-[11px] text-slate-500 italic">
-                        No clean version found
-                      </span>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTrack(track)}
-                      aria-label="Remove track"
-                      title="Remove track"
-                      className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-
-                    <a
-                      href={track.video_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="p-1.5 text-slate-500 hover:text-slate-300 transition"
-                      title="Open in YouTube Music"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </div>
-                </div>
-              );
-            })}
-
-            {displayedTracks.length === 0 && (
-              <div className="py-12 text-center text-slate-500 text-sm">
-                No tracks match the selected filter.
-              </div>
-            )}
-          </div>
+          {/* Working List Workbench */}
+          {displayedTracks.length > 0 ? (
+            <WorkingListWorkbench
+              tracks={displayedTracks}
+              onRemoveTrack={handleRemoveTrack}
+              onClearList={handleClearList}
+              onOpenLyrics={onOpenLyrics}
+              cleanCandidates={cleanCandidates}
+              searchingClean={searchingClean}
+              onFindClean={handleFindClean}
+              onSwapTrack={handleSwapTrack}
+            />
+          ) : (
+            <div className="py-12 text-center text-slate-500 text-sm">
+              No tracks match the selected filter.
+            </div>
+          )}
         </div>
       )}
 
