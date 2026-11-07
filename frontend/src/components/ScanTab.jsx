@@ -44,6 +44,8 @@ export default function ScanTab({
   activePlatform = "spotify",
   onSwitchPlatform,
   onRequestPlatformChange,
+  keptTrackIds,
+  onKeepTrack,
 }) {
   const [urlInput, setUrlInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -945,6 +947,8 @@ export default function ScanTab({
               searchingClean={searchingClean}
               onFindClean={handleFindClean}
               onSwapTrack={handleSwapTrack}
+              keptTrackIds={keptTrackIds}
+              onKeepTrack={onKeepTrack}
             />
           ) : (
             <div className="py-12 text-center text-slate-500 text-sm">

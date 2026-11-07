@@ -70,11 +70,32 @@ export default function MobileTrackCard({
                 {track.album}
               </p>
             )}
-            {track.reasons && track.reasons.length > 0 && (
-              <p className="text-[11px] text-status-flagged mt-0.5 truncate">
+            {track.snippets && track.snippets.length > 0 ? (
+              <button
+                type="button"
+                onClick={(e) => onOpenLyrics && onOpenLyrics(track, e.currentTarget)}
+                aria-label="Inspect lyric snippet"
+                className="text-[11px] text-status-flagged mt-0.5 truncate text-left hover:underline cursor-pointer flex items-center gap-1 max-w-full"
+                title="Inspect lyric snippet"
+              >
+                {typeof track.snippets[0].line_number === 'number' && (
+                  <span className="font-mono text-[10px] opacity-80 shrink-0">
+                    L{String(track.snippets[0].line_number).padStart(2, '0')}:
+                  </span>
+                )}
+                <span className="truncate italic">"{track.snippets[0].text}"</span>
+              </button>
+            ) : track.reasons && track.reasons.length > 0 ? (
+              <button
+                type="button"
+                onClick={(e) => onOpenLyrics && onOpenLyrics(track, e.currentTarget)}
+                aria-label="Inspect flagged reasons"
+                className="text-[11px] text-status-flagged mt-0.5 truncate text-left hover:underline cursor-pointer"
+                title="Inspect flagged reasons"
+              >
                 {track.reasons.join(' • ')}
-              </p>
-            )}
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -101,7 +122,7 @@ export default function MobileTrackCard({
           {onOpenLyrics && (
             <button
               type="button"
-              onClick={() => onOpenLyrics(track)}
+              onClick={(e) => onOpenLyrics(track, e.currentTarget)}
               aria-label="View lyrics"
               title="View lyrics"
               className="min-h-[44px] min-w-[44px] px-2.5 py-1.5 rounded-lg bg-surface-elevated hover:bg-surface-highest text-text-muted hover:text-text-primary flex items-center justify-center gap-1 transition-colors"

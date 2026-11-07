@@ -22,6 +22,8 @@ export default function WorkingListWorkbench({
   searchingClean = {},
   onFindClean,
   onSwapTrack,
+  _keptTrackIds,
+  _onKeepTrack,
   className = '',
 }) {
   const [isMobile, setIsMobile] = useState(
@@ -135,11 +137,32 @@ export default function WorkingListWorkbench({
                           <p className="text-text-muted truncate text-[11px]">
                             {track.artist || 'Unknown Artist'}
                           </p>
-                          {track.reasons && track.reasons.length > 0 && (
-                            <p className="text-[11px] text-status-flagged mt-0.5 truncate">
+                          {track.snippets && track.snippets.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={(e) => onOpenLyrics && onOpenLyrics(track, e.currentTarget)}
+                              aria-label="Inspect lyric snippet"
+                              className="text-[11px] text-status-flagged mt-0.5 truncate text-left hover:underline cursor-pointer flex items-center gap-1 max-w-full"
+                              title="Inspect lyric snippet"
+                            >
+                              {typeof track.snippets[0].line_number === 'number' && (
+                                <span className="font-mono text-[10px] opacity-80 shrink-0">
+                                  L{String(track.snippets[0].line_number).padStart(2, '0')}:
+                                </span>
+                              )}
+                              <span className="truncate italic">"{track.snippets[0].text}"</span>
+                            </button>
+                          ) : track.reasons && track.reasons.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={(e) => onOpenLyrics && onOpenLyrics(track, e.currentTarget)}
+                              aria-label="Inspect flagged reasons"
+                              className="text-[11px] text-status-flagged mt-0.5 truncate text-left hover:underline cursor-pointer"
+                              title="Inspect flagged reasons"
+                            >
                               {track.reasons.join(' • ')}
-                            </p>
-                          )}
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                     </td>
@@ -168,7 +191,7 @@ export default function WorkingListWorkbench({
                         {onOpenLyrics && (
                           <button
                             type="button"
-                            onClick={() => onOpenLyrics(track)}
+                            onClick={(e) => onOpenLyrics(track, e.currentTarget)}
                             title="View Lyrics"
                             aria-label="View lyrics"
                             className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-elevated rounded transition-colors"

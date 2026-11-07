@@ -46,6 +46,22 @@ export default function App() {
   const [customBlocklist, setCustomBlocklist] = useState(['explicit', 'fuck', 'shit', 'bitch', 'asshole']);
   const [preset, setPreset] = useState('moderate');
   const [selectedTrackForLyrics, setSelectedTrackForLyrics] = useState(null);
+  const [lyricsTriggerEl, setLyricsTriggerEl] = useState(null);
+  const [keptTrackIds, setKeptTrackIds] = useState(() => new Set());
+
+  const handleKeepTrack = (trackId) => {
+    if (!trackId) return;
+    setKeptTrackIds((prev) => {
+      const next = new Set(prev);
+      next.add(trackId);
+      return next;
+    });
+  };
+
+  const handleOpenLyrics = (track, triggerEl = null) => {
+    setLyricsTriggerEl(triggerEl || (typeof document !== 'undefined' ? document.activeElement : null));
+    setSelectedTrackForLyrics(track);
+  };
 
   // Sync workingList with scannedTracks when tracks are loaded/scanned
   const handleSetScannedTracks = (tracksOrUpdater) => {
@@ -80,6 +96,7 @@ export default function App() {
     setScannedTracks([]);
     setPlaylist(null);
     setLyricsByTrackId({});
+    setKeptTrackIds(new Set());
     setIsSwitchModalOpen(false);
     setPendingPlatform(null);
   };
@@ -140,7 +157,9 @@ export default function App() {
             setWorkingList={setWorkingList}
             lyricsByTrackId={lyricsByTrackId}
             setLyricsByTrackId={setLyricsByTrackId}
-            onOpenLyrics={(track) => setSelectedTrackForLyrics(track)}
+            onOpenLyrics={handleOpenLyrics}
+            keptTrackIds={keptTrackIds}
+            onKeepTrack={handleKeepTrack}
             customBlocklist={customBlocklist}
             setCustomBlocklist={setCustomBlocklist}
             preset={preset}
@@ -158,7 +177,7 @@ export default function App() {
           <KeywordsTab
             playlist={playlist}
             scannedTracks={scannedTracks}
-            onOpenLyrics={(track) => setSelectedTrackForLyrics(track)}
+            onOpenLyrics={handleOpenLyrics}
             activePlatform={activePlatform}
           />
         )}
@@ -176,13 +195,26 @@ export default function App() {
       {selectedTrackForLyrics && (
         <LyricsModal
           track={selectedTrackForLyrics}
-          onClose={() => setSelectedTrackForLyrics(null)}
+          triggerEl={lyricsTriggerEl}
+          onClose={() => {
+            setSelectedTrackForLyrics(null);
+            setLyricsTriggerEl(null);
+          }}
           onApplyReplacement={(cleanTrack) => {
             handleSetScannedTracks(prev =>
               prev.map(t => (t.id === selectedTrackForLyrics.id ? cleanTrack : t))
             );
             setSelectedTrackForLyrics(null);
+            setLyricsTriggerEl(null);
           }}
+          activePlatform={activePlatform}
+          lyricsByTrackId={lyricsByTrackId}
+          setLyricsByTrackId={setLyricsByTrackId}
+          preset={preset}
+          presetsData={presetsData}
+          customBlocklist={customBlocklist}
+          keptTrackIds={keptTrackIds}
+          onKeepTrack={handleKeepTrack}
         />
       )}
 

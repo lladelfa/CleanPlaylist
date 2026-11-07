@@ -57,4 +57,31 @@ describe('MobileTrackCard component', () => {
     // No img element, renders music placeholder icon
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
+it('calls onOpenLyrics with track and trigger element when clicking snippet button', () => {
+    const handleOpenLyrics = vi.fn();
+    const flaggedTrack = {
+      ...sampleTrack,
+      is_flagged: true,
+      verification_status: 'flagged',
+      snippets: [{ line_number: 7, text: 'flagged mobile lyrics', matched_terms: ['flagged'] }],
+      reasons: ['Found 1 Strong Profanity instance(s)'],
+    };
+
+    render(
+      <MobileTrackCard
+        track={flaggedTrack}
+        index={0}
+        onOpenLyrics={handleOpenLyrics}
+      />
+    );
+
+    const snippetBtn = screen.getByRole('button', { name: 'Inspect lyric snippet' });
+    expect(snippetBtn).toBeInTheDocument();
+    expect(screen.getByText('L07:')).toBeInTheDocument();
+    expect(screen.getByText('"flagged mobile lyrics"')).toBeInTheDocument();
+
+    fireEvent.click(snippetBtn);
+    expect(handleOpenLyrics).toHaveBeenCalledTimes(1);
+    expect(handleOpenLyrics).toHaveBeenCalledWith(flaggedTrack, snippetBtn);
+  });
 });
