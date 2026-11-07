@@ -1,22 +1,66 @@
 import React, { useState } from 'react';
 import { Search, Plus, X, AlertCircle, FileSearch, Sparkles, ChevronDown, ChevronUp, Music2 } from 'lucide-react';
+import { searchLyricsKeywords } from '../utils/lyricEvaluator';
 
-export default function KeywordsTab({ playlist, scannedTracks, onOpenLyrics }) {
+function renderHighlightedLine(text, matchedKeywords = []) {
+  if (!text) return null;
+  if (!matchedKeywords || matchedKeywords.length === 0) {
+    return text;
+  }
+  const sortedKws = [...matchedKeywords].sort((a, b) => b.length - a.length);
+  const escapedKws = sortedKws.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const tokenRegex = new RegExp(`(\\b(?:${escapedKws})\\b)`, 'gi');
+  const parts = text.split(tokenRegex);
+
+  return parts.map((part, pIdx) => {
+    const isMatch = sortedKws.some(kw => kw.toLowerCase() === part.toLowerCase());
+    if (isMatch) {
+      return (
+        <mark
+          key={pIdx}
+          className="bg-brand-primary/20 text-brand-primary border border-brand-primary/30 font-semibold px-1 py-0.5 rounded mx-0.5"
+        >
+          {part}
+        </mark>
+      );
+    }
+    return <React.Fragment key={pIdx}>{part}</React.Fragment>;
+  });
+}
+
+export default function KeywordsTab({
+  workingList,
+  lyricsByTrackId = {},
+  setLyricsByTrackId,
+  activePlatform = 'ytmusic',
+  onNavigateToScan,
+  scannedTracks = [],
+  playlist: _playlist,
+  onOpenLyrics,
+}) {
   const [keywords, setKeywords] = useState(['money', 'drugs', 'party', 'alcohol', 'gun']);
   const [inputVal, setInputVal] = useState('');
-  const [maxTracks, setMaxTracks] = useState(25);
   const [searching, setSearching] = useState(false);
   const [resultsData, setResultsData] = useState(null);
   const [error, setError] = useState(null);
   const [expandedTracks, setExpandedTracks] = useState({});
 
+  const stagedTracks = workingList !== undefined
+    ? (Array.isArray(workingList) ? workingList : [])
+    : (Array.isArray(scannedTracks) ? scannedTracks : []);
+
   const handleAddKeyword = (e) => {
     e.preventDefault();
     if (!inputVal.trim()) return;
-    const w = inputVal.trim().toLowerCase();
-    if (!keywords.includes(w)) {
-      setKeywords([...keywords, w]);
-    }
+    const rawTokens = inputVal.split(/[,;\n]+/);
+    const newKeywords = [...keywords];
+    rawTokens.forEach(token => {
+      const cleaned = token.trim().toLowerCase();
+      if (cleaned && !newKeywords.includes(cleaned)) {
+        newKeywords.push(cleaned);
+      }
+    });
+    setKeywords(newKeywords);
     setInputVal('');
   };
 
@@ -24,8 +68,12 @@ export default function KeywordsTab({ playlist, scannedTracks, onOpenLyrics }) {
     setKeywords(keywords.filter(k => k !== w));
   };
 
+  const toggleExpand = (id) => {
+    setExpandedTracks(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   const handleRunSearch = async () => {
-    if (!scannedTracks.length) return;
+    if (!stagedTracks.length) return;
     if (!keywords.length) {
       setError('Please add at least one keyword to search for.');
       return;
@@ -33,119 +81,240 @@ export default function KeywordsTab({ playlist, scannedTracks, onOpenLyrics }) {
 
     setSearching(true);
     setError(null);
+
+    const cachedLyricsMap = lyricsByTrackId && typeof lyricsByTrackId === 'object' ? lyricsByTrackId : {};
+    const uncachedTracks = stagedTracks.filter(t => cachedLyricsMap[t.id] === undefined);
+    const newlyFetchedLyrics = {};
+    const uncachedResultsMap = {};
+
     try {
-      const res = await fetch('/api/scan/keywords', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tracks: scannedTracks,
-          target_keywords: keywords,
-          max_tracks: maxTracks
-        })
+      // Chunk uncached tracks in batches of <= 15
+      const CHUNK_SIZE = 15;
+      for (let i = 0; i < uncachedTracks.length; i += CHUNK_SIZE) {
+        const chunk = uncachedTracks.slice(i, i + CHUNK_SIZE);
+        try {
+          const res = await fetch('/api/scan/keywords', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tracks: chunk,
+              target_keywords: keywords,
+              max_tracks: chunk.length,
+              platform: activePlatform || 'ytmusic',
+            }),
+          });
+
+          if (!res.ok) {
+            throw new Error('Keyword search failed');
+          }
+
+          const data = await res.json();
+          if (data.lyrics_by_id) {
+            Object.assign(newlyFetchedLyrics, data.lyrics_by_id);
+            if (typeof setLyricsByTrackId === 'function') {
+              setLyricsByTrackId(prev => ({ ...prev, ...data.lyrics_by_id }));
+            }
+          }
+          if (Array.isArray(data.results)) {
+            data.results.forEach(r => {
+              uncachedResultsMap[r.id] = r;
+            });
+          }
+        } catch (chunkErr) {
+          if (Object.keys(newlyFetchedLyrics).length > 0 && typeof setLyricsByTrackId === 'function') {
+            setLyricsByTrackId(prev => ({ ...prev, ...newlyFetchedLyrics }));
+          }
+          throw chunkErr;
+        }
+      }
+
+      // Combine cached evaluation and uncached results in original staged order
+      const combinedResults = stagedTracks.map(track => {
+        const cachedLyrics = cachedLyricsMap[track.id];
+        if (cachedLyrics !== undefined) {
+          if (cachedLyrics) {
+            const evalRes = searchLyricsKeywords(cachedLyrics, keywords);
+            return {
+              id: track.id,
+              title: track.title,
+              artist: track.artist,
+              thumbnail: track.thumbnail,
+              ytmusic_video_id: track.ytmusic_video_id,
+              has_lyrics: true,
+              matched: evalRes.matched,
+              total_matches: evalRes.total_matches,
+              keywords_found: evalRes.keywords_found,
+              snippets: evalRes.snippets,
+            };
+          }
+          return {
+            id: track.id,
+            title: track.title,
+            artist: track.artist,
+            thumbnail: track.thumbnail,
+            ytmusic_video_id: track.ytmusic_video_id,
+            has_lyrics: false,
+            matched: false,
+            total_matches: 0,
+            keywords_found: [],
+            snippets: [],
+          };
+        }
+
+        const backendRes = uncachedResultsMap[track.id];
+        if (backendRes) {
+          return backendRes;
+        }
+
+        return {
+          id: track.id,
+          title: track.title,
+          artist: track.artist,
+          thumbnail: track.thumbnail,
+          ytmusic_video_id: track.ytmusic_video_id,
+          has_lyrics: false,
+          matched: false,
+          total_matches: 0,
+          keywords_found: [],
+          snippets: [],
+        };
       });
-      if (!res.ok) throw new Error('Keyword search failed');
-      const data = await res.json();
-      setResultsData(data);
+
+      const matchedTracksCount = combinedResults.filter(r => r.matched).length;
+      const totalOccurrences = combinedResults.reduce((sum, r) => sum + (r.total_matches || 0), 0);
+      const lyricsUnavailableCount = combinedResults.filter(r => !r.has_lyrics).length;
+
+      setResultsData({
+        summary: {
+          keywords_searched: keywords,
+          scanned_tracks_count: stagedTracks.length,
+          tracks_with_matches: matchedTracksCount,
+          total_keyword_occurrences: totalOccurrences,
+          lyrics_unavailable_count: lyricsUnavailableCount,
+        },
+        results: combinedResults,
+      });
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Keyword search failed');
     } finally {
       setSearching(false);
     }
   };
 
-  const toggleExpand = (id) => {
-    setExpandedTracks(prev => ({ ...prev, [id]: !prev[id] }));
-  };
+  // Empty Working List Studio Card
+  if (stagedTracks.length === 0) {
+    return (
+      <div className="max-w-md mx-auto my-12 text-center p-8 bg-surface-card border border-border-subtle rounded-2xl space-y-4 shadow-xl">
+        <div className="w-12 h-12 mx-auto rounded-2xl bg-surface-inset flex items-center justify-center text-brand-primary">
+          <Music2 className="w-6 h-6" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-base font-bold text-text-primary">No Tracks in Working List</h2>
+          <p className="text-xs text-text-muted">
+            Add or import songs in the Scan & Clean tab first to scan their lyrics for target keywords.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onNavigateToScan}
+          aria-label="Add Tracks in Scan & Clean"
+          className="w-full sm:w-auto px-6 py-2.5 min-h-[44px] bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-2 mx-auto"
+        >
+          <span>Add Tracks in Scan & Clean</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Accessible live status for search progress */}
+      <div aria-live="polite" className="sr-only">
+        {searching ? `Searching song lyrics across ${stagedTracks.length} tracks...` : ''}
+      </div>
+
       {/* Search Configuration Card */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+      <div className="bg-surface-card border border-border-subtle rounded-2xl p-5 shadow-xl space-y-4">
         <div>
-          <h2 className="text-lg font-bold text-white flex items-center space-x-2">
-            <FileSearch className="w-5 h-5 text-purple-400" />
-            <span>Target Keyword Identifier & Lyric Search</span>
+          <h2 className="text-lg font-bold text-text-primary flex items-center space-x-2">
+            <FileSearch className="w-5 h-5 text-brand-primary" />
+            <span>Keyword Search Workbench</span>
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Scan the lyrics of playlist tracks for exact occurrences of specific words or themes.
+          <p className="text-xs text-text-muted mt-1">
+            Scan lyrics across your staged playlist for exact occurrences of specific words or themes without mutating track verification status.
           </p>
         </div>
 
         {/* Keyword Chips & Input */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+        <div className="space-y-2">
+          <label htmlFor="custom-keyword-input" className="block text-xs font-semibold text-text-primary">
             Target Keywords to Identify in Lyrics
           </label>
-          <form onSubmit={handleAddKeyword} className="flex gap-2 mb-2">
+          <form onSubmit={handleAddKeyword} className="flex flex-col sm:flex-row gap-2">
             <input
+              id="custom-keyword-input"
               type="text"
               placeholder="Type a word or phrase (e.g. money, alcohol, fast) and press Enter"
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
-              className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="flex-1 bg-surface-inset border border-border-subtle rounded-xl px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary min-h-[44px]"
             />
             <button
               type="submit"
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-xl flex items-center space-x-1"
+              aria-label="Add keyword"
+              className="px-4 py-2 min-h-[44px] bg-surface-elevated hover:bg-surface-card text-text-primary text-xs font-medium rounded-xl border border-border-subtle flex items-center justify-center space-x-1.5 transition"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Add</span>
+              <span>Add Keyword</span>
             </button>
           </form>
 
-          <div className="flex flex-wrap gap-1.5 mt-2">
+          <div className="flex flex-wrap gap-2 pt-1">
             {keywords.map((kw) => (
               <span
                 key={kw}
-                className="inline-flex items-center space-x-1.5 bg-amber-500/10 text-amber-300 text-xs px-3 py-1 rounded-full border border-amber-500/30"
+                className="bg-surface-elevated text-text-primary border border-border-subtle px-3 py-1 rounded-full text-xs font-medium inline-flex items-center space-x-1.5"
               >
                 <span>{kw}</span>
                 <button
                   type="button"
+                  aria-label={`Remove keyword ${kw}`}
                   onClick={() => handleRemoveKeyword(kw)}
-                  className="hover:text-amber-100"
+                  className="text-text-muted hover:text-text-primary transition"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </span>
             ))}
+            {keywords.length === 0 && (
+              <span className="text-xs text-text-muted italic">
+                No keywords selected. Add at least one keyword to search.
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Scan Scope & Trigger */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-3 border-t border-slate-800">
-          <div className="flex items-center space-x-3 text-xs text-slate-400">
-            <span>Scan lyrics for up to:</span>
-            <select
-              value={maxTracks}
-              onChange={(e) => setMaxTracks(Number(e.target.value))}
-              className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-slate-200 text-xs"
-            >
-              <option value={15}>15 tracks</option>
-              <option value={25}>25 tracks (Recommended)</option>
-              <option value={50}>50 tracks</option>
-            </select>
-          </div>
+        {/* Search Action Trigger */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-3 border-t border-border-subtle">
+          <p className="text-xs text-text-muted">
+            Searching across {stagedTracks.length} song{stagedTracks.length === 1 ? '' : 's'} in working list.
+          </p>
 
           <button
+            type="button"
             onClick={handleRunSearch}
-            disabled={searching || !scannedTracks.length}
-            className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-gradient-to-r from-amber-500 to-pink-500 hover:from-amber-400 hover:to-pink-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition disabled:opacity-50"
+            disabled={searching || !stagedTracks.length || !keywords.length}
+            aria-label="Search Keywords Across Working List"
+            className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-xs rounded-xl shadow-lg transition disabled:opacity-50 min-h-[44px]"
           >
             {searching ? (
-              <Sparkles className="w-4 h-4 animate-spin text-slate-950" />
+              <Sparkles className="w-4 h-4 animate-spin text-white" />
             ) : (
-              <Search className="w-4 h-4 text-slate-950" />
+              <Search className="w-4 h-4 text-white" />
             )}
-            <span>{searching ? 'Scanning Song Lyrics...' : 'Search Keywords Across Playlist'}</span>
+            <span>{searching ? 'Scanning Song Lyrics...' : 'Search Keywords Across Working List'}</span>
           </button>
         </div>
-
-        {!scannedTracks.length && (
-          <p className="text-xs text-slate-500 italic">
-            Please load a playlist in the "Scan & Clean" tab first to search its lyrics.
-          </p>
-        )}
 
         {error && (
           <div className="p-3 bg-red-950/40 border border-red-800 rounded-xl text-red-300 text-xs flex items-center space-x-2">
@@ -157,21 +326,21 @@ export default function KeywordsTab({ playlist, scannedTracks, onOpenLyrics }) {
 
       {/* Results View */}
       {resultsData && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+        <div className="bg-surface-card border border-border-subtle rounded-2xl p-5 shadow-xl space-y-4">
           {/* Summary Box */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border-subtle pb-4">
             <div>
-              <h3 className="text-lg font-bold text-white">Keyword Search Findings</h3>
-              <p className="text-xs text-slate-400">
-                Found {resultsData.summary.total_keyword_occurrences} total keyword occurrences across {resultsData.summary.tracks_with_matches} of {resultsData.summary.scanned_tracks_count} songs.
+              <h3 className="text-lg font-bold text-text-primary">Keyword Search Findings</h3>
+              <p className="text-xs text-text-muted mt-0.5">
+                Found {resultsData.summary.total_keyword_occurrences} total keyword occurrences across {resultsData.summary.tracks_with_matches} of {resultsData.summary.scanned_tracks_count} songs ({resultsData.summary.lyrics_unavailable_count} without lyrics).
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {resultsData.summary.keywords_searched.map((kw) => (
                 <span
                   key={kw}
-                  className="bg-slate-800 text-amber-300 text-xs px-2.5 py-1 rounded-lg border border-slate-700 font-mono"
+                  className="bg-surface-elevated text-brand-primary text-xs px-2.5 py-1 rounded-lg border border-border-subtle font-mono"
                 >
                   "{kw}"
                 </span>
@@ -184,12 +353,12 @@ export default function KeywordsTab({ playlist, scannedTracks, onOpenLyrics }) {
             {resultsData.results
               .filter(r => r.matched)
               .map((item) => {
-                const isExpanded = expandedTracks[item.id];
+                const isExpanded = !!expandedTracks[item.id];
 
                 return (
                   <div
                     key={item.id}
-                    className="p-4 rounded-xl border border-amber-900/30 bg-amber-950/10 hover:bg-amber-950/20 transition space-y-3"
+                    className="p-4 rounded-xl border border-border-subtle bg-surface-inset/50 hover:bg-surface-inset transition space-y-3"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center space-x-3 min-w-0">
@@ -197,26 +366,36 @@ export default function KeywordsTab({ playlist, scannedTracks, onOpenLyrics }) {
                           <img
                             src={item.thumbnail}
                             alt={item.title}
-                            className="w-10 h-10 rounded-lg object-cover border border-slate-800 shrink-0"
+                            onClick={() => onOpenLyrics && onOpenLyrics(item)}
+                            className={`w-10 h-10 rounded-lg object-cover border border-border-subtle shrink-0 ${onOpenLyrics ? 'cursor-pointer hover:opacity-80' : ''}`}
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-lg bg-slate-800 shrink-0 flex items-center justify-center">
-                            <Music2 className="w-5 h-5 text-slate-500" />
+                          <div
+                            onClick={() => onOpenLyrics && onOpenLyrics(item)}
+                            className={`w-10 h-10 rounded-lg bg-surface-elevated shrink-0 flex items-center justify-center ${onOpenLyrics ? 'cursor-pointer hover:opacity-80' : ''}`}
+                          >
+                            <Music2 className="w-5 h-5 text-text-muted" />
                           </div>
                         )}
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">{item.title}</p>
-                          <p className="text-xs text-slate-400 truncate">{item.artist}</p>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onOpenLyrics && onOpenLyrics(item)}
+                          disabled={!onOpenLyrics}
+                          aria-label={`Open lyrics for ${item.title}`}
+                          className={`min-w-0 text-left ${onOpenLyrics ? 'hover:underline cursor-pointer' : 'cursor-default'}`}
+                        >
+                          <p className="text-sm font-semibold text-text-primary truncate">{item.title}</p>
+                          <p className="text-xs text-text-muted truncate">{item.artist}</p>
+                        </button>
                       </div>
 
                       <div className="flex items-center space-x-2 shrink-0">
                         {/* Keyword Hit Pills */}
-                        <div className="hidden sm:flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1">
                           {item.keywords_found.map((kf, i) => (
                             <span
                               key={i}
-                              className="text-[11px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30 font-semibold"
+                              className="text-[11px] bg-brand-primary/10 text-brand-primary px-2.5 py-0.5 rounded-full border border-brand-primary/20 font-semibold"
                             >
                               {kf.keyword}: {kf.count}x
                             </span>
@@ -224,10 +403,13 @@ export default function KeywordsTab({ playlist, scannedTracks, onOpenLyrics }) {
                         </div>
 
                         <button
+                          type="button"
                           onClick={() => toggleExpand(item.id)}
-                          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg flex items-center space-x-1"
+                          aria-expanded={isExpanded}
+                          aria-label={`${item.snippets.length} matching lines for ${item.title}`}
+                          className="px-3 py-1.5 min-h-[44px] bg-surface-elevated hover:bg-surface-card text-text-primary text-xs font-medium rounded-lg border border-border-subtle flex items-center space-x-1 transition"
                         >
-                          <span>{item.snippets.length} Line(s)</span>
+                          <span>{item.snippets.length} matching lines {isExpanded ? '↑' : '↓'}</span>
                           {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                         </button>
                       </div>
@@ -235,30 +417,17 @@ export default function KeywordsTab({ playlist, scannedTracks, onOpenLyrics }) {
 
                     {/* Expandable Snippets */}
                     {isExpanded && (
-                      <div className="pt-2 border-t border-slate-800/80 space-y-1.5 font-mono text-xs">
+                      <div className="pt-2 border-t border-border-subtle space-y-1.5 font-mono text-xs">
                         {item.snippets.map((snip, sIdx) => (
                           <div
                             key={sIdx}
-                            className="flex items-start bg-slate-950/70 p-2 rounded-lg border border-slate-800"
+                            className="flex items-start bg-surface-card/80 p-2.5 rounded-lg border border-border-subtle"
                           >
-                            <span className="text-slate-500 select-none w-10 text-right mr-3 font-semibold">
-                              L{snip.line_number}:
+                            <span className="font-mono text-xs text-text-muted select-none w-12 text-right mr-3 shrink-0">
+                              [L{String(snip.line_number).padStart(2, '0')}]
                             </span>
-                            <span className="text-slate-200">
-                              {snip.text.split(/(\s+|[.,!?;:()"])/).map((word, wIdx) => {
-                                const clean = word.toLowerCase().trim();
-                                const isMatched = snip.matched_keywords?.includes(clean);
-                                return isMatched ? (
-                                  <mark
-                                    key={wIdx}
-                                    className="bg-amber-400 text-slate-950 font-bold px-1 rounded mx-0.5"
-                                  >
-                                    {word}
-                                  </mark>
-                                ) : (
-                                  <React.Fragment key={wIdx}>{word}</React.Fragment>
-                                );
-                              })}
+                            <span className="text-text-primary break-words flex-1">
+                              {renderHighlightedLine(snip.text, snip.matched_keywords)}
                             </span>
                           </div>
                         ))}
@@ -269,7 +438,7 @@ export default function KeywordsTab({ playlist, scannedTracks, onOpenLyrics }) {
               })}
 
             {resultsData.results.filter(r => r.matched).length === 0 && (
-              <div className="py-8 text-center text-slate-500 text-sm">
+              <div className="py-8 text-center text-text-muted text-sm">
                 No songs in the scanned set contained any of the target keywords.
               </div>
             )}

@@ -421,3 +421,87 @@ export async function sendScanCompletedTelemetry(payload) {
     // Fire-and-forget: ignore network failure or unimplemented telemetry endpoint
   }
 }
+
+/**
+ * In-memory keyword search across lyrics lines using whole-word regex matching.
+ * Returns { matched, total_matches, keywords_found, snippets }.
+ */
+export function searchLyricsKeywords(lyrics, targetKeywords = []) {
+  if (!lyrics || typeof lyrics !== 'string' || !Array.isArray(targetKeywords) || targetKeywords.length === 0) {
+    return {
+      matched: false,
+      total_matches: 0,
+      keywords_found: [],
+      snippets: [],
+    };
+  }
+
+  const cleanKeywords = [];
+  const patterns = [];
+  const keywordStats = {};
+
+  for (const kw of targetKeywords) {
+    if (typeof kw !== 'string') continue;
+    const cleaned = kw.trim().toLowerCase();
+    if (!cleaned) continue;
+    if (keywordStats[cleaned]) continue;
+
+    const escaped = escapeRegex(cleaned);
+    const pattern = new RegExp(`\\b${escaped}\\b`, 'gi');
+    patterns.push({ keyword: cleaned, pattern });
+    cleanKeywords.push(cleaned);
+    keywordStats[cleaned] = {
+      keyword: cleaned,
+      count: 0,
+      lines: [],
+    };
+  }
+
+  if (cleanKeywords.length === 0) {
+    return {
+      matched: false,
+      total_matches: 0,
+      keywords_found: [],
+      snippets: [],
+    };
+  }
+
+  const lines = lyrics.split(/\r?\n|\r/);
+  const snippets = [];
+
+  lines.forEach((line, idx) => {
+    const lineNumber = idx + 1;
+    const lineStr = line.trim();
+    if (!lineStr) return;
+
+    const lineHits = [];
+
+    patterns.forEach(({ keyword, pattern }) => {
+      pattern.lastIndex = 0;
+      const matches = lineStr.match(pattern);
+      if (matches && matches.length > 0) {
+        keywordStats[keyword].count += matches.length;
+        keywordStats[keyword].lines.push(lineNumber);
+        lineHits.push(keyword);
+      }
+    });
+
+    if (lineHits.length > 0) {
+      snippets.push({
+        line_number: lineNumber,
+        text: lineStr,
+        matched_keywords: lineHits,
+      });
+    }
+  });
+
+  const keywordsFound = Object.values(keywordStats).filter((k) => k.count > 0);
+  const totalMatches = keywordsFound.reduce((sum, k) => sum + k.count, 0);
+
+  return {
+    matched: totalMatches > 0,
+    total_matches: totalMatches,
+    keywords_found: keywordsFound,
+    snippets,
+  };
+}

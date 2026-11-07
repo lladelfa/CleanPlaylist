@@ -177,8 +177,12 @@ export default function App() {
           <KeywordsTab
             playlist={playlist}
             scannedTracks={scannedTracks}
+            workingList={workingList}
+            lyricsByTrackId={lyricsByTrackId}
+            setLyricsByTrackId={setLyricsByTrackId}
             onOpenLyrics={handleOpenLyrics}
             activePlatform={activePlatform}
+            onNavigateToScan={() => setActiveTab('scan')}
           />
         )}
 

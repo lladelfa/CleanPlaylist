@@ -8,6 +8,7 @@ import {
   evaluateTrack,
   reevaluateTracks,
   sendScanCompletedTelemetry,
+  searchLyricsKeywords,
 } from '../lyricEvaluator';
 
 describe('lyricEvaluator', () => {
@@ -272,6 +273,93 @@ describe('lyricEvaluator', () => {
           method: 'POST',
         })
       );
+    });
+  });
+
+  describe('searchLyricsKeywords', () => {
+    it('returns empty matched structure when lyrics are empty or targetKeywords are empty', () => {
+      expect(searchLyricsKeywords('', ['money'])).toEqual({
+        matched: false,
+        total_matches: 0,
+        keywords_found: [],
+        snippets: [],
+      });
+
+      expect(searchLyricsKeywords('Got money in my pocket', [])).toEqual({
+        matched: false,
+        total_matches: 0,
+        keywords_found: [],
+        snippets: [],
+      });
+
+      expect(searchLyricsKeywords(null, ['drugs'])).toEqual({
+        matched: false,
+        total_matches: 0,
+        keywords_found: [],
+        snippets: [],
+      });
+    });
+
+    it('finds whole-word keywords case-insensitively and returns hit count and snippets', () => {
+      const lyrics = 'Line 1: We love the party life\nLine 2: Money talks and money walks\nLine 3: Clean line here';
+      const result = searchLyricsKeywords(lyrics, ['money', 'party']);
+
+      expect(result.matched).toBe(true);
+      expect(result.total_matches).toBe(3);
+      expect(result.keywords_found).toEqual([
+        { keyword: 'money', count: 2, lines: [2] },
+        { keyword: 'party', count: 1, lines: [1] },
+      ]);
+      expect(result.snippets).toEqual([
+        {
+          line_number: 1,
+          text: 'Line 1: We love the party life',
+          matched_keywords: ['party'],
+        },
+        {
+          line_number: 2,
+          text: 'Line 2: Money talks and money walks',
+          matched_keywords: ['money'],
+        },
+      ]);
+    });
+
+    it('does not match substrings or partial words', () => {
+      const lyrics = 'We are partygoers departing with gunslinger attitude';
+      const result = searchLyricsKeywords(lyrics, ['party', 'gun']);
+
+      expect(result.matched).toBe(false);
+      expect(result.total_matches).toBe(0);
+      expect(result.keywords_found).toEqual([]);
+      expect(result.snippets).toEqual([]);
+    });
+
+    it('matches multi-word phrases and special regex characters properly', () => {
+      const lyrics = 'He drove a fast car into the night\nThen he paid cash (fast)';
+      const result = searchLyricsKeywords(lyrics, ['fast car', 'cash']);
+
+      expect(result.matched).toBe(true);
+      expect(result.total_matches).toBe(2);
+      expect(result.keywords_found).toEqual([
+        { keyword: 'fast car', count: 1, lines: [1] },
+        { keyword: 'cash', count: 1, lines: [2] },
+      ]);
+      expect(result.snippets).toHaveLength(2);
+    });
+
+    it('handles CRLF line breaks and skips empty lines while preserving line indices', () => {
+      const lyrics = 'First line\r\n\r\nThird line has alcohol\r\n';
+      const result = searchLyricsKeywords(lyrics, ['alcohol']);
+
+      expect(result.matched).toBe(true);
+      expect(result.total_matches).toBe(1);
+      expect(result.snippets).toEqual([
+        {
+          line_number: 3,
+          text: 'Third line has alcohol',
+          matched_keywords: ['alcohol'],
+        },
+      ]);
     });
   });
 });
