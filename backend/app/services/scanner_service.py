@@ -29,7 +29,8 @@ class ScannerService:
         lyrics: str,
         preset: str = "moderate",
         custom_blocklist: Optional[List[str]] = None,
-        is_metadata_explicit: bool = False
+        is_metadata_explicit: bool = False,
+        platform: str = "ytmusic"
     ) -> Dict:
         """
         Scans lyrics text for offensive language according to the chosen preset
@@ -44,13 +45,18 @@ class ScannerService:
         reasons: List[str] = []
 
         # 1. Metadata Check
+        platform_name = "Spotify" if (platform or "").lower() == "spotify" else "YouTube Music"
         if include_metadata and is_metadata_explicit:
-            reasons.append("Marked Explicit by YouTube Music")
+            reasons.append(f"Marked Explicit by {platform_name}")
 
         if not lyrics or not lyrics.strip():
+            no_lyric_reasons = list(reasons)
+            if include_metadata and is_metadata_explicit:
+                if "Lyrics Unavailable" not in no_lyric_reasons:
+                    no_lyric_reasons.append("Lyrics Unavailable")
             return {
-                "is_flagged": len(reasons) > 0,
-                "reasons": reasons,
+                "is_flagged": len(no_lyric_reasons) > 0,
+                "reasons": no_lyric_reasons,
                 "detected_terms": [],
                 "total_flagged_count": 0,
                 "snippets": [],
@@ -142,7 +148,7 @@ class ScannerService:
             "reasons": reasons,
             "detected_terms": list(detected_terms.values()),
             "total_flagged_count": total_flags,
-            "snippets": snippets[:20],  # Return up to 20 representative snippets
+            "snippets": snippets,
             "has_lyrics": True,
         }
 

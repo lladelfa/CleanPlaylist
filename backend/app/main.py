@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 
 from app.config import PRESET_PROFILES, WORD_CATEGORIES
 from app.services.scanner_service import scanner_service
+from app.services.lyric_xref_service import lyric_xref_service
 from app.services.stitcher_service import stitcher_service
 from app.services.ytmusic_service import ytmusic_service
 from app.services.spotify_service import spotify_service
@@ -100,13 +101,34 @@ class PlaylistFetchRequest(BaseModel):
     limit: Optional[int] = 50
     platform: Optional[str] = "ytmusic"
 
+class ScannedTrackItem(TrackScanItem):
+    is_flagged: bool = False
+    reasons: List[str] = Field(default_factory=list)
+    snippets: List[Dict[str, Any]] = Field(default_factory=list)
+    detected_terms: List[Dict[str, Any]] = Field(default_factory=list)
+    total_flagged_count: int = 0
+    has_lyrics: bool = False
+
+class PlaylistScanSummary(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    total_tracks: int
+    flagged_tracks: int
+    clean_tracks: int
+    deep_scanned_tracks: Optional[int] = 0
+
+class PlaylistScanResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    tracks: List[ScannedTrackItem]
+    summary: PlaylistScanSummary
+    lyrics_by_id: Dict[str, str] = Field(default_factory=dict)
+
 class PlaylistScanRequest(BaseModel):
     tracks: List[TrackScanItem]
     preset: Optional[str] = "moderate"
     custom_blocklist: Optional[List[str]] = Field(default_factory=list)
-    deep_scan_lyrics: Optional[bool] = False
+    deep_scan_lyrics: Optional[bool] = True
     max_deep_scan: Optional[int] = 20
-    platform: Optional[str] = "ytmusic"
+    platform: Optional[str] = "ytmusic" 
 
 class SingleTrackScanRequest(BaseModel):
     video_id: str
@@ -307,34 +329,80 @@ def fetch_playlist(req: PlaylistFetchRequest, request: Request, response: Respon
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/api/scan/playlist")
+@app.post("/api/scan/playlist", response_model=PlaylistScanResponse)
 def scan_playlist(req: PlaylistScanRequest):
     results = []
     deep_scanned_count = 0
-    service = spotify_service if req.platform == "spotify" else ytmusic_service
+    platform = (req.platform or "ytmusic").strip().lower()
+    config = PRESET_PROFILES.get(req.preset or "moderate", PRESET_PROFILES["moderate"])
+    include_metadata = config.get("include_metadata_explicit", True)
 
-    # Pre-fetch lyrics concurrently for tracks eligible for deep scan to avoid serverless timeouts
-    lyrics_by_id: Dict[str, Optional[str]] = {}
+    # 1. Resolve lyrics and YouTube IDs concurrently via lyric_xref_service
+    lyrics_by_id: Dict[str, str] = {}
+
+    def _fetch_lyrics_and_id(track: TrackScanItem):
+        try:
+            yt_id, lyrics_text = lyric_xref_service.resolve_lyrics_and_yt_id(track, platform)
+            return (track.id, yt_id, lyrics_text, None)
+        except Exception as e:
+            return (track.id, None, None, e)
+
+    fetch_results = {}
     if req.deep_scan_lyrics:
-        max_to_scan = req.max_deep_scan or 20
-        tracks_for_lyrics = req.tracks[:max_to_scan]
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            fetched = list(executor.map(lambda t: (t.id, service.get_track_lyrics(t.id)), tracks_for_lyrics))
-        for track_id, text in fetched:
-            if text:
-                lyrics_by_id[track_id] = text
-                deep_scanned_count += 1
+        workers = min(len(req.tracks), 8) or 1
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            resolved_list = list(executor.map(_fetch_lyrics_and_id, req.tracks))
+        for trk_id, yt_id, lyrics_text, err in resolved_list:
+            fetch_results[trk_id] = (yt_id, lyrics_text, err)
+    else:
+        for t in req.tracks:
+            fetch_results[t.id] = (None, None, None)
 
     for track in req.tracks:
-        lyrics = lyrics_by_id.get(track.id)
-        has_lyrics = bool(lyrics)
+        yt_id, lyrics, err = fetch_results.get(track.id, (None, None, None))
+
+        # Unhandled failure during resolution
+        if err is not None:
+            track_dict = track.model_dump()
+            track_dict.update({
+                "is_flagged": False,
+                "reasons": [f"Scan error: {str(err)}"],
+                "detected_terms": [],
+                "total_flagged_count": 0,
+                "snippets": [],
+                "has_lyrics": False,
+                "verification_status": "scan_error",
+            })
+            if yt_id and not track_dict.get("ytmusic_video_id"):
+                track_dict["ytmusic_video_id"] = yt_id
+            results.append(ScannedTrackItem(**track_dict))
+            continue
+
+        has_lyrics = bool(lyrics and lyrics.strip())
+        if has_lyrics:
+            lyrics_by_id[track.id] = lyrics
+            deep_scanned_count += 1
 
         scan_result = scanner_service.scan_lyrics(
             lyrics=lyrics or "",
             preset=req.preset or "moderate",
             custom_blocklist=req.custom_blocklist or [],
-            is_metadata_explicit=bool(track.is_explicit)
+            is_metadata_explicit=bool(track.is_explicit),
+            platform=platform,
         )
+
+        is_explicit = bool(track.is_explicit)
+        # Zero False-Clean state machine:
+        if not has_lyrics:
+            if is_explicit and include_metadata:
+                verification_status = "flagged"
+            else:
+                verification_status = "lyrics_unavailable"
+        else:
+            if scan_result["is_flagged"] or (is_explicit and include_metadata) or scan_result["total_flagged_count"] > 0:
+                verification_status = "flagged"
+            else:
+                verification_status = "verified_clean"
 
         track_dict = track.model_dump()
         track_dict.update({
@@ -343,21 +411,27 @@ def scan_playlist(req: PlaylistScanRequest):
             "detected_terms": scan_result["detected_terms"],
             "total_flagged_count": scan_result["total_flagged_count"],
             "snippets": scan_result["snippets"],
-            "has_lyrics": has_lyrics or scan_result["has_lyrics"],
+            "has_lyrics": has_lyrics,
+            "verification_status": verification_status,
         })
-        results.append(track_dict)
+        if yt_id and not track_dict.get("ytmusic_video_id"):
+            track_dict["ytmusic_video_id"] = yt_id
 
-    flagged_count = sum(1 for t in results if t["is_flagged"])
+        results.append(ScannedTrackItem(**track_dict))
 
-    return {
-        "tracks": results,
-        "summary": {
-            "total_tracks": len(results),
-            "flagged_tracks": flagged_count,
-            "clean_tracks": len(results) - flagged_count,
-            "deep_scanned_tracks": deep_scanned_count,
-        }
-    }
+    flagged_count = sum(1 for t in results if t.is_flagged)
+    clean_count = sum(1 for t in results if t.verification_status == "verified_clean")
+
+    return PlaylistScanResponse(
+        tracks=results,
+        summary=PlaylistScanSummary(
+            total_tracks=len(results),
+            flagged_tracks=flagged_count,
+            clean_tracks=clean_count,
+            deep_scanned_tracks=deep_scanned_count,
+        ),
+        lyrics_by_id=lyrics_by_id,
+    )
 
 @app.post("/api/scan/track-lyrics")
 def scan_single_track_lyrics(req: SingleTrackScanRequest):

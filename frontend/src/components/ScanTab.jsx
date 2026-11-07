@@ -23,6 +23,7 @@ import NoticeBanner from "./NoticeBanner";
 import PasteTrackListPanel from "./PasteTrackListPanel";
 import PlatformSwitchModal from "./PlatformSwitchModal";
 import WorkingListWorkbench from "./WorkingListWorkbench";
+import { runScreeningPipeline } from "../utils/screeningPipeline";
 
 export default function ScanTab({
   playlist,
@@ -31,6 +32,8 @@ export default function ScanTab({
   setScannedTracks,
   workingList = [],
   setWorkingList,
+  _lyricsByTrackId = {},
+  setLyricsByTrackId,
   onOpenLyrics,
   customBlocklist,
   setCustomBlocklist,
@@ -53,6 +56,7 @@ export default function ScanTab({
   const [searchingClean, setSearchingClean] = useState({});
   const [statusMessage, setStatusMessage] = useState(null);
   const [activeNotice, setActiveNotice] = useState(null);
+  const [scanProgressAnnouncement, setScanProgressAnnouncement] = useState("");
 
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isPickerModalOpen, setIsPickerModalOpen] = useState(false);
@@ -444,30 +448,74 @@ export default function ScanTab({
   };
 
   const handleRunScan = async () => {
-    if (!scannedTracks.length) return;
+    if (scanning) return;
+    const targetTracks = workingList && workingList.length > 0 ? workingList : scannedTracks;
+    if (!targetTracks || !targetTracks.length) return;
 
     setScanning(true);
     setStatusMessage(null);
+    setScanProgressAnnouncement(`Scanned 0 of ${targetTracks.length} tracks`);
+
     try {
-      const res = await fetch("/api/scan/playlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tracks: scannedTracks,
-          preset: preset,
-          custom_blocklist: customBlocklist,
-          deep_scan_lyrics: deepScan,
-          max_deep_scan: 25,
-          platform: activePlatform,
-        }),
+      const result = await runScreeningPipeline({
+        tracks: targetTracks,
+        preset,
+        customBlocklist,
+        platform: activePlatform,
+        onBatchStart: (chunk) => {
+          const chunkIds = new Set(chunk.map((t) => t.id));
+          setScannedTracks((prev) =>
+            prev.map((t) => (chunkIds.has(t.id) ? { ...t, verification_status: "scanning" } : t))
+          );
+        },
+        onProgress: ({ announcement }) => {
+          setScanProgressAnnouncement(announcement);
+        },
+        onBatchComplete: ({ tracks: batchTracks, lyricsById: batchLyrics }) => {
+          const updatedMap = new Map(batchTracks.map((t) => [t.id, t]));
+          setScannedTracks((prev) =>
+            prev.map((t) => (updatedMap.has(t.id) ? { ...t, ...updatedMap.get(t.id) } : t))
+          );
+
+          if (setLyricsByTrackId && batchLyrics && Object.keys(batchLyrics).length > 0) {
+            setLyricsByTrackId((prev) => ({ ...prev, ...batchLyrics }));
+          }
+        },
+        onError: (err) => {
+          setActiveNotice({
+            type: "caution",
+            message: `Scan batch failed: ${err.message}`,
+          });
+        },
       });
-      if (!res.ok) throw new Error("Scanning failed");
-      const data = await res.json();
-      setScannedTracks(data.tracks);
-      setStatusMessage({
-        type: "success",
-        text: `Scan complete: ${data.summary.flagged_tracks} flagged tracks found out of ${data.summary.total_tracks} tracks.`,
-      });
+
+      if (playlist && setPlaylist) {
+        const updatedMap = new Map((result.tracks || []).map((t) => [t.id, t]));
+        setPlaylist((prev) => (prev ? {
+          ...prev,
+          tracks: (prev.tracks || []).map((t) => (updatedMap.has(t.id) ? { ...t, ...updatedMap.get(t.id) } : t)),
+        } : prev));
+      }
+
+      const totalScanned = result.tracks?.length || 0;
+      const allErrors = totalScanned > 0 && result.tracks.every((t) => t.verification_status === "scan_error");
+
+      if (allErrors) {
+        const errorText = "Scan failed: All tracks encountered scanning errors.";
+        setStatusMessage({
+          type: "error",
+          text: errorText,
+        });
+        setScanProgressAnnouncement(errorText);
+      } else {
+        const flaggedCount = (result.tracks || []).filter((t) => t.is_flagged).length;
+        const summaryText = `Scan complete: ${flaggedCount} flagged tracks found out of ${totalScanned} tracks.`;
+        setStatusMessage({
+          type: "success",
+          text: summaryText,
+        });
+        setScanProgressAnnouncement(summaryText);
+      }
     } catch (err) {
       setStatusMessage({ type: "error", text: err.message });
     } finally {
@@ -774,9 +822,18 @@ export default function ScanTab({
 
             {/* Action Button */}
             <div className="flex flex-col justify-end">
+              <div
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                className="sr-only"
+              >
+                {scanProgressAnnouncement}
+              </div>
               <button
                 onClick={handleRunScan}
                 disabled={scanning}
+                aria-label="Scan Lyrics"
                 className="flex items-center justify-center space-x-2 w-full py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-medium text-sm rounded-xl transition shadow-lg shadow-purple-600/20 disabled:opacity-50"
               >
                 {scanning ? (
@@ -785,7 +842,7 @@ export default function ScanTab({
                   <Sparkles className="w-4 h-4" />
                 )}
                 <span>
-                  {scanning ? "Analyzing Songs..." : "Run Content Scan"}
+                  {scanning ? (scanProgressAnnouncement || "Scanning Lyrics...") : "Scan Lyrics"}
                 </span>
               </button>
             </div>
