@@ -46,6 +46,8 @@ export default function ScanTab({
   onRequestPlatformChange,
   keptTrackIds,
   onKeepTrack,
+  isMasked = true,
+  onToggleMasking,
 }) {
   const [urlInput, setUrlInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -830,6 +832,8 @@ export default function ScanTab({
           onRunScan={handleRunScan}
           scanning={scanning}
           scanProgressAnnouncement={scanProgressAnnouncement}
+          isMasked={isMasked}
+          onToggleMasking={onToggleMasking}
         />
       )}
 
@@ -949,6 +953,7 @@ export default function ScanTab({
               onSwapTrack={handleSwapTrack}
               keptTrackIds={keptTrackIds}
               onKeepTrack={onKeepTrack}
+              isMasked={isMasked}
             />
           ) : (
             <div className="py-12 text-center text-slate-500 text-sm">

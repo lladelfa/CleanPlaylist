@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, Music, FileText, Sparkles, CheckCircle2, ExternalLink } from 'lucide-react';
 import VerificationStatusBadge from './VerificationStatusBadge';
 import MobileTrackCard from './MobileTrackCard';
+import { maskWord, maskText, getTrackFlaggedWords } from '../utils/masking';
 
 function formatDuration(track) {
   if (track?.duration) return track.duration;
@@ -25,6 +26,7 @@ export default function WorkingListWorkbench({
   _keptTrackIds,
   _onKeepTrack,
   className = '',
+  isMasked = true,
 }) {
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' && typeof window.innerWidth === 'number'
@@ -96,6 +98,7 @@ export default function WorkingListWorkbench({
               {validTracks.map((track, idx) => {
                 const cleanCand = cleanCandidates[track.id];
                 const isSearching = searchingClean[track.id];
+                const wordsToMask = getTrackFlaggedWords(track, track.snippets?.[0]);
 
                 return (
                   <tr
@@ -150,7 +153,9 @@ export default function WorkingListWorkbench({
                                   L{String(track.snippets[0].line_number).padStart(2, '0')}:
                                 </span>
                               )}
-                              <span className="truncate italic">"{track.snippets[0].text}"</span>
+                              <span className="truncate italic">
+                                "{isMasked ? maskText(track.snippets[0].text, wordsToMask, true) : track.snippets[0].text}"
+                              </span>
                             </button>
                           ) : track.reasons && track.reasons.length > 0 ? (
                             <button
@@ -160,7 +165,13 @@ export default function WorkingListWorkbench({
                               className="text-[11px] text-status-flagged mt-0.5 truncate text-left hover:underline cursor-pointer"
                               title="Inspect flagged reasons"
                             >
-                              {track.reasons.join(' • ')}
+                              {track.reasons
+                                .map((reason) => {
+                                  if (!isMasked || typeof reason !== 'string') return reason;
+                                  if (!reason.includes(' ')) return maskWord(reason);
+                                  return maskText(reason, wordsToMask, true);
+                                })
+                                .join(' • ')}
                             </button>
                           ) : null}
                         </div>
@@ -271,6 +282,7 @@ export default function WorkingListWorkbench({
               key={track.id || idx}
               track={track}
               index={idx}
+              isMasked={isMasked}
               onRemoveTrack={onRemoveTrack}
               onOpenLyrics={onOpenLyrics}
               cleanCandidate={cleanCandidates[track.id]}

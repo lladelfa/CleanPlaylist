@@ -41,12 +41,13 @@ describe('KeywordsTab', () => {
         setLyricsByTrackId={vi.fn()}
         onNavigateToScan={vi.fn()}
         activePlatform="ytmusic"
+        isMasked={false}
       />
     );
 
     // Starter chips
     expect(screen.getByText('money')).toBeInTheDocument();
-    expect(screen.getByText('drugs')).toBeInTheDocument();
+    expect(screen.getAllByText('drugs').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('party')).toBeInTheDocument();
     expect(screen.getByText('alcohol')).toBeInTheDocument();
     expect(screen.getByText('gun')).toBeInTheDocument();
@@ -84,6 +85,7 @@ describe('KeywordsTab', () => {
         setLyricsByTrackId={vi.fn()}
         onNavigateToScan={vi.fn()}
         activePlatform="spotify"
+        isMasked={false}
       />
     );
 
@@ -146,6 +148,7 @@ describe('KeywordsTab', () => {
         setLyricsByTrackId={setLyricsByTrackId}
         onNavigateToScan={vi.fn()}
         activePlatform="spotify"
+        isMasked={false}
       />
     );
 
@@ -184,6 +187,7 @@ describe('KeywordsTab', () => {
         setLyricsByTrackId={vi.fn()}
         onNavigateToScan={vi.fn()}
         activePlatform="ytmusic"
+        isMasked={false}
       />
     );
 
@@ -306,6 +310,7 @@ describe('KeywordsTab', () => {
         setLyricsByTrackId={vi.fn()}
         onNavigateToScan={vi.fn()}
         activePlatform="ytmusic"
+        isMasked={false}
       />
     );
 
@@ -356,6 +361,7 @@ describe('KeywordsTab', () => {
         onNavigateToScan={vi.fn()}
         onOpenLyrics={onOpenLyrics}
         activePlatform="ytmusic"
+        isMasked={false}
       />
     );
 
@@ -377,5 +383,76 @@ describe('KeywordsTab', () => {
     const trackBtn = screen.getByRole('button', { name: /open lyrics for Hustle Hard/i });
     await userEvent.click(trackBtn);
     expect(onOpenLyrics).toHaveBeenCalledWith(expect.objectContaining({ id: 't1', title: 'Hustle Hard' }));
+  });
+
+  it('masks keyword chips, hit pills, and highlighted excerpt marks when isMasked is true and reveals them when false', async () => {
+    const tracks = [
+      { id: 't1', title: 'Party Song', artist: 'Artist One' },
+    ];
+    const lyricsByTrackId = {
+      t1: 'Watch out for the drugs tonight',
+    };
+
+    const { rerender } = render(
+      <KeywordsTab
+        workingList={tracks}
+        lyricsByTrackId={lyricsByTrackId}
+        setLyricsByTrackId={vi.fn()}
+        onNavigateToScan={vi.fn()}
+        activePlatform="ytmusic"
+        isMasked={true}
+      />
+    );
+
+    // Starter keyword chips should be masked
+    expect(screen.getByText('d****')).toBeInTheDocument();
+    expect(screen.getByText('m****')).toBeInTheDocument();
+    expect(screen.queryByText('drugs')).not.toBeInTheDocument();
+
+    // Run search
+    const searchBtn = screen.getByRole('button', { name: /search keywords/i });
+    await userEvent.click(searchBtn);
+
+    // Hit pill should be masked: d****: 1x
+    expect(screen.getByText(/d\*\*\*\*: 1x/i)).toBeInTheDocument();
+
+    // Expand snippets
+    const expandBtn = screen.getByRole('button', { name: /matching lines/i });
+    await userEvent.click(expandBtn);
+
+    // Highlighted excerpt mark
+    expect(screen.getByText('d****', { selector: 'mark' })).toBeInTheDocument();
+
+    // Rerender with isMasked=false
+    rerender(
+      <KeywordsTab
+        workingList={tracks}
+        lyricsByTrackId={lyricsByTrackId}
+        setLyricsByTrackId={vi.fn()}
+        onNavigateToScan={vi.fn()}
+        activePlatform="ytmusic"
+        isMasked={false}
+      />
+    );
+
+    expect(screen.getAllByText('drugs').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/drugs: 1x/i)).toBeInTheDocument();
+    expect(screen.getByText('drugs', { selector: 'mark' })).toBeInTheDocument();
+  });
+
+  it('defaults isMasked to true when rendered without isMasked prop', () => {
+    const tracks = [{ id: 't1', title: 'Song One', artist: 'Artist One' }];
+    render(
+      <KeywordsTab
+        workingList={tracks}
+        lyricsByTrackId={{}}
+        setLyricsByTrackId={vi.fn()}
+        onNavigateToScan={vi.fn()}
+        activePlatform="ytmusic"
+      />
+    );
+
+    expect(screen.getByText('d****')).toBeInTheDocument();
+    expect(screen.getByText('m****')).toBeInTheDocument();
   });
 });

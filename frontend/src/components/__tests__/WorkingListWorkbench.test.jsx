@@ -138,7 +138,8 @@ describe('WorkingListWorkbench component', () => {
     fireEvent.click(removeBtns[0]);
     expect(handleRemove).toHaveBeenCalledWith(sampleTracks[0]);
   });
-it('calls onOpenLyrics with track and trigger element when clicking snippet button', () => {
+
+  it('calls onOpenLyrics with track and trigger element when clicking snippet button', () => {
     window.innerWidth = 1024;
     const handleOpenLyrics = vi.fn();
     const tracksWithSnippet = [
@@ -155,6 +156,7 @@ it('calls onOpenLyrics with track and trigger element when clicking snippet butt
       <WorkingListWorkbench
         tracks={tracksWithSnippet}
         onOpenLyrics={handleOpenLyrics}
+        isMasked={false}
       />
     );
 
@@ -166,5 +168,83 @@ it('calls onOpenLyrics with track and trigger element when clicking snippet butt
     fireEvent.click(snippetBtn);
     expect(handleOpenLyrics).toHaveBeenCalledTimes(1);
     expect(handleOpenLyrics).toHaveBeenCalledWith(tracksWithSnippet[0], snippetBtn);
+  });
+
+  it('defaults isMasked to true when rendered without isMasked prop', () => {
+    window.innerWidth = 1024;
+    const tracksWithSnippet = [
+      {
+        ...sampleTracks[0],
+        is_flagged: true,
+        snippets: [{ line_number: 14, text: "Don't give a fuck", matched_terms: ['fuck'] }],
+      },
+    ];
+
+    render(<WorkingListWorkbench tracks={tracksWithSnippet} />);
+    expect(screen.getByText('"Don\'t give a f***"')).toBeInTheDocument();
+  });
+
+  it('masks snippet text and flagged reasons when isMasked is true', () => {
+    window.innerWidth = 1024;
+    const tracksWithSnippet = [
+      {
+        ...sampleTracks[0],
+        id: 'track_snippet_masked',
+        is_flagged: true,
+        verification_status: 'flagged',
+        snippets: [{ line_number: 14, text: "Don't give a fuck", matched_terms: ['fuck'] }],
+      },
+      {
+        ...sampleTracks[1],
+        id: 'track_reason_masked',
+        is_flagged: true,
+        verification_status: 'flagged',
+        snippets: [],
+        reasons: ['bitch'],
+      },
+    ];
+
+    const { rerender } = render(
+      <WorkingListWorkbench
+        tracks={tracksWithSnippet}
+        isMasked={true}
+      />
+    );
+
+    expect(screen.getByText('"Don\'t give a f***"')).toBeInTheDocument();
+    expect(screen.getByText('b****')).toBeInTheDocument();
+
+    rerender(
+      <WorkingListWorkbench
+        tracks={tracksWithSnippet}
+        isMasked={false}
+      />
+    );
+
+    expect(screen.getByText('"Don\'t give a fuck"')).toBeInTheDocument();
+    expect(screen.getByText('bitch')).toBeInTheDocument();
+  });
+
+  it('renders masked snippets in mobile card view when window.innerWidth < 768 and isMasked is true', () => {
+    window.innerWidth = 500;
+    const tracksWithSnippet = [
+      {
+        ...sampleTracks[0],
+        id: 'track_mobile_masked',
+        is_flagged: true,
+        verification_status: 'flagged',
+        snippets: [{ line_number: 8, text: 'No bullshit allowed', matched_terms: ['bullshit'] }],
+      },
+    ];
+
+    render(
+      <WorkingListWorkbench
+        tracks={tracksWithSnippet}
+        isMasked={true}
+      />
+    );
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByText('"No b******* allowed"')).toBeInTheDocument();
   });
 });

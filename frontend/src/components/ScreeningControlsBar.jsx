@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Sparkles, RefreshCw, Plus, X, SlidersHorizontal } from 'lucide-react';
+import { Sparkles, RefreshCw, Plus, X, SlidersHorizontal, Eye, EyeOff } from 'lucide-react';
+import { maskWord } from '../utils/masking';
 
 const PRESETS = [
   { id: 'kid_safe', label: 'Kid Safe' },
@@ -20,6 +21,8 @@ export default function ScreeningControlsBar({
   scanning = false,
   scanProgressAnnouncement = '',
   disabled = false,
+  isMasked = true,
+  onToggleMasking,
 }) {
   const [inputValue, setInputValue] = useState('');
 
@@ -84,9 +87,25 @@ export default function ScreeningControlsBar({
             Screening & Preset Controls
           </h3>
         </div>
-        <span className="text-xs text-text-muted">
-          Choose sensitivity & custom blocklist
-        </span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onToggleMasking}
+            aria-label="Toggle profanity masking"
+            aria-pressed={isMasked}
+            className="bg-surface-elevated hover:bg-surface-elevated/80 text-text-muted hover:text-text-primary border border-border-subtle p-2 rounded-xl flex items-center gap-1.5 transition text-xs cursor-pointer min-h-[44px]"
+          >
+            {isMasked ? (
+              <EyeOff className="w-4 h-4" aria-hidden="true" />
+            ) : (
+              <Eye className="w-4 h-4" aria-hidden="true" />
+            )}
+            <span>{isMasked ? 'Masked' : 'Unmasked'}</span>
+          </button>
+          <span className="text-xs text-text-muted hidden sm:inline">
+            Choose sensitivity & custom blocklist
+          </span>
+        </div>
       </div>
 
       {/* Preset Pills and Scan Action */}
@@ -185,7 +204,7 @@ export default function ScreeningControlsBar({
                 key={term}
                 className="inline-flex items-center space-x-1.5 bg-surface-elevated border border-border-subtle text-text-primary text-xs px-3 py-1 rounded-full shadow-sm"
               >
-                <span>{term}</span>
+                <span>{isMasked ? maskWord(term) : term}</span>
                 <button
                   type="button"
                   onClick={() => handleRemoveTerm(term)}

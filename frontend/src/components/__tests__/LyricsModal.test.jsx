@@ -92,6 +92,7 @@ describe('LyricsModal component', () => {
         track={sampleTrack}
         onClose={() => {}}
         lyricsByTrackId={{ [sampleTrack.id]: sampleLyricsText }}
+        isMasked={false}
       />
     );
 
@@ -358,5 +359,48 @@ describe('LyricsModal component', () => {
 
     fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(footerCloseBtn);
+  });
+
+  it('masks flagged tokens and profanity badge tags when isMasked is true and reveals them when false', () => {
+    const { rerender } = render(
+      <LyricsModal
+        track={sampleTrack}
+        onClose={() => {}}
+        lyricsByTrackId={{ [sampleTrack.id]: sampleLyricsText }}
+        isMasked={true}
+      />
+    );
+
+    expect(screen.getAllByText('s***').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('b****').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('shit')).not.toBeInTheDocument();
+    expect(screen.queryByText('bitch')).not.toBeInTheDocument();
+
+    rerender(
+      <LyricsModal
+        track={sampleTrack}
+        onClose={() => {}}
+        lyricsByTrackId={{ [sampleTrack.id]: sampleLyricsText }}
+        isMasked={false}
+      />
+    );
+
+    expect(screen.getAllByText('shit').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('bitch').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('defaults isMasked to true and safely handles non-string reasons', () => {
+    render(
+      <LyricsModal
+        track={{
+          ...sampleTrack,
+          lyrics: sampleLyricsText,
+        }}
+        onClose={() => {}}
+      />
+    );
+
+    expect(screen.getAllByText('s***').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('b****').length).toBeGreaterThanOrEqual(1);
   });
 });
