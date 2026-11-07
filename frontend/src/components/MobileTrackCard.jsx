@@ -1,6 +1,7 @@
 import React from 'react';
 import { Music, Trash2, FileText, Sparkles, CheckCircle2, ExternalLink } from 'lucide-react';
 import VerificationStatusBadge from './VerificationStatusBadge';
+import { maskWord, maskText, getTrackFlaggedWords } from '../utils/masking';
 
 function formatDuration(track) {
   if (track?.duration) return track.duration;
@@ -22,10 +23,12 @@ export default function MobileTrackCard({
   onFindClean,
   onSwapTrack,
   className = '',
+  isMasked = true,
 }) {
   if (!track) return null;
 
   const displayDuration = formatDuration(track);
+  const wordsToMask = getTrackFlaggedWords(track, track.snippets?.[0]);
 
   return (
     <article
@@ -83,7 +86,9 @@ export default function MobileTrackCard({
                     L{String(track.snippets[0].line_number).padStart(2, '0')}:
                   </span>
                 )}
-                <span className="truncate italic">"{track.snippets[0].text}"</span>
+                <span className="truncate italic">
+                  "{isMasked ? maskText(track.snippets[0].text, wordsToMask, true) : track.snippets[0].text}"
+                </span>
               </button>
             ) : track.reasons && track.reasons.length > 0 ? (
               <button
@@ -93,7 +98,13 @@ export default function MobileTrackCard({
                 className="text-[11px] text-status-flagged mt-0.5 truncate text-left hover:underline cursor-pointer"
                 title="Inspect flagged reasons"
               >
-                {track.reasons.join(' • ')}
+                {track.reasons
+                  .map((reason) => {
+                    if (!isMasked || typeof reason !== 'string') return reason;
+                    if (!reason.includes(' ')) return maskWord(reason);
+                    return maskText(reason, wordsToMask, true);
+                  })
+                  .join(' • ')}
               </button>
             ) : null}
           </div>

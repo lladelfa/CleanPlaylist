@@ -48,6 +48,11 @@ export default function App() {
   const [selectedTrackForLyrics, setSelectedTrackForLyrics] = useState(null);
   const [lyricsTriggerEl, setLyricsTriggerEl] = useState(null);
   const [keptTrackIds, setKeptTrackIds] = useState(() => new Set());
+  const [isMasked, setIsMasked] = useState(true);
+
+  const handleToggleMasking = () => {
+    setIsMasked(prev => !prev);
+  };
 
   const handleKeepTrack = (trackId) => {
     if (!trackId) return;
@@ -170,6 +175,8 @@ export default function App() {
             activePlatform={activePlatform}
             onSwitchPlatform={setActivePlatform}
             onRequestPlatformChange={handleRequestPlatformChange}
+            isMasked={isMasked}
+            onToggleMasking={handleToggleMasking}
           />
         )}
 
@@ -183,6 +190,7 @@ export default function App() {
             onOpenLyrics={handleOpenLyrics}
             activePlatform={activePlatform}
             onNavigateToScan={() => setActiveTab('scan')}
+            isMasked={isMasked}
           />
         )}
 
@@ -219,6 +227,7 @@ export default function App() {
           customBlocklist={customBlocklist}
           keptTrackIds={keptTrackIds}
           onKeepTrack={handleKeepTrack}
+          isMasked={isMasked}
         />
       )}
 

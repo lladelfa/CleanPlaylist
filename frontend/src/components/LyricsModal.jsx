@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { X, AlertTriangle, CheckCircle, Music2, ExternalLink, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react';
 import { evaluateLyrics } from '../utils/lyricEvaluator';
+import { maskWord, maskText } from '../utils/masking';
 
 const EMPTY_OBJECT = {};
 const EMPTY_ARRAY = [];
@@ -19,6 +20,7 @@ export default function LyricsModal({
   onKeepTrack,
   triggerEl,
   triggerRef,
+  isMasked = true,
 }) {
   const [loading, setLoading] = useState(false);
   const [fetchedLyricsData, setFetchedLyricsData] = useState(null);
@@ -387,7 +389,7 @@ export default function LyricsModal({
                         key={tIdx}
                         className="bg-status-flagged-bg border border-status-flagged-border text-status-flagged px-1.5 py-0.5 rounded text-xs font-mono font-semibold inline-block mx-0.5"
                       >
-                        {token}
+                        {isMasked ? maskWord(token) : token}
                       </span>
                     );
                   }
@@ -550,7 +552,7 @@ export default function LyricsModal({
                     </span>
                     {lyricsData.scan_result?.reasons?.length > 0 && (
                       <p className="text-[11px] text-text-muted mt-0.5">
-                        {lyricsData.scan_result.reasons.join(' • ')}
+                        {lyricsData.scan_result.reasons.map((r) => (typeof r !== 'string' ? r : (!r.includes(' ') ? (isMasked ? maskWord(r) : r) : maskText(r, detectedWords, isMasked)))).join(' • ')}
                       </p>
                     )}
                   </div>
@@ -563,7 +565,7 @@ export default function LyricsModal({
                         key={i}
                         className="text-[11px] bg-status-flagged-bg border border-status-flagged-border text-status-flagged px-1.5 py-0.5 rounded font-mono"
                       >
-                        {w}
+                        {isMasked ? maskWord(w) : w}
                       </span>
                     ))}
                     {detectedWords.length > 5 && (

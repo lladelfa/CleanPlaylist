@@ -57,7 +57,8 @@ describe('MobileTrackCard component', () => {
     // No img element, renders music placeholder icon
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
-it('calls onOpenLyrics with track and trigger element when clicking snippet button', () => {
+
+  it('calls onOpenLyrics with track and trigger element when clicking snippet button', () => {
     const handleOpenLyrics = vi.fn();
     const flaggedTrack = {
       ...sampleTrack,
@@ -72,6 +73,7 @@ it('calls onOpenLyrics with track and trigger element when clicking snippet butt
         track={flaggedTrack}
         index={0}
         onOpenLyrics={handleOpenLyrics}
+        isMasked={false}
       />
     );
 
@@ -83,5 +85,52 @@ it('calls onOpenLyrics with track and trigger element when clicking snippet butt
     fireEvent.click(snippetBtn);
     expect(handleOpenLyrics).toHaveBeenCalledTimes(1);
     expect(handleOpenLyrics).toHaveBeenCalledWith(flaggedTrack, snippetBtn);
+  });
+
+  it('defaults isMasked to true when rendered without isMasked prop', () => {
+    const flaggedTrack = {
+      ...sampleTrack,
+      is_flagged: true,
+      verification_status: 'flagged',
+      snippets: [{ line_number: 7, text: "Don't give a fuck", matched_terms: ['fuck'] }],
+    };
+
+    render(
+      <MobileTrackCard
+        track={flaggedTrack}
+        index={0}
+      />
+    );
+
+    expect(screen.getByText('"Don\'t give a f***"')).toBeInTheDocument();
+  });
+
+  it('masks snippet text and flagged reasons when isMasked is true', () => {
+    const flaggedTrack = {
+      ...sampleTrack,
+      is_flagged: true,
+      verification_status: 'flagged',
+      snippets: [{ line_number: 7, text: "Don't give a fuck", matched_terms: ['fuck'] }],
+    };
+
+    const { rerender } = render(
+      <MobileTrackCard
+        track={flaggedTrack}
+        index={0}
+        isMasked={true}
+      />
+    );
+
+    expect(screen.getByText('"Don\'t give a f***"')).toBeInTheDocument();
+
+    rerender(
+      <MobileTrackCard
+        track={flaggedTrack}
+        index={0}
+        isMasked={false}
+      />
+    );
+
+    expect(screen.getByText('"Don\'t give a fuck"')).toBeInTheDocument();
   });
 });

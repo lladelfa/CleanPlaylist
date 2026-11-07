@@ -47,6 +47,7 @@ describe('ScreeningControlsBar', () => {
         preset="moderate"
         customBlocklist={['beer', 'whiskey']}
         onRemoveBlocklistTerm={handleRemove}
+        isMasked={false}
       />
     );
 
@@ -155,5 +156,87 @@ describe('ScreeningControlsBar', () => {
     expect(screen.getByRole('button', { name: /scanned 5 of 10 tracks/i })).toBeDisabled();
     const liveRegion = screen.getByRole('status');
     expect(liveRegion).toHaveTextContent('Scanned 5 of 10 tracks');
+  });
+
+  it('renders masking toggle button with aria-label="Toggle profanity masking", aria-pressed, and toggles on click', () => {
+    const handleToggle = vi.fn();
+    const { rerender } = render(
+      <ScreeningControlsBar
+        preset="moderate"
+        customBlocklist={['fuck', 'shit']}
+        isMasked={true}
+        onToggleMasking={handleToggle}
+      />
+    );
+
+    const toggleBtn = screen.getByRole('button', { name: 'Toggle profanity masking' });
+    expect(toggleBtn).toBeInTheDocument();
+    expect(toggleBtn).toHaveTextContent('Masked');
+    expect(toggleBtn).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(toggleBtn);
+    expect(handleToggle).toHaveBeenCalledTimes(1);
+
+    // Rerender unmasked
+    rerender(
+      <ScreeningControlsBar
+        preset="moderate"
+        customBlocklist={['fuck', 'shit']}
+        isMasked={false}
+        onToggleMasking={handleToggle}
+      />
+    );
+
+    expect(toggleBtn).toHaveTextContent('Unmasked');
+    expect(toggleBtn).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('defaults isMasked to true when rendered without isMasked prop', () => {
+    render(
+      <ScreeningControlsBar
+        preset="moderate"
+        customBlocklist={['beer']}
+      />
+    );
+
+    expect(screen.getByText('b***')).toBeInTheDocument();
+    const toggleBtn = screen.getByRole('button', { name: 'Toggle profanity masking' });
+    expect(toggleBtn).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('masks custom blocklist chips when isMasked is true and keeps them unmasked when false', () => {
+    const handleRemove = vi.fn();
+    const { rerender } = render(
+      <ScreeningControlsBar
+        preset="moderate"
+        customBlocklist={['bitch', 'asshole', 'f']}
+        isMasked={true}
+        onRemoveBlocklistTerm={handleRemove}
+      />
+    );
+
+    // Masked chips
+    expect(screen.getByText('b****')).toBeInTheDocument();
+    expect(screen.getByText('a******')).toBeInTheDocument();
+    expect(screen.getByText('f')).toBeInTheDocument();
+
+    // Removing still uses literal term
+    const removeBitchBtn = screen.getByRole('button', { name: 'Remove blocklist term bitch' });
+    expect(removeBitchBtn).toBeInTheDocument();
+    fireEvent.click(removeBitchBtn);
+    expect(handleRemove).toHaveBeenCalledWith('bitch');
+
+    // Rerender with isMasked=false
+    rerender(
+      <ScreeningControlsBar
+        preset="moderate"
+        customBlocklist={['bitch', 'asshole', 'f']}
+        isMasked={false}
+        onRemoveBlocklistTerm={handleRemove}
+      />
+    );
+
+    expect(screen.getByText('bitch')).toBeInTheDocument();
+    expect(screen.getByText('asshole')).toBeInTheDocument();
   });
 });

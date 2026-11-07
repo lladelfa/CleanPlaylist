@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import ScanTab from "../ScanTab";
@@ -452,5 +452,61 @@ describe("ScanTab - Progressive Lyric Scan Integration", () => {
     const liveRegion = screen.getByRole("status");
     expect(liveRegion).toHaveTextContent("Scan failed: All tracks encountered scanning errors.");
     expect(screen.getAllByText("Scan failed: All tracks encountered scanning errors.").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("forwards isMasked and onToggleMasking to ScreeningControlsBar and WorkingListWorkbench", () => {
+    const handleToggle = vi.fn();
+    const flaggedTracks = [
+      {
+        id: "tr_mask",
+        title: "Explicit Track",
+        artist: "Artist X",
+        is_flagged: true,
+        verification_status: "flagged",
+        snippets: [{ line_number: 1, text: "Bad word here", matched_terms: ["Bad"] }],
+      },
+    ];
+
+    const { rerender } = render(
+      <ScanTab
+        playlist={mockPlaylist}
+        setPlaylist={vi.fn()}
+        scannedTracks={flaggedTracks}
+        setScannedTracks={vi.fn()}
+        workingList={flaggedTracks}
+        customBlocklist={["curse"]}
+        isMasked={true}
+        onToggleMasking={handleToggle}
+      />
+    );
+
+    const toggleBtn = screen.getByRole("button", { name: "Toggle profanity masking" });
+    expect(toggleBtn).toBeInTheDocument();
+    expect(toggleBtn).toHaveAttribute("aria-pressed", "true");
+    expect(toggleBtn).toHaveTextContent("Masked");
+
+    expect(screen.getByText("c****")).toBeInTheDocument();
+    expect(screen.getByText('"B** word here"')).toBeInTheDocument();
+
+    fireEvent.click(toggleBtn);
+    expect(handleToggle).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <ScanTab
+        playlist={mockPlaylist}
+        setPlaylist={vi.fn()}
+        scannedTracks={flaggedTracks}
+        setScannedTracks={vi.fn()}
+        workingList={flaggedTracks}
+        customBlocklist={["curse"]}
+        isMasked={false}
+        onToggleMasking={handleToggle}
+      />
+    );
+
+    expect(toggleBtn).toHaveAttribute("aria-pressed", "false");
+    expect(toggleBtn).toHaveTextContent("Unmasked");
+    expect(screen.getByText("curse")).toBeInTheDocument();
+    expect(screen.getByText('"Bad word here"')).toBeInTheDocument();
   });
 });

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Search, Plus, X, AlertCircle, FileSearch, Sparkles, ChevronDown, ChevronUp, Music2 } from 'lucide-react';
 import { searchLyricsKeywords } from '../utils/lyricEvaluator';
+import { maskWord } from '../utils/masking';
 
-function renderHighlightedLine(text, matchedKeywords = []) {
+function renderHighlightedLine(text, matchedKeywords = [], isMasked = false) {
   if (!text) return null;
   if (!matchedKeywords || matchedKeywords.length === 0) {
     return text;
@@ -20,7 +21,7 @@ function renderHighlightedLine(text, matchedKeywords = []) {
           key={pIdx}
           className="bg-brand-primary/20 text-brand-primary border border-brand-primary/30 font-semibold px-1 py-0.5 rounded mx-0.5"
         >
-          {part}
+          {isMasked ? maskWord(part) : part}
         </mark>
       );
     }
@@ -37,6 +38,7 @@ export default function KeywordsTab({
   scannedTracks = [],
   playlist: _playlist,
   onOpenLyrics,
+  isMasked = true,
 }) {
   const [keywords, setKeywords] = useState(['money', 'drugs', 'party', 'alcohol', 'gun']);
   const [inputVal, setInputVal] = useState('');
@@ -275,7 +277,7 @@ export default function KeywordsTab({
                 key={kw}
                 className="bg-surface-elevated text-text-primary border border-border-subtle px-3 py-1 rounded-full text-xs font-medium inline-flex items-center space-x-1.5"
               >
-                <span>{kw}</span>
+                <span>{isMasked ? maskWord(kw) : kw}</span>
                 <button
                   type="button"
                   aria-label={`Remove keyword ${kw}`}
@@ -342,7 +344,7 @@ export default function KeywordsTab({
                   key={kw}
                   className="bg-surface-elevated text-brand-primary text-xs px-2.5 py-1 rounded-lg border border-border-subtle font-mono"
                 >
-                  "{kw}"
+                  "{isMasked ? maskWord(kw) : kw}"
                 </span>
               ))}
             </div>
@@ -397,7 +399,7 @@ export default function KeywordsTab({
                               key={i}
                               className="text-[11px] bg-brand-primary/10 text-brand-primary px-2.5 py-0.5 rounded-full border border-brand-primary/20 font-semibold"
                             >
-                              {kf.keyword}: {kf.count}x
+                              {isMasked ? maskWord(kf.keyword) : kf.keyword}: {kf.count}x
                             </span>
                           ))}
                         </div>
@@ -427,7 +429,7 @@ export default function KeywordsTab({
                               [L{String(snip.line_number).padStart(2, '0')}]
                             </span>
                             <span className="text-text-primary break-words flex-1">
-                              {renderHighlightedLine(snip.text, snip.matched_keywords)}
+                              {renderHighlightedLine(snip.text, snip.matched_keywords, isMasked)}
                             </span>
                           </div>
                         ))}
