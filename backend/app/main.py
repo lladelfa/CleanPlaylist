@@ -497,20 +497,37 @@ def search_keywords_in_playlist(req: KeywordSearchRequest):
     per_track_results = []
     tracks_with_matches = 0
     total_occurrences = 0
+    lyrics_unavailable_count = 0
+    lyrics_by_id: Dict[str, str] = {}
     tracks_to_process = req.tracks[: req.max_tracks or 30]
-    service = spotify_service if req.platform == "spotify" else ytmusic_service
+    platform = (req.platform or "ytmusic").strip().lower()
 
-    # Fetch lyrics concurrently across worker threads to keep response fast on serverless
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        lyrics_list = list(executor.map(lambda t: service.get_track_lyrics(t.id), tracks_to_process))
+    def _fetch_lyrics(track: TrackScanItem):
+        try:
+            yt_id, lyrics_text = lyric_xref_service.resolve_lyrics_and_yt_id(track, platform)
+            return (track.id, yt_id, lyrics_text)
+        except Exception:
+            return (track.id, getattr(track, "ytmusic_video_id", None), None)
 
-    for track, lyrics in zip(tracks_to_process, lyrics_list):
+    workers = min(len(tracks_to_process), 8) or 1
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        resolved_list = list(executor.map(_fetch_lyrics, tracks_to_process))
+
+    lookup_map = {item[0]: (item[1], item[2]) for item in resolved_list}
+
+    for track in tracks_to_process:
+        yt_id, lyrics = lookup_map.get(track.id, (getattr(track, "ytmusic_video_id", None), None))
+        resolved_yt_id = yt_id or getattr(track, "ytmusic_video_id", None)
+        lyrics_by_id[track.id] = lyrics or ""
+
         if not lyrics:
+            lyrics_unavailable_count += 1
             per_track_results.append({
                 "id": track.id,
                 "title": track.title,
                 "artist": track.artist,
                 "thumbnail": track.thumbnail,
+                "ytmusic_video_id": resolved_yt_id,
                 "has_lyrics": False,
                 "matched": False,
                 "total_matches": 0,
@@ -529,6 +546,7 @@ def search_keywords_in_playlist(req: KeywordSearchRequest):
             "title": track.title,
             "artist": track.artist,
             "thumbnail": track.thumbnail,
+            "ytmusic_video_id": resolved_yt_id,
             "has_lyrics": True,
             "matched": match_data["matched"],
             "total_matches": match_data["total_matches"],
@@ -542,8 +560,10 @@ def search_keywords_in_playlist(req: KeywordSearchRequest):
             "scanned_tracks_count": len(tracks_to_process),
             "tracks_with_matches": tracks_with_matches,
             "total_keyword_occurrences": total_occurrences,
+            "lyrics_unavailable_count": lyrics_unavailable_count,
         },
-        "results": per_track_results
+        "results": per_track_results,
+        "lyrics_by_id": lyrics_by_id,
     }
 
 @app.post("/api/replacements/find")
