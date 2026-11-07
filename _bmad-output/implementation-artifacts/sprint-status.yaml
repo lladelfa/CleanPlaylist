@@ -44,8 +44,8 @@ development_status:
   1-6-public-spotify-playlist-helper-responsive-working-list-workb: review
   epic-1-retrospective: optional
 
-  epic-2: backlog
-  2-1-spotify-to-youtube-lyric-cross-reference-engine-lyric_xref_s: backlog
+  epic-2: in-progress
+  2-1-spotify-to-youtube-lyric-cross-reference-engine-lyric_xref_s: review
   2-2-progressive-categorized-lyric-scan-verification-status-state: backlog
   2-3-screening-controls-bar-presets-client-side-in-memory-evaluat: backlog
   2-4-lyrics-modal-inspection-overlay-line-jumpers-keep-action: backlog
