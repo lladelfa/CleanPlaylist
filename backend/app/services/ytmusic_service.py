@@ -1,14 +1,57 @@
 """YouTube Music API service wrapper using ytmusicapi."""
 
 import re
+import threading
+from collections import OrderedDict
 from typing import Any, Dict, List, Optional
 from ytmusicapi import YTMusic
+
+class BoundedLyricsCache(OrderedDict):
+    """LRU cache bounded by maxsize, thread-safe under concurrent requests."""
+
+    def __init__(self, maxsize: int = 512, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.maxsize = maxsize
+        self._lock = threading.RLock()
+
+    def __getitem__(self, key: str) -> Optional[str]:
+        with self._lock:
+            val = super().__getitem__(key)
+            self.move_to_end(key)
+            return val
+
+    def __setitem__(self, key: str, value: Optional[str]) -> None:
+        with self._lock:
+            if key in self:
+                self.move_to_end(key)
+            super().__setitem__(key, value)
+            if len(self) > self.maxsize:
+                self.popitem(last=False)
+
+    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
+        with self._lock:
+            if key in self:
+                self.move_to_end(key)
+                return super().__getitem__(key)
+            return default
+
+    def __contains__(self, key: object) -> bool:
+        with self._lock:
+            return super().__contains__(key)
+
+    def __len__(self) -> int:
+        with self._lock:
+            return super().__len__()
+
+    def clear(self) -> None:
+        with self._lock:
+            super().clear()
 
 class YTMusicService:
     def __init__(self):
         # YTM is now strictly a read-only unauthenticated utility.
         self.yt = YTMusic()
-        self._lyrics_cache: Dict[str, Optional[str]] = {}
+        self._lyrics_cache: BoundedLyricsCache = BoundedLyricsCache(maxsize=512)
 
     @staticmethod
     def extract_track_id(url_or_id: str) -> str:
@@ -41,6 +84,10 @@ class YTMusicService:
         if raw.startswith("VL"):
             return raw[2:]
         return raw
+
+    def search(self, query: str, filter: str = "songs", limit: int = 5) -> List[Dict[str, Any]]:
+        """Delegate search to internal YTMusic client."""
+        return self.yt.search(query, filter=filter, limit=limit)
 
     @staticmethod
     def parse_duration_to_seconds(duration_str: Optional[str]) -> int:

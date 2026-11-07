@@ -49,6 +49,7 @@ class TrackScanItem(BaseModel):
     video_url: Optional[str] = None
     verification_status: Optional[str] = "unscanned"
     source_platform: Optional[str] = None
+    ytmusic_video_id: Optional[str] = None
 
 class AlbumSummary(BaseModel):
     model_config = ConfigDict(extra="ignore")
