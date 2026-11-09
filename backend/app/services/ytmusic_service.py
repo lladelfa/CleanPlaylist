@@ -200,11 +200,19 @@ class YTMusicService:
             self._lyrics_cache[video_id] = None
             return None
 
-    def search_clean_replacement(self, title: str, artist: str, duration_seconds: int = 0) -> Optional[Dict]:
+    def search_clean_replacement(
+        self,
+        title: str,
+        artist: str,
+        duration_seconds: int = 0,
+        exclude_track_id: Optional[str] = None,
+    ) -> Optional[Dict]:
+        from app.services.lyric_xref_service import LyricXRefService
+        clean_title = LyricXRefService().clean_title_for_query(title) or title.strip()
         clean_queries = [
-            f"{title} {artist} clean",
-            f"{title} {artist} radio edit",
-            f"{title} {artist}",
+            f"{clean_title} {artist} clean",
+            f"{clean_title} {artist} radio edit",
+            f"{clean_title} {artist}",
         ]
 
         candidates = []
@@ -220,9 +228,13 @@ class YTMusicService:
                     if not cand_video_id:
                         continue
 
+                    if exclude_track_id and cand_video_id == exclude_track_id:
+                        continue
+
                     cand_title = res.get("title", "")
                     cand_artists = [a.get("name", "") for a in res.get("artists", []) if a.get("name")]
                     cand_artist_str = ", ".join(cand_artists)
+                    cand_album = res.get("album", {}).get("name", "") if isinstance(res.get("album"), dict) else ""
 
                     cand_duration_str = res.get("duration", "")
                     cand_duration_sec = self.parse_duration_to_seconds(cand_duration_str)
@@ -243,12 +255,17 @@ class YTMusicService:
                         "id": cand_video_id,
                         "title": cand_title,
                         "artist": cand_artist_str,
+                        "artists_list": cand_artists,
+                        "album": cand_album,
                         "duration": cand_duration_str,
                         "duration_seconds": cand_duration_sec,
                         "is_explicit": False,
                         "thumbnail": thumb,
                         "video_url": f"https://music.youtube.com/watch?v={cand_video_id}",
                         "confidence_score": score,
+                        "source_platform": "ytmusic",
+                        "verification_status": "clean",
+                        "ytmusic_video_id": cand_video_id,
                     })
 
                 if candidates:
