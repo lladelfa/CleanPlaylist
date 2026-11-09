@@ -82,16 +82,16 @@ export default function WorkingListWorkbench({
 
       {/* Desktop View: Dense 6-column Table (>= 768px) */}
       {!isMobile && (
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="hidden md:block overflow-x-hidden">
+          <table className="table-fixed w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-border-subtle text-[11px] font-mono text-text-muted uppercase tracking-wider bg-surface-inset/60">
-                <th scope="col" className="py-2.5 px-3 w-12 text-center">#</th>
-                <th scope="col" className="py-2.5 px-3 min-w-[260px]">Title &amp; Artist</th>
-                <th scope="col" className="py-2.5 px-3 min-w-[160px]">Album</th>
-                <th scope="col" className="py-2.5 px-3 w-20 text-right">Duration</th>
-                <th scope="col" className="py-2.5 px-3 min-w-[150px]">Status</th>
-                <th scope="col" className="py-2.5 px-3 min-w-[140px] text-right">Actions</th>
+                <th scope="col" className="py-2.5 px-3 w-10 text-center">#</th>
+                <th scope="col" className="py-2.5 px-3">Title &amp; Artist</th>
+                <th scope="col" className="py-2.5 px-3 w-[18%] hidden lg:table-cell">Album</th>
+                <th scope="col" className="py-2.5 px-3 w-16 text-right">Duration</th>
+                <th scope="col" className="py-2.5 px-3 w-[22%] lg:w-[18%]">Status</th>
+                <th scope="col" className="py-2.5 px-3 w-[26%] lg:w-[16%] text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle/40 text-xs">
@@ -113,7 +113,7 @@ export default function WorkingListWorkbench({
                     </td>
 
                     {/* 2. Cover Art + Title & Artist */}
-                    <td className="py-2.5 px-3">
+                    <td className="py-2.5 px-3 min-w-0">
                       <div className="flex items-center gap-3 min-w-0">
                         {track.thumbnail ? (
                           <img
@@ -126,9 +126,12 @@ export default function WorkingListWorkbench({
                             <Music className="w-5 h-5" aria-hidden="true" />
                           </div>
                         )}
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <p className="font-semibold text-text-primary truncate">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <p
+                              className="font-semibold text-text-primary truncate"
+                              title={track.title || 'Untitled Track'}
+                            >
                               {track.title || 'Untitled Track'}
                             </p>
                             {track.is_explicit && (
@@ -137,9 +140,20 @@ export default function WorkingListWorkbench({
                               </span>
                             )}
                           </div>
-                          <p className="text-text-muted truncate text-[11px]">
+                          <p
+                            className="text-text-muted truncate text-[11px]"
+                            title={track.artist || 'Unknown Artist'}
+                          >
                             {track.artist || 'Unknown Artist'}
                           </p>
+                          {track.album ? (
+                            <p
+                              className="block lg:hidden text-text-muted/80 truncate text-[10px]"
+                              title={track.album}
+                            >
+                              {track.album}
+                            </p>
+                          ) : null}
                           {track.snippets && track.snippets.length > 0 ? (
                             <button
                               type="button"
@@ -162,7 +176,7 @@ export default function WorkingListWorkbench({
                               type="button"
                               onClick={(e) => onOpenLyrics && onOpenLyrics(track, e.currentTarget)}
                               aria-label="Inspect flagged reasons"
-                              className="text-[11px] text-status-flagged mt-0.5 truncate text-left hover:underline cursor-pointer"
+                              className="text-[11px] text-status-flagged mt-0.5 truncate text-left hover:underline cursor-pointer block max-w-full"
                               title="Inspect flagged reasons"
                             >
                               {track.reasons
@@ -179,7 +193,7 @@ export default function WorkingListWorkbench({
                     </td>
 
                     {/* 3. Album */}
-                    <td className="py-2.5 px-3 text-text-muted truncate max-w-[200px]">
+                    <td className="py-2.5 px-3 text-text-muted truncate hidden lg:table-cell">
                       {track.album || '—'}
                     </td>
 
@@ -198,7 +212,7 @@ export default function WorkingListWorkbench({
 
                     {/* 6. Actions */}
                     <td className="py-2.5 px-3 text-right">
-                      <div className="inline-flex items-center justify-end gap-1.5">
+                      <div className="inline-flex items-center justify-end gap-1.5 flex-nowrap min-w-0">
                         {onOpenLyrics && (
                           <button
                             type="button"
@@ -217,7 +231,8 @@ export default function WorkingListWorkbench({
                             onClick={() => onFindClean(track)}
                             disabled={isSearching}
                             title="Find Clean Edit"
-                            className="px-2 py-1 rounded bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-tint border border-brand-primary/30 text-xs font-medium transition-colors disabled:opacity-50 inline-flex items-center gap-1"
+                            aria-label="Find Clean Edit"
+                            className="px-2 py-1 rounded bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-tint border border-brand-primary/30 text-xs font-medium transition-colors disabled:opacity-50 inline-flex items-center gap-1 shrink-0"
                           >
                             <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
                             <span>{isSearching ? '...' : 'Clean'}</span>
@@ -229,7 +244,8 @@ export default function WorkingListWorkbench({
                             type="button"
                             onClick={() => onSwapTrack(track, cleanCand)}
                             title="Swap to Clean"
-                            className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow transition-colors inline-flex items-center gap-1"
+                            aria-label="Swap to Clean"
+                            className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow transition-colors inline-flex items-center gap-1 shrink-0"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
                             <span>Swap</span>

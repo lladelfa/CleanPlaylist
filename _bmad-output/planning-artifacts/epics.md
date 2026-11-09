@@ -105,6 +105,34 @@ FR-15: Epic 5 - Privacy-Safe Usage Event Recording
 Users can visit CleanPlaylist without logging in, search songs and albums across Spotify (via Client Credentials) and YouTube Music, paste multi-line track lists or load playlist links (with guided fallback for Spotify links), and stage up to 50 deduplicated tracks in a responsive dark studio workbench with atomic platform reset.
 **FRs covered:** FR-1, FR-2, FR-3, FR-4
 
+### Story 1.7: Zero-Horizontal-Scroll Responsive Table Layout for Working List Workbench
+
+As a user reviewing a staged album or playlist on any screen size or split-window layout,
+I want the Working List Workbench table to adapt cleanly without horizontal scrolling,
+So that I can see track information, verification status badges, and action buttons without needing to scroll horizontally or lose context.
+
+**Acceptance Criteria:**
+
+**Given** WorkingListWorkbench rendered on desktop viewports (>= 768px),
+**When** rendered inside its container (across 768px, 1024px, 1280px, 1440px+ or narrow split-screen widths),
+**Then** the table enforces `table-fixed` w-full layout with relative column distribution,
+**And** the entire workbench table fits 100% of its container with zero horizontal page or container overflow/scrollbars.
+
+**Given** tracks with long titles, multi-artist lists, or multiple flagged reason chips,
+**When** displayed in the Title & Artist column,
+**Then** titles, artists, and lyric/reason snippets properly truncate with an ellipsis (`truncate`) without expanding the table beyond container boundaries.
+
+**Given** medium viewports (between 768px and 1023px, md breakpoint),
+**When** rendered on desktop view,
+**Then** the standalone Album table column is hidden (`hidden lg:table-cell`),
+**And** the album name is gracefully folded as a secondary subtitle under the artist name in the Title & Artist column,
+**And** at lg (>= 1024px), the dedicated Album column is displayed.
+
+**Given** action buttons in the Actions column,
+**When** rendered across all desktop breakpoints,
+**Then** action buttons (Lyrics, Clean/Swap, Link, Remove) remain accessible with explicit `aria-label` or visible text, and fit comfortably without wrapping or clipping.
+
+
 ### Epic 2: Cross-Platform Lyric Screening & Verification Workbench
 Users can evaluate staged tracks on both platforms using Sensitivity Presets and Custom Blocklists (with automated Spotify-to-YouTube Music Lyric Cross-Reference), inspect highlighted profanity snippets with line jumpers in LyricsModal, search custom keywords across cached lyrics, and view honest Verification Status badges without false-clean inflation.
 **FRs covered:** FR-5, FR-6, FR-7
