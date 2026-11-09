@@ -581,6 +581,7 @@ def search_keywords_in_playlist(req: KeywordSearchRequest):
 def find_clean_replacement(req: FindCleanReplacementRequest, request: Request, response: Response):
     exclude_id = req.exclude_track_id or req.track_id
     platform = (req.platform or "ytmusic").strip().lower()
+    lyrics_by_id: Dict[str, str] = {}
     try:
         if platform == "spotify":
             sp_client = spotify_service.get_catalog_client()
@@ -592,9 +593,12 @@ def find_clean_replacement(req: FindCleanReplacementRequest, request: Request, r
                 exclude_track_id=exclude_id,
             )
             if candidate:
-                yt_id, _ = lyric_xref_service.resolve_lyrics_and_yt_id(candidate, platform="spotify")
+                yt_id, lyrics = lyric_xref_service.resolve_lyrics_and_yt_id(candidate, platform="spotify")
                 if yt_id:
                     candidate["ytmusic_video_id"] = yt_id
+                cand_id = candidate.get("id")
+                if cand_id and lyrics:
+                    lyrics_by_id[cand_id] = lyrics
         else:
             candidate = ytmusic_service.search_clean_replacement(
                 title=req.title,
@@ -602,13 +606,21 @@ def find_clean_replacement(req: FindCleanReplacementRequest, request: Request, r
                 duration_seconds=req.duration_seconds or 0,
                 exclude_track_id=exclude_id,
             )
+            if candidate:
+                yt_id, lyrics = lyric_xref_service.resolve_lyrics_and_yt_id(candidate, platform="ytmusic")
+                if yt_id and not candidate.get("ytmusic_video_id"):
+                    candidate["ytmusic_video_id"] = yt_id
+                cand_id = candidate.get("id")
+                if cand_id and lyrics:
+                    lyrics_by_id[cand_id] = lyrics
     except Exception as e:
         logger.warning(f"Error in find_clean_replacement: {e}")
         candidate = None
 
     return {
         "found": candidate is not None,
-        "clean_candidate": candidate
+        "clean_candidate": candidate,
+        "lyrics_by_id": lyrics_by_id,
     }
 
 @app.post("/api/replacements/find-batch")

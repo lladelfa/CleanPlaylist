@@ -278,10 +278,10 @@ describe('WorkingListWorkbench component', () => {
     expect(headers[0].className).toMatch(/w-10/);
     expect(headers[1]).toHaveTextContent(/Title & Artist/i);
     expect(headers[3].className).toMatch(/w-16/);
-    expect(headers[4].className).toMatch(/w-\[22%\]/);
-    expect(headers[4].className).toMatch(/lg:w-\[18%\]/);
-    expect(headers[5].className).toMatch(/w-\[26%\]/);
-    expect(headers[5].className).toMatch(/lg:w-\[16%\]/);
+    expect(headers[4].className).toMatch(/w-\[20%\]/);
+    expect(headers[4].className).toMatch(/lg:w-\[15%\]/);
+    expect(headers[5].className).toMatch(/w-\[28%\]/);
+    expect(headers[5].className).toMatch(/lg:w-\[22%\]/);
 
     // Check Album data cells
     const rows = screen.getAllByRole('row');

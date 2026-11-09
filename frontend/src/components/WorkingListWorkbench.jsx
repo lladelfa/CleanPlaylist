@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Music, FileText, Sparkles, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Trash2, Music, FileText, ExternalLink } from 'lucide-react';
 import VerificationStatusBadge from './VerificationStatusBadge';
 import MobileTrackCard from './MobileTrackCard';
+import CleanReplacementControl from './CleanReplacementControl';
 import { maskWord, maskText, getTrackFlaggedWords } from '../utils/masking';
 
 function formatDuration(track) {
@@ -121,8 +122,8 @@ export default function WorkingListWorkbench({
                     <th scope="col" className="py-2.5 px-3">Title &amp; Artist</th>
                     <th scope="col" className="py-2.5 px-3 w-[18%] hidden lg:table-cell">Album</th>
                     <th scope="col" className="py-2.5 px-3 w-16 text-right">Duration</th>
-                    <th scope="col" className="py-2.5 px-3 w-[22%] lg:w-[18%]">Status</th>
-                    <th scope="col" className="py-2.5 px-3 w-[26%] lg:w-[16%] text-right">Actions</th>
+                    <th scope="col" className="py-2.5 px-3 w-[20%] lg:w-[15%]">Status</th>
+                    <th scope="col" className="py-2.5 px-3 w-[28%] lg:w-[22%] text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle/40 text-xs">
@@ -260,38 +261,15 @@ export default function WorkingListWorkbench({
                               </button>
                             )}
 
-                            {track.is_flagged && !cleanCand && onFindClean && (
-                              <button
-                                type="button"
-                                onClick={() => onFindClean(track)}
-                                disabled={isSearching}
-                                title="Find Clean Edit"
-                                aria-label="Find Clean Edit"
-                                className="px-2 py-1 rounded bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-tint border border-brand-primary/30 text-xs font-medium transition-colors disabled:opacity-50 inline-flex items-center gap-1 shrink-0"
-                              >
-                                <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
-                                <span>{isSearching ? '...' : 'Clean'}</span>
-                              </button>
-                            )}
-
-                            {cleanCand && cleanCand !== 'none' && onSwapTrack && (
-                              <button
-                                type="button"
-                                onClick={() => onSwapTrack(track, cleanCand)}
-                                title="Swap to Clean"
-                                aria-label="Swap to Clean"
-                                className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow transition-colors inline-flex items-center gap-1 shrink-0"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
-                                <span>Swap</span>
-                              </button>
-                            )}
-
-                            {cleanCand === 'none' && (
-                              <span className="text-[10px] text-text-muted italic">
-                                No clean
-                              </span>
-                            )}
+                            <CleanReplacementControl
+                              track={track}
+                              cleanCandidate={cleanCand}
+                              isSearching={Boolean(isSearching)}
+                              onFindClean={onFindClean}
+                              onSwapTrack={onSwapTrack}
+                              onRemoveTrack={onRemoveTrack}
+                              variant="desktop"
+                            />
 
                             {track.video_url && (
                               <a
@@ -306,15 +284,17 @@ export default function WorkingListWorkbench({
                               </a>
                             )}
 
-                            <button
-                              type="button"
-                              onClick={() => onRemoveTrack && onRemoveTrack(track)}
-                              aria-label="Remove track"
-                              title="Remove track"
-                              className="p-1.5 text-text-muted hover:text-status-flagged hover:bg-surface-elevated rounded transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" aria-hidden="true" />
-                            </button>
+                            {cleanCand !== 'none' && (
+                              <button
+                                type="button"
+                                onClick={() => onRemoveTrack && onRemoveTrack(track)}
+                                aria-label="Remove track"
+                                title="Remove track"
+                                className="p-1.5 text-text-muted hover:text-status-flagged hover:bg-surface-elevated rounded transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" aria-hidden="true" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

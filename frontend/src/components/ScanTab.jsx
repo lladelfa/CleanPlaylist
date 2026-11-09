@@ -47,11 +47,15 @@ export default function ScanTab({
   onKeepTrack,
   isMasked = true,
   onToggleMasking,
+  cleanCandidates: externalCleanCandidates,
+  setCleanCandidates: externalSetCleanCandidates,
 }) {
   const [scanning, setScanning] = useState(false);
   const [filterMode, setFilterMode] = useState("all"); // 'all' | 'flagged' | 'clean'
   const [searchQuery, setSearchQuery] = useState("");
-  const [cleanCandidates, setCleanCandidates] = useState({});
+  const [internalCleanCandidates, setInternalCleanCandidates] = useState({});
+  const cleanCandidates = externalCleanCandidates ?? internalCleanCandidates;
+  const setCleanCandidates = externalSetCleanCandidates ?? setInternalCleanCandidates;
   const [searchingClean, setSearchingClean] = useState({});
   const [statusMessage, setStatusMessage] = useState(null);
   const [activeNotice, setActiveNotice] = useState(null);
@@ -263,6 +267,8 @@ export default function ScanTab({
     setScannedTracks([]);
     if (setWorkingList) setWorkingList([]);
     setPlaylist(null);
+    setCleanCandidates({});
+    setSearchingClean({});
     setIsSwitchModalOpen(false);
     if (onSwitchPlatform) onSwitchPlatform(pendingPlatform);
     setPendingPlatform(null);
@@ -535,20 +541,38 @@ export default function ScanTab({
           title: track.title,
           artist: track.artist,
           duration_seconds: track.duration_seconds || 0,
+          track_id: track.id,
           platform: activePlatform,
         }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to search for clean replacement");
+      }
       const data = await res.json();
       if (data.found && data.clean_candidate) {
+        const candId = data.clean_candidate.id;
+        const resolvedLyrics =
+          (candId && data.lyrics_by_id && data.lyrics_by_id[candId]) ||
+          data.clean_candidate.lyrics ||
+          undefined;
+        const enrichedCandidate =
+          resolvedLyrics !== undefined
+            ? { ...data.clean_candidate, lyrics: resolvedLyrics }
+            : data.clean_candidate;
         setCleanCandidates((prev) => ({
           ...prev,
-          [track.id]: data.clean_candidate,
+          [track.id]: enrichedCandidate,
         }));
       } else {
         setCleanCandidates((prev) => ({ ...prev, [track.id]: "none" }));
       }
     } catch (err) {
       console.error(err);
+      setActiveNotice({
+        type: "caution",
+        message: err.message || "Failed to search for clean replacement.",
+      });
     } finally {
       setSearchingClean((prev) => ({ ...prev, [track.id]: false }));
     }
@@ -582,30 +606,66 @@ export default function ScanTab({
   };
 
   const handleSwapTrack = (originalTrack, cleanTrack) => {
-    const swapFn = (t) => {
-      if (t.id === originalTrack.id) {
-        return {
-          ...cleanTrack,
-          is_flagged: false,
-          reasons: [],
-          is_explicit: false,
-          was_replaced: true,
-          original_title: originalTrack.title,
-          original_id: originalTrack.id,
-          original_set_video_id: originalTrack.setVideoId,
-        };
-      }
-      return t;
+    const cleanLyrics =
+      typeof cleanTrack?.lyrics === "string"
+        ? cleanTrack.lyrics
+        : cleanTrack?.id
+        ? lyricsByTrackId?.[cleanTrack.id]
+        : undefined;
+    const swappedTrack = {
+      ...originalTrack,
+      ...cleanTrack,
+      verification_status: "clean_swapped",
+      is_flagged: false,
+      reasons: [],
+      detected_terms: [],
+      snippets: [],
+      total_flagged_count: 0,
+      is_explicit: false,
+      has_lyrics: Boolean(typeof cleanLyrics === "string" && cleanLyrics.trim()),
+      was_replaced: true,
+      original_title: originalTrack.title,
+      original_id: originalTrack.id,
+      original_set_video_id: originalTrack.setVideoId,
     };
+    const swapFn = (t) => (t.id === originalTrack.id ? swappedTrack : t);
 
     setScannedTracks((prev) => prev.map(swapFn));
     if (setWorkingList) {
       setWorkingList((prev) => prev.map(swapFn));
     }
+    if (playlist && setPlaylist) {
+      setPlaylist((prev) =>
+        prev
+          ? {
+              ...prev,
+              tracks: (prev.tracks || []).map(swapFn),
+            }
+          : prev
+      );
+    }
+    if (setLyricsByTrackId && cleanTrack?.id) {
+      const cleanLyrics =
+        typeof cleanTrack.lyrics === "string"
+          ? cleanTrack.lyrics
+          : lyricsByTrackId?.[cleanTrack.id];
+      if (typeof cleanLyrics === "string") {
+        setLyricsByTrackId((prev) => ({
+          ...prev,
+          [cleanTrack.id]: cleanLyrics,
+        }));
+      }
+    }
     setCleanCandidates((prev) => {
       const updated = { ...prev };
       delete updated[originalTrack.id];
       return updated;
+    });
+    const swapMsg = `Swapped "${originalTrack.title}" to clean version "${cleanTrack.title || originalTrack.title}".`;
+    setScanProgressAnnouncement(swapMsg);
+    setStatusMessage({
+      type: "success",
+      text: swapMsg,
     });
   };
 
@@ -642,9 +702,12 @@ export default function ScanTab({
 
   const lastScreeningConfigRef = useRef({ preset, customBlocklist, presetsData });
   useEffect(() => {
+    const blocklistChanged =
+      lastScreeningConfigRef.current.customBlocklist !== customBlocklist &&
+      JSON.stringify(lastScreeningConfigRef.current.customBlocklist) !== JSON.stringify(customBlocklist);
     if (
       lastScreeningConfigRef.current.preset !== preset ||
-      lastScreeningConfigRef.current.customBlocklist !== customBlocklist ||
+      blocklistChanged ||
       lastScreeningConfigRef.current.presetsData !== presetsData
     ) {
       lastScreeningConfigRef.current = { preset, customBlocklist, presetsData };
@@ -653,7 +716,7 @@ export default function ScanTab({
   }, [preset, customBlocklist, presetsData, reevaluateWith]);
 
   const handleSelectPreset = (newPreset) => {
-    lastScreeningConfigRef.current = { preset: newPreset, customBlocklist };
+    lastScreeningConfigRef.current = { preset: newPreset, customBlocklist, presetsData };
     setPreset(newPreset);
     reevaluateWith(newPreset, customBlocklist);
   };
@@ -661,7 +724,7 @@ export default function ScanTab({
   const handleAddBlocklistTerm = (term) => {
     const currentList = Array.isArray(customBlocklist) ? customBlocklist : [];
     const next = [...currentList, term];
-    lastScreeningConfigRef.current = { preset, customBlocklist: next };
+    lastScreeningConfigRef.current = { preset, customBlocklist: next, presetsData };
     setCustomBlocklist(next);
     reevaluateWith(preset, next);
   };
@@ -669,7 +732,7 @@ export default function ScanTab({
   const handleRemoveBlocklistTerm = (term) => {
     const currentList = Array.isArray(customBlocklist) ? customBlocklist : [];
     const next = currentList.filter((w) => w !== term);
-    lastScreeningConfigRef.current = { preset, customBlocklist: next };
+    lastScreeningConfigRef.current = { preset, customBlocklist: next, presetsData };
     setCustomBlocklist(next);
     reevaluateWith(preset, next);
   };
@@ -693,6 +756,7 @@ export default function ScanTab({
     }
     setPlaylist(null);
     setCleanCandidates({});
+    setSearchingClean({});
   };
 
   // Filtered tracks
