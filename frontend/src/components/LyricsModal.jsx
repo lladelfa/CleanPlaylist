@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { X, AlertTriangle, CheckCircle, Music2, ExternalLink, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle, Music2, ExternalLink, RefreshCw, ChevronUp, ChevronDown, ArrowLeftRight } from 'lucide-react';
 import { evaluateLyrics } from '../utils/lyricEvaluator';
 import { maskWord, maskText } from '../utils/masking';
+function formatDurationDelta(originalTrack, candidateTrack) {
+  const origSec = Number(originalTrack?.duration_seconds) || 0;
+  const candSec = Number(candidateTrack?.duration_seconds) || 0;
+  if (origSec <= 0 || candSec <= 0) return '0s';
+  const diff = Math.round(candSec - origSec);
+  if (diff > 0) return `+${diff}s`;
+  if (diff < 0) return `${diff}s`;
+  return '0s';
+}
 
 const EMPTY_OBJECT = {};
 const EMPTY_ARRAY = [];
@@ -9,7 +18,10 @@ const EMPTY_ARRAY = [];
 export default function LyricsModal({
   track,
   onClose,
-  _onApplyReplacement,
+  onApplyReplacement,
+  onSwapTrack,
+  cleanCandidate,
+  cleanCandidates = EMPTY_OBJECT,
   activePlatform,
   lyricsByTrackId = EMPTY_OBJECT,
   setLyricsByTrackId,
@@ -318,6 +330,19 @@ export default function LyricsModal({
     handleClose();
   };
 
+  const resolvedCleanCandidate =
+    cleanCandidate ?? cleanCandidates?.[trackId] ?? track?.clean_candidate ?? null;
+
+  const handleModalSwap = () => {
+    if (!resolvedCleanCandidate || typeof resolvedCleanCandidate !== 'object') return;
+    if (onSwapTrack) {
+      onSwapTrack(track, resolvedCleanCandidate);
+    } else if (onApplyReplacement) {
+      onApplyReplacement(resolvedCleanCandidate);
+    }
+    handleClose();
+  };
+
   if (!track) return null;
 
   const isSpotify = (activePlatform || track.platform || '').toLowerCase() === 'spotify';
@@ -471,6 +496,33 @@ export default function LyricsModal({
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
+
+        {/* Emerald Clean Replacement Top Banner */}
+        {resolvedCleanCandidate && typeof resolvedCleanCandidate === 'object' && (
+          <div
+            role="region"
+            aria-label="Clean replacement available"
+            className="px-4 py-3 bg-status-clean-bg/80 border-b border-status-clean-border flex flex-wrap items-center justify-between gap-3 shrink-0"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-status-clean flex items-center gap-1.5">
+                <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                <span>Clean Replacement Available</span>
+              </p>
+              <p className="text-xs text-text-primary truncate mt-0.5">
+                {resolvedCleanCandidate.title || track.title} ({formatDurationDelta(track, resolvedCleanCandidate)})
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleModalSwap}
+              className="px-3.5 py-1.5 rounded-lg bg-status-clean hover:bg-status-clean/90 text-status-clean-ink border border-status-clean-border text-xs font-semibold shadow transition-colors inline-flex items-center gap-1.5 shrink-0"
+            >
+              <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+              <span>Swap to Clean</span>
+            </button>
+          </div>
+        )}
 
         {/* Telemetry / Flag Jumpers Bar */}
         <div className="px-4 py-2 bg-surface-elevated/60 border-b border-border-subtle flex items-center justify-between text-xs text-text-muted shrink-0">

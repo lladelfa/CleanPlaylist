@@ -1,6 +1,7 @@
 import React from 'react';
-import { Music, Trash2, FileText, Sparkles, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Music, Trash2, FileText, ExternalLink } from 'lucide-react';
 import VerificationStatusBadge from './VerificationStatusBadge';
+import CleanReplacementControl from './CleanReplacementControl';
 import { maskWord, maskText, getTrackFlaggedWords } from '../utils/masking';
 
 function formatDuration(track) {
@@ -143,34 +144,15 @@ export default function MobileTrackCard({
             </button>
           )}
 
-          {track.is_flagged && !cleanCandidate && onFindClean && (
-            <button
-              type="button"
-              onClick={() => onFindClean(track)}
-              disabled={isSearchingClean}
-              className="min-h-[44px] min-w-[44px] px-2.5 py-1.5 rounded-lg bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-tint border border-brand-primary/30 flex items-center justify-center gap-1 text-xs transition-colors disabled:opacity-50"
-            >
-              <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>{isSearchingClean ? 'Searching...' : 'Find Clean'}</span>
-            </button>
-          )}
-
-          {cleanCandidate && cleanCandidate !== 'none' && onSwapTrack && (
-            <button
-              type="button"
-              onClick={() => onSwapTrack(track, cleanCandidate)}
-              className="min-h-[44px] min-w-[44px] px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-1 text-xs font-semibold shadow transition-colors"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Swap</span>
-            </button>
-          )}
-
-          {cleanCandidate === 'none' && (
-            <span className="text-[11px] text-text-muted italic px-1">
-              No clean version
-            </span>
-          )}
+          <CleanReplacementControl
+            track={track}
+            cleanCandidate={cleanCandidate}
+            isSearching={Boolean(isSearchingClean)}
+            onFindClean={onFindClean}
+            onSwapTrack={onSwapTrack}
+            onRemoveTrack={onRemoveTrack}
+            variant="mobile"
+          />
 
           {track.video_url && (
             <a
@@ -185,15 +167,17 @@ export default function MobileTrackCard({
             </a>
           )}
 
-          <button
-            type="button"
-            onClick={() => onRemoveTrack && onRemoveTrack(track)}
-            aria-label="Remove track"
-            title="Remove track"
-            className="min-h-[44px] min-w-[44px] px-3 py-2 rounded-lg text-text-muted hover:text-status-flagged hover:bg-surface-elevated flex items-center justify-center transition-colors active:scale-95"
-          >
-            <Trash2 className="w-4 h-4" aria-hidden="true" />
-          </button>
+          {cleanCandidate !== 'none' && (
+            <button
+              type="button"
+              onClick={() => onRemoveTrack && onRemoveTrack(track)}
+              aria-label="Remove track"
+              title="Remove track"
+              className="min-h-[44px] min-w-[44px] px-3 py-2 rounded-lg text-text-muted hover:text-status-flagged hover:bg-surface-elevated flex items-center justify-center transition-colors active:scale-95"
+            >
+              <Trash2 className="w-4 h-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
       </div>
     </article>

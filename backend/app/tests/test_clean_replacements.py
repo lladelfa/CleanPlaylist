@@ -508,3 +508,61 @@ def test_find_batch_replacements_over_10_tracks_rejected():
 
     assert exc_info.value.status_code == 400
     assert "10" in exc_info.value.detail
+
+
+def test_endpoint_find_clean_replacement_returns_lyrics_by_id():
+    mock_request = MagicMock(spec=Request)
+    mock_response = MagicMock(spec=Response)
+
+    req_sp = FindCleanReplacementRequest(
+        title="Song",
+        artist="Artist",
+        duration_seconds=180,
+        platform="spotify",
+        track_id="flagged_sp_1",
+    )
+
+    with patch.object(spotify_service, "get_catalog_client"):
+        with patch.object(spotify_service, "search_clean_replacement") as mock_search:
+            mock_search.return_value = {"id": "clean_candidate_2"}
+            with patch.object(lyric_xref_service, "resolve_lyrics_and_yt_id", return_value=("yt_res_1", "Clean lyrics text")):
+                resp = find_clean_replacement(req_sp, mock_request, mock_response)
+                assert resp["clean_candidate"]["ytmusic_video_id"] == "yt_res_1"
+                assert resp["lyrics_by_id"] == {"clean_candidate_2": "Clean lyrics text"}
+
+    req_yt = FindCleanReplacementRequest(
+        title="Song",
+        artist="Artist",
+        duration_seconds=180,
+        platform="ytmusic",
+        track_id="flagged_yt_1",
+    )
+
+    with patch.object(ytmusic_service, "search_clean_replacement") as mock_search:
+        mock_search.return_value = {"id": "yt_clean_candidate_9"}
+        with patch.object(lyric_xref_service, "resolve_lyrics_and_yt_id", return_value=("yt_clean_candidate_9", "Clean YT lyrics")):
+            resp = find_clean_replacement(req_yt, mock_request, mock_response)
+            assert resp["found"] is True
+            assert resp["clean_candidate"]["id"] == "yt_clean_candidate_9"
+            assert resp["lyrics_by_id"] == {"yt_clean_candidate_9": "Clean YT lyrics"}
+
+
+def test_endpoint_find_clean_replacement_empty_lyrics_by_id_when_unresolved():
+    mock_request = MagicMock(spec=Request)
+    mock_response = MagicMock(spec=Response)
+
+    req = FindCleanReplacementRequest(
+        title="Song",
+        artist="Artist",
+        duration_seconds=180,
+        platform="spotify",
+        track_id="flagged_sp_1",
+    )
+
+    with patch.object(spotify_service, "get_catalog_client"):
+        with patch.object(spotify_service, "search_clean_replacement") as mock_search:
+            mock_search.return_value = {"id": "clean_candidate_2"}
+            with patch.object(lyric_xref_service, "resolve_lyrics_and_yt_id", return_value=(None, None)):
+                resp = find_clean_replacement(req, mock_request, mock_response)
+                assert resp["found"] is True
+                assert resp["lyrics_by_id"] == {}

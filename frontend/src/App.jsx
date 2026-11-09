@@ -49,6 +49,8 @@ export default function App() {
   const [lyricsTriggerEl, setLyricsTriggerEl] = useState(null);
   const [keptTrackIds, setKeptTrackIds] = useState(() => new Set());
   const [isMasked, setIsMasked] = useState(true);
+  const [cleanCandidates, setCleanCandidates] = useState({});
+  const [swapAnnouncement, setSwapAnnouncement] = useState('');
 
   const handleToggleMasking = () => {
     setIsMasked(prev => !prev);
@@ -102,6 +104,7 @@ export default function App() {
     setPlaylist(null);
     setLyricsByTrackId({});
     setKeptTrackIds(new Set());
+    setCleanCandidates({});
     setIsSwitchModalOpen(false);
     setPendingPlatform(null);
   };
@@ -177,6 +180,8 @@ export default function App() {
             onRequestPlatformChange={handleRequestPlatformChange}
             isMasked={isMasked}
             onToggleMasking={handleToggleMasking}
+            cleanCandidates={cleanCandidates}
+            setCleanCandidates={setCleanCandidates}
           />
         )}
 
@@ -208,16 +213,107 @@ export default function App() {
         <LyricsModal
           track={selectedTrackForLyrics}
           triggerEl={lyricsTriggerEl}
+          cleanCandidates={cleanCandidates}
           onClose={() => {
             setSelectedTrackForLyrics(null);
             setLyricsTriggerEl(null);
           }}
-          onApplyReplacement={(cleanTrack) => {
-            handleSetScannedTracks(prev =>
-              prev.map(t => (t.id === selectedTrackForLyrics.id ? cleanTrack : t))
+          onSwapTrack={(originalTrack, cleanTrack) => {
+            const cleanLyrics =
+              typeof cleanTrack?.lyrics === 'string'
+                ? cleanTrack.lyrics
+                : cleanTrack?.id
+                ? lyricsByTrackId?.[cleanTrack.id]
+                : undefined;
+            const swappedTrack = {
+              ...originalTrack,
+              ...cleanTrack,
+              verification_status: 'clean_swapped',
+              is_flagged: false,
+              reasons: [],
+              detected_terms: [],
+              snippets: [],
+              total_flagged_count: 0,
+              is_explicit: false,
+              has_lyrics: Boolean(typeof cleanLyrics === 'string' && cleanLyrics.trim()),
+              was_replaced: true,
+              original_title: originalTrack.title,
+              original_id: originalTrack.id,
+              original_set_video_id: originalTrack.setVideoId,
+            };
+            const swapFn = (t) => (t.id === originalTrack.id ? swappedTrack : t);
+            handleSetScannedTracks((prev) => prev.map(swapFn));
+            setPlaylist((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    tracks: (prev.tracks || []).map(swapFn),
+                  }
+                : prev
             );
-            setSelectedTrackForLyrics(null);
-            setLyricsTriggerEl(null);
+            if (cleanTrack?.id && typeof cleanLyrics === 'string') {
+              setLyricsByTrackId((prev) => ({
+                ...prev,
+                [cleanTrack.id]: cleanLyrics,
+              }));
+            }
+            setCleanCandidates((prev) => {
+              const updated = { ...prev };
+              delete updated[originalTrack.id];
+              return updated;
+            });
+            setSwapAnnouncement(
+              `Swapped "${originalTrack.title}" to clean version "${cleanTrack.title || originalTrack.title}".`
+            );
+          }}
+          onApplyReplacement={(cleanTrack) => {
+            const originalTrack = selectedTrackForLyrics;
+            const cleanLyrics =
+              typeof cleanTrack?.lyrics === 'string'
+                ? cleanTrack.lyrics
+                : cleanTrack?.id
+                ? lyricsByTrackId?.[cleanTrack.id]
+                : undefined;
+            const swappedTrack = {
+              ...originalTrack,
+              ...cleanTrack,
+              verification_status: 'clean_swapped',
+              is_flagged: false,
+              reasons: [],
+              detected_terms: [],
+              snippets: [],
+              total_flagged_count: 0,
+              is_explicit: false,
+              has_lyrics: Boolean(typeof cleanLyrics === 'string' && cleanLyrics.trim()),
+              was_replaced: true,
+              original_title: originalTrack.title,
+              original_id: originalTrack.id,
+              original_set_video_id: originalTrack.setVideoId,
+            };
+            const swapFn = (t) => (t.id === originalTrack.id ? swappedTrack : t);
+            handleSetScannedTracks((prev) => prev.map(swapFn));
+            setPlaylist((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    tracks: (prev.tracks || []).map(swapFn),
+                  }
+                : prev
+            );
+            if (cleanTrack?.id && typeof cleanLyrics === 'string') {
+              setLyricsByTrackId((prev) => ({
+                ...prev,
+                [cleanTrack.id]: cleanLyrics,
+              }));
+            }
+            setCleanCandidates((prev) => {
+              const updated = { ...prev };
+              delete updated[originalTrack.id];
+              return updated;
+            });
+            setSwapAnnouncement(
+              `Swapped "${originalTrack.title}" to clean version "${cleanTrack.title || originalTrack.title}".`
+            );
           }}
           activePlatform={activePlatform}
           lyricsByTrackId={lyricsByTrackId}
@@ -229,6 +325,12 @@ export default function App() {
           onKeepTrack={handleKeepTrack}
           isMasked={isMasked}
         />
+      )}
+
+      {swapAnnouncement && (
+        <div aria-live="polite" className="sr-only">
+          {swapAnnouncement}
+        </div>
       )}
 
       {/* Footer */}
