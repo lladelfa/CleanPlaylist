@@ -273,10 +273,6 @@ describe("ScanTab - Spotify Playlist Picker Integration", () => {
     const pickedItem = await screen.findByText("My Picked Spotify Playlist");
     await user.click(pickedItem);
 
-    // URL input is populated
-    const urlInput = screen.getByPlaceholderText(/https:\/\/music\.youtube\.com\/playlist/i);
-    expect(urlInput).toHaveValue("https://open.spotify.com/playlist/sp_picked_1");
-
     // Modal closed and playlist fetch triggered automatically
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/playlist/fetch",
@@ -289,6 +285,38 @@ describe("ScanTab - Spotify Playlist Picker Integration", () => {
         }),
       })
     );
+  });
+
+  it("renders EmptyStateHero when working list and playlist are empty, and does not render legacy input card", () => {
+    render(
+      <ScanTab
+        playlist={null}
+        setPlaylist={vi.fn()}
+        scannedTracks={[]}
+        setScannedTracks={vi.fn()}
+        workingList={[]}
+        setWorkingList={vi.fn()}
+        onOpenLyrics={vi.fn()}
+        customBlocklist={[]}
+        setCustomBlocklist={vi.fn()}
+        preset="moderate"
+        setPreset={vi.fn()}
+        isAuthenticated={false}
+        onOpenAuth={vi.fn()}
+        activePlatform="spotify"
+      />
+    );
+
+    // Empty state hero is visible
+    expect(screen.getByRole("region", { name: /how cleanplaylist works/i })).toBeInTheDocument();
+    expect(screen.getByText("Source Music")).toBeInTheDocument();
+    expect(screen.getByText("Screen Rules")).toBeInTheDocument();
+    expect(screen.getByText("Clean Swaps")).toBeInTheDocument();
+
+    // Legacy input card is completely removed
+    expect(screen.queryByText(/YouTube Music Playlist URL or Playlist ID/i)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/e\.g\. https:\/\/music\.youtube\.com\/playlist/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Load Playlist/i })).not.toBeInTheDocument();
   });
 
   it("resets workingList, scannedTracks, and playlist when Clear List button is clicked", async () => {
@@ -508,5 +536,102 @@ describe("ScanTab - Progressive Lyric Scan Integration", () => {
     expect(toggleBtn).toHaveTextContent("Unmasked");
     expect(screen.getByText("curse")).toBeInTheDocument();
     expect(screen.getByText('"Bad word here"')).toBeInTheDocument();
+  });
+
+  it("fetches and loads playlist when YouTube playlist URL is entered and submitted via SmartInputBar", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+      if (url === "/api/playlist/fetch") {
+        return {
+          ok: true,
+          json: async () => ({
+            id: "PLtest123",
+            title: "Road Trip Hits",
+            author: "YTUser",
+            tracks: mockPlaylist.tracks,
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    render(<StatefulScanTabWrapper initialPlaylist={null} initialTracks={[]} />);
+
+    // Initially EmptyStateHero is visible
+    expect(screen.getByRole("region", { name: /how cleanplaylist works/i })).toBeInTheDocument();
+
+    const input = screen.getByPlaceholderText(/search songs or albums/i);
+    await user.click(input);
+    await user.type(input, "https://music.youtube.com/playlist?list=PLtest123{Enter}");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/playlist/fetch",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          url_or_id: "https://music.youtube.com/playlist?list=PLtest123",
+          limit: 100,
+          platform: "ytmusic",
+        }),
+      })
+    );
+
+    // EmptyStateHero should unmount once tracks are loaded into working list
+    expect(await screen.findByText("Road Trip Hits")).toBeInTheDocument();
+    expect(screen.getByText("Clean Song One")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /how cleanplaylist works/i })).not.toBeInTheDocument();
+  });
+
+  it("routes YouTube playlist URL to platform 'ytmusic' even when activePlatform is spotify", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+      if (url === "/api/playlist/fetch") {
+        return {
+          ok: true,
+          json: async () => ({
+            id: "PLcrossplatform",
+            title: "Cross Platform Mix",
+            author: "YTUser",
+            tracks: mockPlaylist.tracks,
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    render(
+      <ScanTab
+        playlist={null}
+        setPlaylist={vi.fn()}
+        scannedTracks={[]}
+        setScannedTracks={vi.fn()}
+        workingList={[]}
+        setWorkingList={vi.fn()}
+        onOpenLyrics={vi.fn()}
+        customBlocklist={[]}
+        setCustomBlocklist={vi.fn()}
+        preset="moderate"
+        setPreset={vi.fn()}
+        isAuthenticated={true}
+        onOpenAuth={vi.fn()}
+        activePlatform="spotify"
+      />
+    );
+
+    const input = screen.getByPlaceholderText(/search songs or albums/i);
+    await user.click(input);
+    await user.type(input, "https://www.youtube.com/playlist?list=PLcrossplatform{Enter}");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/playlist/fetch",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          url_or_id: "https://www.youtube.com/playlist?list=PLcrossplatform",
+          limit: 100,
+          platform: "ytmusic",
+        }),
+      })
+    );
   });
 });

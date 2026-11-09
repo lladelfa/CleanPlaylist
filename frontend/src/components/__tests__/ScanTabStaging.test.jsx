@@ -23,18 +23,7 @@ describe('ScanTab - Instant Staging & Quota Capping', () => {
         playlist={playlist}
         setPlaylist={setPlaylist}
         scannedTracks={scannedTracks}
-        setScannedTracks={(updater) => {
-          if (typeof updater === 'function') {
-            setScannedTracks((prev) => {
-              const next = updater(prev);
-              setWorkingList(next);
-              return next;
-            });
-          } else {
-            setScannedTracks(updater);
-            setWorkingList(updater);
-          }
-        }}
+        setScannedTracks={setScannedTracks}
         workingList={workingList}
         setWorkingList={setWorkingList}
         onOpenLyrics={vi.fn()}

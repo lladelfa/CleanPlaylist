@@ -79,6 +79,8 @@ UX-DR14: NoticeBanner System & VIP OAuth Error Banner — Non-blocking alert ban
 UX-DR15: Accessibility & Motion Floor — Verbatim `aria-label`s on all interactive elements, modal focus trap with `Escape` close and trigger focus restoration, `aria-live="polite"` on progress/status regions, and `prefers-reduced-motion: reduce` compliance.
 UX-DR16: VIP Modals (PlaylistPickerModal & SavePlaylistModal) — Paginated library picker (`limit=20`, filter input) and save modal with radio cards (`Create New Clean Playlist` with title input + `Private Playlist` toggle; `Update Original Playlist` with destructive warning) and 2-second confirmation state.
 UX-DR17: On-Screen Profanity Masking & Obfuscation Toggle — ScreeningControlsBar renders a compact toggle button (`EyeOff` when masked, `Eye` when unmasked, defaulting to masked `isMasked=true`) with `aria-label="Toggle profanity masking"`. Formats explicit tokens as `${word[0]}${'*'.repeat(word.length - 1)}` across Custom Blocklist chips, detected reasons/snippets, LyricsModal line highlights, and Keyword Search excerpts.
+UX-DR18: 3-Zone Studio Workspace Hierarchy & Surface Depth — Workspace divides into 3 clearly differentiated functional decks: Zone 1 (Ingest & Discovery, `bg-surface-elevated` with violet accent rail), Zone 2 (Screening Console, sunken `bg-surface-inset` with `border-border-strong`), and Zone 3 (Working List Workbench, raised `bg-surface-card` with banded header and flagged row indicators), with macro `space-y-8` spacing.
+UX-DR19: Unified Smart Omnibar & Single-Entry Staging — Consolidates catalog search, multi-line pasted text, and direct playlist URL parsing (YouTube Music and Spotify) into a single hero omnibar, deprecating duplicate legacy input containers and providing an empty-state 3-step value hero.
 
 ### FR Coverage Map
 
@@ -148,6 +150,10 @@ Users (such as teachers and group leaders) can merge multiple zero-login music s
 ### Epic 5: VIP Mode Spotify Library Sync & Anonymous Funnel Telemetry
 Allowlisted testers can unlock VIP Mode with `?vip=1` to connect their personal Spotify accounts, browse libraries, and save clean playlists directly, while anonymous, privacy-safe usage events record funnel milestones to verify launch health.
 **FRs covered:** FR-14, FR-15
+
+### Epic 6: Studio Workspace Hierarchy & Visual Zoning
+Users experience a structured, high-contrast studio workspace that eliminates the "dark slab" effect through a unified Smart Omnibar, distinct 3-zone surface elevations (Ingest, Screening Console, Workbench), left-edge accent rails, strict Obsidian token hygiene, and self-explanatory screening presets.
+**UX-DRs covered:** UX-DR1, UX-DR6, UX-DR7, UX-DR18, UX-DR19
 
 
 ## Epic 1: Zero-Login Catalog Search & Working List Staging
@@ -800,3 +806,116 @@ So that I can evaluate public conversion and adoption rates at $0 infrastructure
 **Given** a scan with tracks that have `has_lyrics == False`,
 **When** `scan_completed` is emitted,
 **Then** `lyrics_unavailable_count` accurately counts all tracks where lyrics could not be retrieved (including explicit-flagged tracks), preventing artificial inflation of success metric `SM-3`.
+
+
+## Epic 6: Studio Workspace Hierarchy & Visual Zoning
+
+Users experience a structured, high-contrast studio workspace that eliminates the "dark slab" effect through a unified Smart Omnibar, distinct 3-zone surface elevations (Ingest, Screening Console, Workbench), left-edge accent rails, strict Obsidian token hygiene, and self-explanatory screening presets.
+
+### Story 6.1: Single Smart Omnibar & Legacy Input Box Deprecation
+
+As a user staging music to scan,
+I want a single, unified search omnibar that intelligently accepts search queries, pasted artist/track lines, and playlist URLs,
+So that I never have to decide between competing input boxes on the screen.
+
+**Acceptance Criteria:**
+
+**Given** the Scan & Clean view (`ScanTab.jsx`),
+**When** the user inspects the input section,
+**Then** the duplicate legacy card labeled "YouTube Music Playlist URL or Playlist ID" is removed,
+**And** `SmartInputBar` serves as the sole omnibar input for all catalog interactions.
+
+**Given** `SmartInputBar` input with a YouTube Music playlist URL or ID,
+**When** submitted or entered,
+**Then** the client-side parser detects the playlist URL/ID,
+**And** fetches the playlist tracks directly into the Working List without requiring a separate legacy input form.
+
+**Given** `SmartInputBar` input with a Spotify playlist URL or ID,
+**When** submitted by an unauthenticated user,
+**Then** `SpotifyPlaylistHelper` opens with step-by-step Spotify Desktop copy-paste instructions,
+**And** when submitted by an authenticated VIP user, it initiates direct playlist fetching.
+
+**Given** `SmartInputBar` rendered in Scan & Clean,
+**When** inspecting sample options,
+**Then** sample launch chips (e.g. "90s Hip-Hop", "Parent Test Sample") are rendered directly beneath the Omnibar as quick zero-friction try-it actions.
+
+**Given** an empty Working List (`workingList.length === 0`),
+**When** the user views the workspace below the Omnibar,
+**Then** an empty-state hero card displays a 3-step visual narrative:
+  1. `Source Music` (Search catalog, paste multi-line list, or paste a playlist link)
+  2. `Screen Rules` (Select Kid Safe, Moderate, or Slurs Only)
+  3. `Clean Swaps` (One-click swap explicit tracks with verified clean cuts).
+
+
+### Story 6.2: 3-Zone Workspace Surface Depths & Accent Rails
+
+As a user reviewing tracks in dark mode,
+I want each functional area (Ingest, Screening Rules, Track Table) to have distinct surface depths, clear section labels, and left-edge accent rails,
+So that the screen feels like a structured studio console where every deck has an unmistakable purpose.
+
+**Acceptance Criteria:**
+
+**Given** the main workspace in `ScanTab.jsx`,
+**When** rendered on screen,
+**Then** the workspace is structured into three visually distinct functional zones separated by macro spacing (`space-y-8`):
+  1. `Zone 1: Ingest & Discovery` (hero container with `bg-surface-elevated`, subtle violet accent rail `border-l-4 border-l-brand-primary`, and eyebrow badge `01 / SOURCE MUSIC`),
+  2. `Zone 2: Screening Console` (sunken audio-hardware styling with `bg-surface-inset`, `border-border-strong`, and eyebrow badge `02 / SCREENING RULES`),
+  3. `Zone 3: Track Workbench` (raised cutting table with `bg-surface-card`, `shadow-2xl`, and eyebrow badge `03 / TRACK WORKBENCH`).
+
+**Given** the Track Workbench containing staged tracks,
+**When** inspecting the layout structure,
+**Then** the outer summary card and inner table workbench are merged into a single non-nested workbench container, eliminating card-in-a-card visual redundancy.
+
+**Given** tracks rendered in the workbench table and mobile cards,
+**When** a track is flagged (`is_flagged === true`),
+**Then** the row/card displays a subtle rose accent rail (`border-l-2 border-l-status-flagged-border/60`), making explicit tracks visually identifiable at a glance.
+
+**Given** the desktop table view (`>= 768px`),
+**When** rendering table headers,
+**Then** a dark banded header strip (`bg-surface-inset/80`) with uppercase, tracking-spaced mono labels clearly separates the column headers from track rows.
+
+
+### Story 6.3: Obsidian Design Token Hygiene & Safety Emerald Reservation
+
+As a curator inspecting clean vs. explicit tracks,
+I want Emerald Green strictly reserved for verified clean status, and all platform chrome unified in Electric Violet,
+So that I have 100% confidence that green always means "safe for kids."
+
+**Acceptance Criteria:**
+
+**Given** `ScanTab.jsx`, `WorkingListWorkbench.jsx`, and `StitchTab.jsx`,
+**When** inspecting styling classes,
+**Then** all hardcoded `slate-*` utilities (e.g. `bg-slate-900`, `bg-slate-950`, `border-slate-800`) are replaced with semantic Obsidian Audio Core tokens (`bg-surface-card`, `bg-surface-low`, `border-border-subtle`, `text-brand-tint`).
+
+**Given** Spotify action buttons in `ScanTab` and modals,
+**When** inspecting button chrome,
+**Then** "Save to Spotify" is styled in Electric Violet (`bg-brand-primary hover:bg-brand-primary-hover text-white`),
+**And** "Browse Library" is styled in Electric Violet (`text-brand-tint hover:bg-surface-elevated`),
+**And** green (`bg-green-600` / `text-green-400`) is completely removed from platform navigation and button chrome.
+
+**Given** safety indicators across all tabs,
+**When** rendering badges and swap actions,
+**Then** Emerald tokens (`#4EDEA3` / `#10B981`) are strictly and exclusively applied to `Verified Clean` badges, `Clean Swapped` badges, clean candidate preview pills, and "Swap to Clean" confirmation actions.
+
+
+### Story 6.4: Screening Preset Micro-Explainers & Policy Badging
+
+As a parent or event DJ selecting a screening sensitivity,
+I want clear, visible descriptions for each preset (Kid Safe, Moderate, Slurs Only),
+So that I understand exactly what criteria are being applied without guesswork.
+
+**Acceptance Criteria:**
+
+**Given** `ScreeningControlsBar` with preset selection pills,
+**When** the user inspects or hovers over a preset,
+**Then** descriptive micro-copy is accessible:
+  - `Kid Safe`: Flags all profanity, innuendo, violence, and drug references.
+  - `Moderate`: Standard radio edit rules (flags severe profanity & slurs; permits mild slang).
+  - `Slurs Only`: Zero tolerance for hate speech and slurs; allows standard explicit lyrics.
+  - `Custom`: Filters using custom blocklist terms only.
+
+**Given** a preset selected by the user,
+**When** the preset state changes,
+**Then** a compact active policy indicator reflects the selected preset with its criteria summary,
+**And** if tracks are currently staged, a brief announcement or notice confirms the active threshold.
+

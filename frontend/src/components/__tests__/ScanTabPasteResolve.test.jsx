@@ -19,19 +19,8 @@ function StatefulScanTabHarness({ initialTracks = [], activePlatform = 'spotify'
       playlist={playlist}
       setPlaylist={setPlaylist}
       scannedTracks={scannedTracks}
-      setScannedTracks={(updater) => {
-        if (typeof updater === 'function') {
-          setScannedTracks((prev) => {
-            const next = updater(prev);
-            setWorkingList(next);
-            return next;
-          });
-        } else {
-          setScannedTracks(updater);
-          setWorkingList(updater);
-        }
-      }}
-      workingList={workingList}
+      setScannedTracks={setScannedTracks}
+        workingList={workingList}
       setWorkingList={setWorkingList}
       onOpenLyrics={vi.fn()}
       customBlocklist={[]}

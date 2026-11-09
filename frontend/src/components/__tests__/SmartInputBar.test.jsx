@@ -297,6 +297,90 @@ describe('SmartInputBar', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('calls onLoadPlaylist when YouTube Music playlist URL is entered and submitted', async () => {
+    const handleLoadPlaylist = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <SmartInputBar
+        activePlatform="ytmusic"
+        onAddSong={vi.fn()}
+        onAddAlbum={vi.fn()}
+        onLoadPlaylist={handleLoadPlaylist}
+      />
+    );
+
+    const input = screen.getByPlaceholderText(/search songs or albums/i);
+    await user.click(input);
+    await user.type(input, 'https://music.youtube.com/playlist?list=PLq9HLaXrThm0pOPOiFHy8a0WHlsIwRANk{Enter}');
+
+    expect(handleLoadPlaylist).toHaveBeenCalledWith('https://music.youtube.com/playlist?list=PLq9HLaXrThm0pOPOiFHy8a0WHlsIwRANk');
+    expect(input.value).toBe('');
+  });
+
+  it('calls onLoadPlaylist when raw YouTube playlist ID is entered and submitted', async () => {
+    const handleLoadPlaylist = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <SmartInputBar
+        activePlatform="ytmusic"
+        onAddSong={vi.fn()}
+        onAddAlbum={vi.fn()}
+        onLoadPlaylist={handleLoadPlaylist}
+      />
+    );
+
+    const input = screen.getByPlaceholderText(/search songs or albums/i);
+    await user.click(input);
+    await user.type(input, 'PLq9HLaXrThm0pOPOiFHy8a0WHlsIwRANk{Enter}');
+
+    expect(handleLoadPlaylist).toHaveBeenCalledWith('PLq9HLaXrThm0pOPOiFHy8a0WHlsIwRANk');
+    expect(input.value).toBe('');
+  });
+
+  it('calls onLoadPlaylist for Spotify playlist URL when vipMode={true} and onLoadPlaylist is provided', async () => {
+    const handleLoadPlaylist = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <SmartInputBar
+        activePlatform="spotify"
+        vipMode={true}
+        onAddSong={vi.fn()}
+        onAddAlbum={vi.fn()}
+        onLoadPlaylist={handleLoadPlaylist}
+      />
+    );
+
+    const input = screen.getByPlaceholderText(/search songs or albums/i);
+    await user.click(input);
+    await user.type(input, 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M{Enter}');
+
+    expect(handleLoadPlaylist).toHaveBeenCalledWith('https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M');
+    expect(input.value).toBe('');
+  });
+
+  it('renders Browse Library button when activePlatform is spotify, vipMode is true, and onOpenLibraryPicker is provided', async () => {
+    const handleOpenLibraryPicker = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <SmartInputBar
+        activePlatform="spotify"
+        vipMode={true}
+        onAddSong={vi.fn()}
+        onAddAlbum={vi.fn()}
+        onOpenLibraryPicker={handleOpenLibraryPicker}
+      />
+    );
+
+    const browseBtn = screen.getByRole('button', { name: /Browse Library/i });
+    expect(browseBtn).toBeInTheDocument();
+    await user.click(browseBtn);
+    expect(handleOpenLibraryPicker).toHaveBeenCalled();
+  });
+
   it('allows Spotify playlist URLs to proceed to catalog search when vipMode={true}', async () => {
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
