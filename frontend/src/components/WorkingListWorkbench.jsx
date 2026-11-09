@@ -122,8 +122,8 @@ export default function WorkingListWorkbench({
                     <th scope="col" className="py-2.5 px-3">Title &amp; Artist</th>
                     <th scope="col" className="py-2.5 px-3 w-[18%] hidden lg:table-cell">Album</th>
                     <th scope="col" className="py-2.5 px-3 w-16 text-right">Duration</th>
-                    <th scope="col" className="py-2.5 px-3 w-[22%] lg:w-[18%]">Status</th>
-                    <th scope="col" className="py-2.5 px-3 w-[26%] lg:w-[16%] text-right">Actions</th>
+                    <th scope="col" className="py-2.5 px-3 w-[20%] lg:w-[15%]">Status</th>
+                    <th scope="col" className="py-2.5 px-3 w-[28%] lg:w-[22%] text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle/40 text-xs">
