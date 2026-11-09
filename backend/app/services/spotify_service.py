@@ -6,12 +6,30 @@ import hmac
 import hashlib
 import base64
 import zlib
+import logging
 from typing import Any, Dict, List, Optional
 from pathlib import Path
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
 from spotipy.cache_handler import MemoryCacheHandler
 from fastapi import HTTPException, Request, Response
+
+logger = logging.getLogger(__name__)
+
+
+def clean_title_for_query(title: Optional[str]) -> str:
+    """Strips parenthetical/hyphenated metadata for search query generation while preserving casing."""
+    from app.services.lyric_xref_service import LyricXRefService
+    return LyricXRefService().clean_title_for_query(title)
+
+
+def extract_primary_artist(artist: Optional[str]) -> str:
+    """Extracts lead/primary artist from a comma-separated or guest-collaborator artist string."""
+    if not artist:
+        return ""
+    # Split on commas or explicit feature markers, preserving names with '&' or '/' like AC/DC or Simon & Garfunkel
+    parts = re.split(r",\s*|\b(?:feat\.?|ft\.?|featuring|with)\b", str(artist), flags=re.IGNORECASE)
+    return parts[0].strip() if parts else ""
 
 SPOTIFY_TOKEN_CACHE = Path(__file__).parent.parent.parent / ".spotify_caches"
 SPOTIFY_SESSION_COOKIE = "cp_spotify_session"
@@ -408,15 +426,58 @@ class SpotifyService:
         return None
 
     def search_clean_replacement(
-        self, title: str, artist: str, duration_seconds: int = 0, sp_client: Optional[spotipy.Spotify] = None
+        self,
+        title: str,
+        artist: str,
+        duration_seconds: int = 0,
+        sp_client: Optional[spotipy.Spotify] = None,
+        exclude_track_id: Optional[str] = None,
     ) -> Optional[Dict]:
-        sp = sp_client or self._get_client()
-        query = f"track:{title} artist:{artist}"
-        try:
-            results = sp.search(q=query, type='track', limit=10)
+        sp = sp_client or self.get_catalog_client()
+
+        # Token-level bounds to ensure formatted query strings never exceed 200 chars or break quoted syntax
+        clean_title = clean_title_for_query(title).replace('"', '').strip()[:80]
+        if not clean_title:
+            clean_title = (title or "").replace('"', '').strip()[:80]
+        primary_artist = extract_primary_artist(artist).replace('"', '').strip()[:60]
+
+        # Multi-Tier Fallback Query Cascade
+        tiers: List[tuple[str, bool]] = []
+        # (query_string, requires_artist_validation)
+        if clean_title and primary_artist:
+            tiers.append((f'track:"{clean_title}" artist:"{primary_artist}"', False))
+            tiers.append((f'"{clean_title}" "{primary_artist}"', False))
+            tiers.append((f'"{clean_title}" "{primary_artist}" clean', False))
+            tiers.append((f'track:"{clean_title}"', True))
+        elif clean_title:
+            tiers.append((f'track:"{clean_title}"', False))
+            tiers.append((f'"{clean_title}"', False))
+            tiers.append((f'"{clean_title}" clean', False))
+        elif primary_artist:
+            tiers.append((f'artist:"{primary_artist}"', False))
+
+        for query, validate_artist in tiers:
+            # Ensure hard 200-character ceiling
+            bounded_query = query[:200]
+            try:
+                results = sp.search(q=bounded_query, type='track', limit=10)
+            except spotipy.SpotifyException as se:
+                logger.warning(f"Spotify search error for query '{bounded_query}': {se}")
+                continue
+            except Exception as e:
+                logger.warning(f"Unexpected Spotify search error for query '{bounded_query}': {e}")
+                continue
+
             candidates = []
-            for track in results['tracks']['items']:
+            tracks_items = results.get('tracks', {}).get('items', []) if isinstance(results, dict) else []
+            for track in tracks_items:
+                if not track or not isinstance(track, dict):
+                    continue
                 if track.get('explicit', True):
+                    continue
+
+                track_id = track.get('id')
+                if exclude_track_id and track_id == exclude_track_id:
                     continue
 
                 dur_ms = track.get('duration_ms', 0)
@@ -426,33 +487,45 @@ class SpotifyService:
                 if duration_seconds > 0 and diff > 35:
                     continue
 
+                artists = [a['name'] for a in track.get('artists', []) if isinstance(a, dict) and a.get('name')]
+                
+                # If query dropped artist field (Tier 4), post-validate artist alignment
+                if validate_artist and primary_artist:
+                    norm_target_artist = primary_artist.lower()
+                    norm_cand_artists = [a.lower() for a in artists]
+                    if not any(norm_target_artist in a or a in norm_target_artist for a in norm_cand_artists):
+                        continue
+
                 score = 100 - min(30, diff)
                 track_name = track.get('name', '').lower()
                 if any(term in track_name for term in ["clean", "radio edit"]):
                     score += 20
 
-                images = track.get('album', {}).get('images', [])
+                images = track.get('album', {}).get('images', []) if isinstance(track.get('album'), dict) else []
                 thumbnail = images[0]['url'] if images else None
                 m, s = divmod(dur_sec, 60)
-                artists = [a['name'] for a in track.get('artists', [])]
+                album_name = track.get('album', {}).get('name', '') if isinstance(track.get('album'), dict) else ''
 
                 candidates.append({
-                    "id": track['id'],
-                    "title": track.get('name'),
+                    "id": track_id,
+                    "title": track.get('name', ''),
                     "artist": ", ".join(artists),
+                    "artists_list": artists,
+                    "album": album_name,
                     "duration": f"{m}:{s:02d}",
                     "duration_seconds": dur_sec,
                     "is_explicit": False,
                     "thumbnail": thumbnail,
                     "video_url": track.get('external_urls', {}).get('spotify', ''),
-                    "confidence_score": score
+                    "confidence_score": score,
+                    "source_platform": "spotify",
+                    "verification_status": "clean",
                 })
 
             if candidates:
                 candidates.sort(key=lambda x: x["confidence_score"], reverse=True)
                 return candidates[0]
-        except Exception as e:
-            print(f"Spotify search error: {e}")
+
         return None
 
     def search_catalog(self, query: str, limit: int = 10) -> Dict[str, Any]:

@@ -2,9 +2,13 @@
 
 import os
 import re
+import logging
+import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 from fastapi import FastAPI, HTTPException, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -51,6 +55,7 @@ class TrackScanItem(BaseModel):
     verification_status: Optional[str] = "unscanned"
     source_platform: Optional[str] = None
     ytmusic_video_id: Optional[str] = None
+    confidence_score: Optional[int] = None
 
 class AlbumSummary(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -152,6 +157,12 @@ class FindCleanReplacementRequest(BaseModel):
     title: str
     artist: str
     duration_seconds: Optional[int] = 0
+    platform: Optional[str] = "ytmusic"
+    track_id: Optional[str] = None
+    exclude_track_id: Optional[str] = None
+
+class FindBatchCleanReplacementRequest(BaseModel):
+    tracks: List[TrackScanItem]
     platform: Optional[str] = "ytmusic"
 
 class StitchRequest(BaseModel):
@@ -568,23 +579,96 @@ def search_keywords_in_playlist(req: KeywordSearchRequest):
 
 @app.post("/api/replacements/find")
 def find_clean_replacement(req: FindCleanReplacementRequest, request: Request, response: Response):
-    if req.platform == "spotify":
-        sp_client = spotify_service.get_client(request=request, response=response)
-        candidate = spotify_service.search_clean_replacement(
-            title=req.title,
-            artist=req.artist,
-            duration_seconds=req.duration_seconds or 0,
-            sp_client=sp_client,
-        )
-    else:
-        candidate = ytmusic_service.search_clean_replacement(
-            title=req.title,
-            artist=req.artist,
-            duration_seconds=req.duration_seconds or 0
-        )
+    exclude_id = req.exclude_track_id or req.track_id
+    platform = (req.platform or "ytmusic").strip().lower()
+    try:
+        if platform == "spotify":
+            sp_client = spotify_service.get_catalog_client()
+            candidate = spotify_service.search_clean_replacement(
+                title=req.title,
+                artist=req.artist,
+                duration_seconds=req.duration_seconds or 0,
+                sp_client=sp_client,
+                exclude_track_id=exclude_id,
+            )
+            if candidate:
+                yt_id, _ = lyric_xref_service.resolve_lyrics_and_yt_id(candidate, platform="spotify")
+                if yt_id:
+                    candidate["ytmusic_video_id"] = yt_id
+        else:
+            candidate = ytmusic_service.search_clean_replacement(
+                title=req.title,
+                artist=req.artist,
+                duration_seconds=req.duration_seconds or 0,
+                exclude_track_id=exclude_id,
+            )
+    except Exception as e:
+        logger.warning(f"Error in find_clean_replacement: {e}")
+        candidate = None
+
     return {
         "found": candidate is not None,
         "clean_candidate": candidate
+    }
+
+@app.post("/api/replacements/find-batch")
+def find_batch_clean_replacements(req: FindBatchCleanReplacementRequest, request: Request, response: Response):
+    if len(req.tracks) > 10:
+        raise HTTPException(status_code=400, detail="Maximum 10 tracks allowed per batch request")
+
+    platform = (req.platform or "ytmusic").strip().lower()
+    sp_client = None
+    if platform == "spotify":
+        sp_client = spotify_service.get_catalog_client()
+
+    raw_results: Dict[str, Optional[Dict[str, Any]]] = {}
+    lyrics_by_id: Dict[str, str] = {}
+
+    def process_track(track: TrackScanItem) -> Tuple[str, Optional[Dict[str, Any]], Optional[str], Optional[str]]:
+        try:
+            if platform == "spotify":
+                clean_cand = spotify_service.search_clean_replacement(
+                    title=track.title,
+                    artist=track.artist,
+                    duration_seconds=track.duration_seconds or 0,
+                    sp_client=sp_client,
+                    exclude_track_id=track.id,
+                )
+                if clean_cand:
+                    yt_id, lyrics = lyric_xref_service.resolve_lyrics_and_yt_id(clean_cand, platform="spotify")
+                    if yt_id:
+                        clean_cand["ytmusic_video_id"] = yt_id
+                    return track.id, clean_cand, clean_cand.get("id"), lyrics
+                return track.id, None, None, None
+            else:
+                clean_cand = ytmusic_service.search_clean_replacement(
+                    title=track.title,
+                    artist=track.artist,
+                    duration_seconds=track.duration_seconds or 0,
+                    exclude_track_id=track.id,
+                )
+                if clean_cand:
+                    yt_id, lyrics = lyric_xref_service.resolve_lyrics_and_yt_id(clean_cand, platform="ytmusic")
+                    return track.id, clean_cand, clean_cand.get("id"), lyrics
+                return track.id, None, None, None
+        except Exception as e:
+            logger.warning(f"Error processing clean replacement for {track.id}: {e}")
+            return track.id, None, None, None
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        future_to_track = {executor.submit(process_track, t): t for t in req.tracks}
+        for future in concurrent.futures.as_completed(future_to_track):
+            track_id, cand, cand_id, lyrics = future.result()
+            raw_results[track_id] = cand
+            if cand_id and lyrics:
+                lyrics_by_id[cand_id] = lyrics
+
+    # Preserve deterministic ordering of requested tracks
+    results = {t.id: raw_results.get(t.id) for t in req.tracks}
+
+    return {
+        "results": results,
+        "lyrics_by_id": lyrics_by_id,
     }
 
 @app.post("/api/stitch")
