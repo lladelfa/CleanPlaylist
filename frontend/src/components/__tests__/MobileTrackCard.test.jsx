@@ -105,6 +105,19 @@ describe('MobileTrackCard component', () => {
     expect(screen.getByText('"Don\'t give a f***"')).toBeInTheDocument();
   });
 
+  it('applies rose accent rail (border-l-2 border-l-status-flagged-border/60) when track is flagged and omits it when clean', () => {
+    const flaggedTrack = { ...sampleTrack, is_flagged: true };
+    const cleanTrack = { ...sampleTrack, is_flagged: false };
+
+    const { rerender } = render(<MobileTrackCard track={flaggedTrack} index={0} />);
+    const card = screen.getByRole('article');
+    expect(card).toHaveClass('border-l-2');
+    expect(card).toHaveClass('border-l-status-flagged-border/60');
+
+    rerender(<MobileTrackCard track={cleanTrack} index={0} />);
+    expect(card).not.toHaveClass('border-l-status-flagged-border/60');
+  });
+
   it('masks snippet text and flagged reasons when isMasked is true', () => {
     const flaggedTrack = {
       ...sampleTrack,

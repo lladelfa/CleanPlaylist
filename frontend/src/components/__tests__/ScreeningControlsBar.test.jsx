@@ -204,6 +204,21 @@ describe('ScreeningControlsBar', () => {
     expect(toggleBtn).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('renders Zone 2 sunken console styling (bg-surface-inset, border-border-strong) and 02 / SCREENING RULES eyebrow badge', () => {
+    const { container } = render(
+      <ScreeningControlsBar
+        preset="moderate"
+        customBlocklist={[]}
+      />
+    );
+
+    expect(screen.getByText('02 / SCREENING RULES')).toBeInTheDocument();
+    const regionEl = screen.getByRole('region', { name: 'Screening Console' });
+    expect(regionEl).toBe(container.firstChild);
+    expect(regionEl).toHaveClass('bg-surface-inset');
+    expect(regionEl).toHaveClass('border-border-strong');
+  });
+
   it('masks custom blocklist chips when isMasked is true and keeps them unmasked when false', () => {
     const handleRemove = vi.fn();
     const { rerender } = render(

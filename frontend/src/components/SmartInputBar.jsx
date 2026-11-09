@@ -326,8 +326,13 @@ export default function SmartInputBar({
   return (
     <section
       aria-label="Smart Input Bar"
-      className={`bg-surface-card rounded-lg border border-border-subtle p-5 shadow-xl relative transition-all ${className}`}
+      className={`bg-surface-elevated rounded-xl border border-border-subtle border-l-4 border-l-brand-primary p-5 shadow-xl relative transition-all ${className}`}
     >
+      <div className="mb-3 flex items-center justify-between">
+        <span className="inline-flex items-center px-2 py-0.5 rounded bg-surface-inset/70 border border-border-subtle text-[11px] font-mono font-semibold uppercase tracking-wider text-brand-tint">
+          01 / SOURCE MUSIC
+        </span>
+      </div>
       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
         {/* Search Input Box */}
         <div className="relative flex-1">
