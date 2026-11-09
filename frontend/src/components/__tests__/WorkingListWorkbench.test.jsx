@@ -317,6 +317,109 @@ describe('WorkingListWorkbench component', () => {
     expect(track2TitleCell.querySelector('.lg\\:hidden')).toBeNull();
   });
 
+  it('renders Zone 3 container with bg-surface-card, shadow-2xl, and 03 / TRACK WORKBENCH eyebrow badge', () => {
+    window.innerWidth = 1024;
+    render(<WorkingListWorkbench tracks={sampleTracks} />);
+
+    const workbench = screen.getByRole('region', { name: 'Working List Workbench' });
+    expect(workbench).toHaveClass('bg-surface-card');
+    expect(workbench).toHaveClass('shadow-2xl');
+    expect(screen.getByText('03 / TRACK WORKBENCH')).toBeInTheDocument();
+  });
+
+  it('renders dark banded table header strip (bg-surface-inset/80) on desktop (>= 768px)', () => {
+    window.innerWidth = 1024;
+    render(<WorkingListWorkbench tracks={sampleTracks} />);
+
+    const rows = screen.getAllByRole('row');
+    const headerRow = rows[0];
+    expect(headerRow).toHaveClass('bg-surface-inset/80');
+    expect(headerRow).toHaveClass('uppercase');
+    expect(headerRow).toHaveClass('tracking-wider');
+    expect(headerRow).toHaveClass('font-mono');
+  });
+
+  it('displays rose accent rail (border-l-2 border-l-status-flagged-border/60) on flagged table rows and not on clean rows', () => {
+    window.innerWidth = 1024;
+    const mixedTracks = [
+      {
+        ...sampleTracks[0],
+        id: 'flagged_1',
+        is_flagged: true,
+        verification_status: 'flagged',
+      },
+      {
+        ...sampleTracks[1],
+        id: 'clean_1',
+        is_flagged: false,
+        verification_status: 'verified_clean',
+      },
+    ];
+
+    render(<WorkingListWorkbench tracks={mixedTracks} />);
+
+    const rows = screen.getAllByRole('row');
+    const flaggedRow = rows[1];
+    const cleanRow = rows[2];
+
+    expect(flaggedRow).toHaveClass('border-l-2');
+    expect(flaggedRow).toHaveClass('border-l-status-flagged-border/60');
+    expect(flaggedRow.querySelector('td')).toHaveClass('border-l-2');
+    expect(flaggedRow.querySelector('td')).toHaveClass('border-l-status-flagged-border/60');
+    expect(cleanRow).not.toHaveClass('border-l-status-flagged-border/60');
+    expect(cleanRow.querySelector('td')).not.toHaveClass('border-l-status-flagged-border/60');
+  });
+
+  it('keeps workbench and toolbar mounted and shows empty filter message when tracks=[] and totalTrackCount > 0, and returns null when totalTrackCount <= 0', () => {
+    const { container, rerender } = render(
+      <WorkingListWorkbench
+        tracks={[]}
+        totalTrackCount={3}
+        toolbar={<div data-testid="test-toolbar">Filter Controls</div>}
+      />
+    );
+
+    expect(screen.getByRole('region', { name: 'Working List Workbench' })).toBeInTheDocument();
+    expect(screen.getByText('3 / 50 tracks')).toBeInTheDocument();
+    expect(screen.getByTestId('test-toolbar')).toBeInTheDocument();
+    expect(screen.getByText('No tracks match the selected filter.')).toBeInTheDocument();
+
+    rerender(
+      <WorkingListWorkbench
+        tracks={[]}
+        totalTrackCount={0}
+        toolbar={<div data-testid="test-toolbar">Filter Controls</div>}
+      />
+    );
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('displays rose accent rail (border-l-2 border-l-status-flagged-border/60) on flagged MobileTrackCard in mobile view (< 768px)', () => {
+    window.innerWidth = 500;
+    const mixedTracks = [
+      {
+        ...sampleTracks[0],
+        id: 'flagged_mobile',
+        is_flagged: true,
+        verification_status: 'flagged',
+      },
+      {
+        ...sampleTracks[1],
+        id: 'clean_mobile',
+        is_flagged: false,
+        verification_status: 'verified_clean',
+      },
+    ];
+
+    render(<WorkingListWorkbench tracks={mixedTracks} />);
+
+    const cards = screen.getAllByRole('article');
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toHaveClass('border-l-2');
+    expect(cards[0]).toHaveClass('border-l-status-flagged-border/60');
+    expect(cards[1]).not.toHaveClass('border-l-status-flagged-border/60');
+  });
+
   it('handles ultra-long track titles and multi-reason flagged tracks with truncate, tooltips, and action button fit without expanding layout', () => {
     window.innerWidth = 1024;
     const longTracks = [

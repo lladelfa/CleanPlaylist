@@ -381,6 +381,22 @@ describe('SmartInputBar', () => {
     expect(handleOpenLibraryPicker).toHaveBeenCalled();
   });
 
+  it('renders Zone 1 hero elevation styling, violet accent rail, and 01 / SOURCE MUSIC eyebrow badge', () => {
+    render(
+      <SmartInputBar
+        activePlatform="spotify"
+        onAddSong={vi.fn()}
+        onAddAlbum={vi.fn()}
+      />
+    );
+
+    const section = screen.getByRole('region', { name: 'Smart Input Bar' });
+    expect(section).toHaveClass('bg-surface-elevated');
+    expect(section).toHaveClass('border-l-4');
+    expect(section).toHaveClass('border-l-brand-primary');
+    expect(screen.getByText('01 / SOURCE MUSIC')).toBeInTheDocument();
+  });
+
   it('allows Spotify playlist URLs to proceed to catalog search when vipMode={true}', async () => {
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,

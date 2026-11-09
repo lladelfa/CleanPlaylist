@@ -716,7 +716,7 @@ export default function ScanTab({
   const removedCount = Math.max(0, initialTrackCount - scannedTracks.length);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* 0. Notice Banner */}
       {activeNotice && (
         <NoticeBanner
@@ -790,27 +790,33 @@ export default function ScanTab({
 
       {/* 3. Scanned Tracks Results */}
       {currentTracks.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-          {/* Header Stats */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-            <div>
-              <h2 className="text-xl font-bold text-white">{playlist?.title || "Working List"}</h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {playlist?.author ? `By ${playlist.author} • ` : ""}{scannedTracks.length} tracks total
-              </p>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-1.5 bg-red-950/40 text-red-400 text-xs px-3 py-1.5 rounded-xl border border-red-900/50 hidden sm:flex">
+        <WorkingListWorkbench
+          tracks={displayedTracks}
+          totalTrackCount={scannedTracks.length}
+          title={playlist?.title || "Working List"}
+          subtitle={`${playlist?.author ? `By ${playlist.author} • ` : ""}${scannedTracks.length} tracks total`}
+          onRemoveTrack={handleRemoveTrack}
+          onClearList={handleClearList}
+          onOpenLyrics={onOpenLyrics}
+          cleanCandidates={cleanCandidates}
+          searchingClean={searchingClean}
+          onFindClean={handleFindClean}
+          onSwapTrack={handleSwapTrack}
+          keptTrackIds={keptTrackIds}
+          onKeepTrack={onKeepTrack}
+          isMasked={isMasked}
+          headerActions={
+            <div className="flex items-center flex-wrap gap-2.5">
+              <div className="hidden sm:flex items-center space-x-1.5 bg-status-flagged-bg/60 text-status-flagged text-xs px-3 py-1.5 rounded-xl border border-status-flagged-border/40">
                 <ShieldAlert className="w-4 h-4" />
                 <span className="font-semibold">{flaggedCount} Flagged</span>
               </div>
-              <div className="flex items-center space-x-1.5 bg-emerald-950/40 text-emerald-400 text-xs px-3 py-1.5 rounded-xl border border-emerald-900/50 hidden sm:flex">
+              <div className="hidden sm:flex items-center space-x-1.5 bg-status-clean-bg/60 text-status-clean text-xs px-3 py-1.5 rounded-xl border border-status-clean-border/40">
                 <CheckCircle2 className="w-4 h-4" />
                 <span className="font-semibold">{cleanCount} Clean</span>
               </div>
-              <div className="flex items-center space-x-1.5 bg-slate-800/60 text-slate-300 text-xs px-3 py-1.5 rounded-xl border border-slate-700/60 hidden sm:flex">
-                <Trash2 className="w-4 h-4 text-slate-400" />
+              <div className="hidden sm:flex items-center space-x-1.5 bg-surface-elevated text-text-secondary text-xs px-3 py-1.5 rounded-xl border border-border-subtle">
+                <Trash2 className="w-4 h-4 text-text-muted" />
                 <span className="font-semibold">{removedCount} Removed</span>
               </div>
 
@@ -818,7 +824,7 @@ export default function ScanTab({
                 isAuthenticated ? (
                   <button
                     onClick={() => setIsSaveModalOpen(true)}
-                    className="px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded-xl flex items-center space-x-2 transition shadow"
+                    className="px-4 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-sm font-medium rounded-xl flex items-center space-x-2 transition shadow"
                   >
                     <Save className="w-4 h-4" />
                     <span>Save to Spotify...</span>
@@ -826,94 +832,73 @@ export default function ScanTab({
                 ) : (
                   <button
                     onClick={onOpenAuth}
-                    className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-xl flex items-center space-x-2 border border-slate-700 transition"
+                    className="px-4 py-1.5 bg-surface-elevated hover:bg-surface-highest text-text-primary text-sm font-medium rounded-xl flex items-center space-x-2 border border-border-subtle transition"
                   >
-                    <Sparkles className="w-4 h-4 text-green-400" />
+                    <Sparkles className="w-4 h-4 text-brand-tint" />
                     <span>Login to Save</span>
                   </button>
                 )
               ) : (
                 <button
                   onClick={() => handleExportCSV()}
-                  className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-xl flex items-center space-x-2 transition shadow"
+                  className="px-4 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-sm font-medium rounded-xl flex items-center space-x-2 transition shadow"
                 >
                   <FileText className="w-4 h-4" />
                   <span>Export to CSV</span>
                 </button>
               )}
             </div>
-          </div>
+          }
+          toolbar={
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <div className="flex space-x-1 bg-surface-inset p-1 rounded-xl border border-border-subtle w-full sm:w-auto">
+                <button
+                  onClick={() => setFilterMode("all")}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-lg transition ${
+                    filterMode === "all"
+                      ? "bg-brand-primary text-white"
+                      : "text-text-muted hover:text-text-primary"
+                  }`}
+                >
+                  All ({scannedTracks.length})
+                </button>
+                <button
+                  onClick={() => setFilterMode("flagged")}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-lg transition ${
+                    filterMode === "flagged"
+                      ? "bg-status-flagged-border text-white"
+                      : "text-text-muted hover:text-text-primary"
+                  }`}
+                >
+                  Flagged ({flaggedCount})
+                </button>
+                <button
+                  onClick={() => setFilterMode("clean")}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-lg transition ${
+                    filterMode === "clean"
+                      ? "bg-status-clean-border text-white"
+                      : "text-text-muted hover:text-text-primary"
+                  }`}
+                >
+                  Clean ({cleanCount})
+                </button>
+              </div>
 
-          {/* Controls: Filter & Search */}
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-            <div className="flex space-x-1 bg-slate-950 p-1 rounded-xl border border-slate-800 w-full sm:w-auto">
-              <button
-                onClick={() => setFilterMode("all")}
-                className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-lg transition ${
-                  filterMode === "all"
-                    ? "bg-purple-600 text-white"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                All ({scannedTracks.length})
-              </button>
-              <button
-                onClick={() => setFilterMode("flagged")}
-                className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-lg transition ${
-                  filterMode === "flagged"
-                    ? "bg-red-600 text-white"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Flagged ({flaggedCount})
-              </button>
-              <button
-                onClick={() => setFilterMode("clean")}
-                className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-lg transition ${
-                  filterMode === "clean"
-                    ? "bg-emerald-600 text-white"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Clean ({cleanCount})
-              </button>
+              <div className="relative w-full sm:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-text-muted" />
+                <input
+                  type="text"
+                  aria-label="Search tracks"
+                  placeholder="Search tracks..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-surface-inset border border-border-subtle rounded-xl pl-9 pr-3 py-1.5 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:ring-1 focus:ring-ring-focus"
+                />
+              </div>
             </div>
-
-            <div className="relative w-full sm:w-64">
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-              <input
-                type="text"
-                placeholder="Search tracks..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-              />
-            </div>
-          </div>
-
-          {/* Working List Workbench */}
-          {displayedTracks.length > 0 ? (
-            <WorkingListWorkbench
-              tracks={displayedTracks}
-              onRemoveTrack={handleRemoveTrack}
-              onClearList={handleClearList}
-              onOpenLyrics={onOpenLyrics}
-              cleanCandidates={cleanCandidates}
-              searchingClean={searchingClean}
-              onFindClean={handleFindClean}
-              onSwapTrack={handleSwapTrack}
-              keptTrackIds={keptTrackIds}
-              onKeepTrack={onKeepTrack}
-              isMasked={isMasked}
-            />
-          ) : (
-            <div className="py-12 text-center text-slate-500 text-sm">
-              No tracks match the selected filter.
-            </div>
-          )}
-        </div>
+          }
+        />
       )}
-
       <SavePlaylistModal
         isOpen={isSaveModalOpen}
         onClose={() => setIsSaveModalOpen(false)}

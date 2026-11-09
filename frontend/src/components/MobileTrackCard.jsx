@@ -34,7 +34,7 @@ export default function MobileTrackCard({
     <article
       className={`w-full max-w-full bg-surface-card border rounded-xl p-3 flex flex-col gap-2.5 transition-all overflow-hidden ${
         track.is_flagged
-          ? 'border-status-flagged/40 bg-surface-card'
+          ? 'border-status-flagged/40 border-l-2 border-l-status-flagged-border/60 bg-surface-card'
           : 'border-border-subtle bg-surface-card'
       } ${className}`}
     >

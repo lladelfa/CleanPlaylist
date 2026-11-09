@@ -78,14 +78,22 @@ export default function ScreeningControlsBar({
     : 'Scan Lyrics';
 
   return (
-    <div className="bg-surface-card border border-border-subtle rounded-2xl p-5 shadow-xl space-y-4">
+    <section
+      aria-label="Screening Console"
+      className="bg-surface-inset border border-border-strong rounded-2xl p-5 shadow-xl space-y-4"
+    >
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border-subtle pb-3">
-        <div className="flex items-center space-x-2">
-          <SlidersHorizontal className="w-5 h-5 text-brand-primary" />
-          <h3 className="font-semibold text-text-primary text-sm sm:text-base">
-            Screening & Preset Controls
-          </h3>
+        <div className="flex flex-col gap-1.5">
+          <span className="inline-flex self-start items-center px-2 py-0.5 rounded bg-surface-elevated border border-border-subtle text-[11px] font-mono font-semibold uppercase tracking-wider text-brand-tint">
+            02 / SCREENING RULES
+          </span>
+          <div className="flex items-center space-x-2">
+            <SlidersHorizontal className="w-5 h-5 text-brand-primary" />
+            <h3 className="font-semibold text-text-primary text-sm sm:text-base">
+              Screening & Preset Controls
+            </h3>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -219,6 +227,6 @@ export default function ScreeningControlsBar({
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

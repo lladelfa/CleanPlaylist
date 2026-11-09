@@ -582,6 +582,53 @@ describe("ScanTab - Progressive Lyric Scan Integration", () => {
     expect(screen.queryByRole("region", { name: /how cleanplaylist works/i })).not.toBeInTheDocument();
   });
 
+  it("renders Zone 1 with 01 / SOURCE MUSIC badge and EmptyStateHero when workspace is empty, keeping Zones 2 and 3 unmounted", () => {
+    const { container } = render(
+      <StatefulScanTabWrapper initialPlaylist={null} initialTracks={[]} />
+    );
+
+    expect(container.firstChild).toHaveClass("space-y-8");
+    expect(screen.getByText("01 / SOURCE MUSIC")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /how cleanplaylist works/i })).toBeInTheDocument();
+    expect(screen.queryByText("02 / SCREENING RULES")).not.toBeInTheDocument();
+    expect(screen.queryByText("03 / TRACK WORKBENCH")).not.toBeInTheDocument();
+  });
+
+  it("renders all 3 zones separated by space-y-8 and de-nests the Track Workbench into a single container when tracks are present", () => {
+    const { container } = render(<StatefulScanTabWrapper />);
+
+    expect(container.firstChild).toHaveClass("space-y-8");
+    expect(screen.getByText("01 / SOURCE MUSIC")).toBeInTheDocument();
+    expect(screen.getByText("02 / SCREENING RULES")).toBeInTheDocument();
+    expect(screen.getByText("03 / TRACK WORKBENCH")).toBeInTheDocument();
+
+    const workbench = screen.getByRole("region", { name: "Working List Workbench" });
+    expect(workbench).toHaveClass("bg-surface-card");
+    expect(workbench).toHaveClass("shadow-2xl");
+
+    // Header stats, filter buttons, search input, and table are all inside the single workbench container
+    expect(workbench).toHaveTextContent("Road Trip Mix");
+    expect(workbench).toHaveTextContent("3 tracks total");
+    expect(workbench.querySelector("table")).not.toBeNull();
+
+    // Ensure no legacy outer bg-slate-900 wrapper card around the workbench
+    expect(workbench.parentElement).toBe(container.firstChild);
+    expect(container.querySelector(".bg-slate-900")).toBeNull();
+  });
+
+  it("keeps workbench, filter buttons, and search input mounted while displaying empty filter message when search query matches no tracks", async () => {
+    const user = userEvent.setup();
+    render(<StatefulScanTabWrapper />);
+
+    const searchInput = screen.getByPlaceholderText(/search tracks/i);
+    await user.type(searchInput, "NonExistentTrackNameXYZ");
+
+    expect(screen.getByRole("region", { name: "Working List Workbench" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /All \(3\)/i })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/search tracks/i)).toHaveValue("NonExistentTrackNameXYZ");
+    expect(screen.getByText("No tracks match the selected filter.")).toBeInTheDocument();
+  });
+
   it("routes YouTube playlist URL to platform 'ytmusic' even when activePlatform is spotify", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
