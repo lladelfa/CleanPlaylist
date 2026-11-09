@@ -23,6 +23,10 @@ export default function ScreeningControlsBar({
   disabled = false,
   isMasked = true,
   onToggleMasking,
+  onBulkClean,
+  bulkCleaning = false,
+  bulkCleanProgress = '',
+  flaggedCount = 0,
 }) {
   const [inputValue, setInputValue] = useState('');
 
@@ -76,6 +80,12 @@ export default function ScreeningControlsBar({
   const scanButtonLabel = scanning
     ? scanProgressAnnouncement || 'Scanning Lyrics...'
     : 'Scan Lyrics';
+
+  const bulkCleanLabel = bulkCleaning
+    ? bulkCleanProgress || 'Finding clean edits…'
+    : 'Find & Swap All Clean Versions';
+
+  const isBulkDisabled = bulkCleaning || scanning || disabled || flaggedCount === 0;
 
   return (
     <section
@@ -131,7 +141,7 @@ export default function ScreeningControlsBar({
                   key={p.id}
                   type="button"
                   aria-pressed={isActive}
-                  disabled={scanning || disabled}
+                  disabled={scanning || bulkCleaning || disabled}
                   onClick={() => handlePresetClick(p.id)}
                   className={`px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     isActive
@@ -146,27 +156,45 @@ export default function ScreeningControlsBar({
           </div>
         </div>
 
-        {/* Scan Trigger Button */}
-        <div className="flex flex-col justify-end shrink-0">
+        {/* Actions Segment */}
+        <div className="flex flex-wrap items-center gap-3 justify-end shrink-0">
           <div
             role="status"
             aria-live="polite"
             aria-atomic="true"
             className="sr-only"
           >
-            {scanProgressAnnouncement}
+            {bulkCleaning ? bulkCleanProgress : scanProgressAnnouncement}
           </div>
+
+          {/* Bulk Clean Replacement Button */}
+          <button
+            type="button"
+            onClick={onBulkClean}
+            disabled={isBulkDisabled}
+            aria-label={bulkCleanLabel}
+            className="flex items-center justify-center space-x-2 px-5 py-2.5 bg-status-clean hover:bg-status-clean/90 text-status-clean-ink font-semibold text-xs sm:text-sm rounded-xl transition shadow-lg shadow-status-clean/20 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed min-h-[44px]"
+          >
+            {bulkCleaning ? (
+              <RefreshCw className="w-4 h-4 animate-spin shrink-0" aria-hidden="true" />
+            ) : (
+              <Sparkles className="w-4 h-4 shrink-0" aria-hidden="true" />
+            )}
+            <span>{bulkCleanLabel}</span>
+          </button>
+
+          {/* Scan Trigger Button */}
           <button
             type="button"
             onClick={onRunScan}
-            disabled={scanning || disabled}
+            disabled={scanning || bulkCleaning || disabled}
             aria-label={scanButtonLabel}
-            className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-white font-medium text-sm rounded-xl transition shadow-lg shadow-brand-primary/20 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-brand-primary/20 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed min-h-[44px]"
           >
             {scanning ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
+              <RefreshCw className="w-4 h-4 animate-spin shrink-0" aria-hidden="true" />
             ) : (
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-4 h-4 shrink-0" aria-hidden="true" />
             )}
             <span>{scanButtonLabel}</span>
           </button>
@@ -189,13 +217,13 @@ export default function ScreeningControlsBar({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={scanning || disabled}
+            disabled={scanning || bulkCleaning || disabled}
             aria-label="Add custom blocklist term"
             className="flex-1 bg-surface-elevated border border-border-subtle rounded-xl px-3.5 py-2 text-xs text-text-primary placeholder-text-muted/60 focus:outline-none focus:ring-2 focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             type="submit"
-            disabled={scanning || disabled}
+            disabled={scanning || bulkCleaning || disabled}
             aria-label="Add blocklist term"
             className="px-4 py-2 bg-surface-elevated hover:bg-surface-elevated/80 text-text-primary text-xs font-medium rounded-xl border border-border-subtle flex items-center space-x-1.5 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -216,7 +244,7 @@ export default function ScreeningControlsBar({
                 <button
                   type="button"
                   onClick={() => handleRemoveTerm(term)}
-                  disabled={scanning || disabled}
+                  disabled={scanning || bulkCleaning || disabled}
                   aria-label={`Remove blocklist term ${term}`}
                   className="text-text-muted hover:text-text-primary transition p-0.5 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >

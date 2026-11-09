@@ -191,3 +191,140 @@ export async function runScreeningPipeline({
     lyricsById: allLyricsById,
   };
 }
+
+/**
+ * Executes the bulk clean replacement pipeline across chunked requests of <= 10 tracks.
+ *
+ * @param {Object} options
+ * @param {Array} options.tracks Flagged tracks to find clean replacements for
+ * @param {string} [options.platform="ytmusic"] Active music platform
+ * @param {Function} [options.onProgress] Callback receiving ({ processed, total, announcement })
+ * @param {Function} [options.onBatchStart] Callback receiving chunk starting replacement search
+ * @param {Function} [options.onBatchComplete] Callback receiving ({ results, lyricsById, chunk })
+ * @param {Function} [options.onError] Callback receiving Error
+ * @returns {Promise<{ results: Object, lyricsById: Object, error?: Error, unprocessedTracks?: Array }>}
+ */
+export async function runBulkCleanPipeline({
+  tracks,
+  platform = 'ytmusic',
+  signal,
+  onProgress,
+  onBatchStart,
+  onBatchComplete,
+  onError,
+}) {
+  if (!tracks || !Array.isArray(tracks) || tracks.length === 0) {
+    return { results: {}, lyricsById: {} };
+  }
+
+  const total = tracks.length;
+  const chunks = chunkTracks(tracks, 10, 10);
+  const allResults = {};
+  const allLyricsById = {};
+  let processedCount = 0;
+
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    if (signal?.aborted) {
+      const abortErr = new Error('Bulk clean replacement aborted');
+      abortErr.name = 'AbortError';
+      return {
+        results: allResults,
+        lyricsById: allLyricsById,
+        error: abortErr,
+        unprocessedTracks: tracks.slice(processedCount),
+      };
+    }
+
+    if (onBatchStart) {
+      try {
+        onBatchStart(chunk);
+      } catch (e) {
+        console.error('[screeningPipeline:runBulkCleanPipeline] onBatchStart error:', e);
+      }
+    }
+
+    let batchError = null;
+    let batchResults = {};
+    let batchLyrics = {};
+
+    try {
+      const res = await fetch('/api/replacements/find-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tracks: chunk,
+          platform,
+        }),
+        signal,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        batchError = new Error(errData.detail || `Bulk replacement request failed with status ${res.status}`);
+        batchError.status = res.status;
+        if (res.status === 429) {
+          batchError.isRateLimit = true;
+        }
+      } else {
+        const data = await res.json();
+        batchResults = data.results || {};
+        batchLyrics = data.lyrics_by_id || {};
+      }
+    } catch (networkErr) {
+      batchError = networkErr;
+    }
+
+    if (batchError) {
+      if (onError) {
+        try {
+          onError(batchError);
+        } catch (e) {
+          console.error('[screeningPipeline:runBulkCleanPipeline] onError callback failed:', e);
+        }
+      }
+
+      const remainingTracks = tracks.slice(processedCount);
+
+      return {
+        results: allResults,
+        lyricsById: allLyricsById,
+        error: batchError,
+        unprocessedTracks: remainingTracks,
+      };
+    }
+
+    Object.assign(allResults, batchResults);
+    Object.assign(allLyricsById, batchLyrics);
+    processedCount += chunk.length;
+
+    if (onProgress) {
+      try {
+        onProgress({
+          processed: processedCount,
+          total,
+          announcement: `Finding clean edits (${processedCount} of ${total})…`,
+        });
+      } catch (e) {
+        console.error('[screeningPipeline:runBulkCleanPipeline] onProgress callback failed:', e);
+      }
+    }
+
+    if (onBatchComplete) {
+      try {
+        onBatchComplete({
+          results: batchResults,
+          lyricsById: batchLyrics,
+          chunk,
+        });
+      } catch (e) {
+        console.error('[screeningPipeline:runBulkCleanPipeline] onBatchComplete callback failed:', e);
+      }
+    }
+  }
+
+  return {
+    results: allResults,
+    lyricsById: allLyricsById,
+  };
+}

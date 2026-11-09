@@ -254,4 +254,108 @@ describe('ScreeningControlsBar', () => {
     expect(screen.getByText('bitch')).toBeInTheDocument();
     expect(screen.getByText('asshole')).toBeInTheDocument();
   });
+
+  describe('Story 3.3: Bulk Clean Replacement button in ScreeningControlsBar', () => {
+    it('renders "Find & Swap All Clean Versions" button and disables it when flaggedCount is 0', () => {
+      const handleBulkClean = vi.fn();
+      render(
+        <ScreeningControlsBar
+          preset="moderate"
+          customBlocklist={[]}
+          flaggedCount={0}
+          onBulkClean={handleBulkClean}
+        />
+      );
+
+      const bulkBtn = screen.getByRole('button', { name: /find & swap all clean versions/i });
+      expect(bulkBtn).toBeInTheDocument();
+      expect(bulkBtn).toBeDisabled();
+
+      fireEvent.click(bulkBtn);
+      expect(handleBulkClean).not.toHaveBeenCalled();
+    });
+
+    it('enables "Find & Swap All Clean Versions" when flaggedCount > 0 and calls onBulkClean on click', () => {
+      const handleBulkClean = vi.fn();
+      render(
+        <ScreeningControlsBar
+          preset="moderate"
+          customBlocklist={[]}
+          flaggedCount={5}
+          onBulkClean={handleBulkClean}
+        />
+      );
+
+      const bulkBtn = screen.getByRole('button', { name: /find & swap all clean versions/i });
+      expect(bulkBtn).toBeEnabled();
+
+      fireEvent.click(bulkBtn);
+      expect(handleBulkClean).toHaveBeenCalledTimes(1);
+    });
+
+    it('displays animated progress and disables button when bulkCleaning is true', () => {
+      const handleBulkClean = vi.fn();
+      render(
+        <ScreeningControlsBar
+          preset="moderate"
+          customBlocklist={[]}
+          flaggedCount={8}
+          bulkCleaning={true}
+          bulkCleanProgress="Finding clean edits (4 of 8)…"
+          onBulkClean={handleBulkClean}
+        />
+      );
+
+      const bulkBtn = screen.getByRole('button', { name: /finding clean edits \(4 of 8\)…/i });
+      expect(bulkBtn).toBeInTheDocument();
+      expect(bulkBtn).toBeDisabled();
+      expect(bulkBtn).toHaveTextContent('Finding clean edits (4 of 8)…');
+    });
+
+    it('disables "Find & Swap All Clean Versions" while scanning is in progress', () => {
+      render(
+        <ScreeningControlsBar
+          preset="moderate"
+          customBlocklist={[]}
+          flaggedCount={4}
+          scanning={true}
+          onBulkClean={vi.fn()}
+        />
+      );
+
+      const bulkBtn = screen.getByRole('button', { name: /find & swap all clean versions/i });
+      expect(bulkBtn).toBeDisabled();
+    });
+
+    it('disables preset pills and custom blocklist inputs when bulkCleaning is true', () => {
+      render(
+        <ScreeningControlsBar
+          preset="moderate"
+          customBlocklist={['tobacco']}
+          flaggedCount={3}
+          bulkCleaning={true}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /kid safe/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /moderate/i })).toBeDisabled();
+      expect(screen.getByPlaceholderText(/add custom word/i)).toBeDisabled();
+      expect(screen.getByRole('button', { name: /add blocklist term/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /remove blocklist term tobacco/i })).toBeDisabled();
+    });
+
+    it('disables bulk clean button when disabled prop is true', () => {
+      render(
+        <ScreeningControlsBar
+          preset="moderate"
+          customBlocklist={[]}
+          flaggedCount={5}
+          disabled={true}
+        />
+      );
+
+      const bulkBtn = screen.getByRole('button', { name: /find & swap all clean versions/i });
+      expect(bulkBtn).toBeDisabled();
+    });
+  });
 });

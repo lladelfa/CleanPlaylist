@@ -20,7 +20,7 @@ import WorkingListWorkbench from "./WorkingListWorkbench";
 import ScreeningControlsBar from "./ScreeningControlsBar";
 import EmptyStateHero from "./EmptyStateHero";
 import { reevaluateTracks } from "../utils/lyricEvaluator";
-import { runScreeningPipeline } from "../utils/screeningPipeline";
+import { runScreeningPipeline, runBulkCleanPipeline } from "../utils/screeningPipeline";
 import { isYouTubePlaylist, isSpotifyPlaylistUrl } from "../utils/inputParser";
 
 export default function ScanTab({
@@ -57,6 +57,8 @@ export default function ScanTab({
   const cleanCandidates = externalCleanCandidates ?? internalCleanCandidates;
   const setCleanCandidates = externalSetCleanCandidates ?? setInternalCleanCandidates;
   const [searchingClean, setSearchingClean] = useState({});
+  const [bulkCleaning, setBulkCleaning] = useState(false);
+  const [bulkCleanProgress, setBulkCleanProgress] = useState("");
   const [statusMessage, setStatusMessage] = useState(null);
   const [activeNotice, setActiveNotice] = useState(null);
   const [scanProgressAnnouncement, setScanProgressAnnouncement] = useState("");
@@ -578,6 +580,180 @@ export default function ScanTab({
     }
   };
 
+  const handleBulkClean = async (
+    customTracksToSwap = null,
+    cumulativeStats = { swapped: 0, unfound: 0, initialTotal: null }
+  ) => {
+    const activeTracks = workingList && workingList.length > 0 ? workingList : scannedTracks;
+    const flaggedToSwap =
+      Array.isArray(customTracksToSwap) && customTracksToSwap.length > 0
+        ? customTracksToSwap
+        : activeTracks.filter(
+            (t) => (t.is_flagged || t.verification_status === "flagged") && t.verification_status !== "clean_swapped"
+          );
+
+    if (!flaggedToSwap || flaggedToSwap.length === 0) return;
+
+    const initialTotal = cumulativeStats.initialTotal ?? flaggedToSwap.length;
+    setBulkCleaning(true);
+    const initialAnnouncement = `Finding clean edits (${cumulativeStats.swapped + cumulativeStats.unfound} of ${initialTotal})…`;
+    setBulkCleanProgress(initialAnnouncement);
+    setScanProgressAnnouncement(initialAnnouncement);
+
+    let currentBatchSwapped = 0;
+    let currentBatchUnfound = 0;
+
+    const outcome = await runBulkCleanPipeline({
+      tracks: flaggedToSwap,
+      platform: activePlatform,
+      onProgress: ({ processed }) => {
+        const overallProcessed = cumulativeStats.swapped + cumulativeStats.unfound + processed;
+        const progressMsg = `Finding clean edits (${overallProcessed} of ${initialTotal})…`;
+        setBulkCleanProgress(progressMsg);
+        setScanProgressAnnouncement(progressMsg);
+      },
+      onBatchComplete: ({ results, lyricsById: batchLyrics, chunk = [] }) => {
+        const newlySwapped = [];
+        const newCandidatesUpdate = {};
+
+        Object.entries(results).forEach(([origTrackId, cand]) => {
+          if (cand) {
+            const origTrack =
+              chunk.find((t) => t.id === origTrackId) ||
+              currentTracksRef.current.find((t) => t.id === origTrackId);
+            if (origTrack) {
+              const candLyrics =
+                (cand.id && batchLyrics?.[cand.id]) ||
+                cand.lyrics ||
+                lyricsByTrackId?.[cand.id] ||
+                undefined;
+              const swapped = {
+                ...origTrack,
+                ...cand,
+                verification_status: "clean_swapped",
+                is_flagged: false,
+                reasons: [],
+                detected_terms: [],
+                snippets: [],
+                total_flagged_count: 0,
+                is_explicit: false,
+                has_lyrics: Boolean(typeof candLyrics === "string" && candLyrics.trim()),
+                was_replaced: true,
+                original_title: origTrack.original_title || origTrack.title,
+                original_id: origTrack.original_id || origTrack.id,
+                original_set_video_id: origTrack.original_set_video_id || origTrack.setVideoId,
+              };
+              newlySwapped.push({ origId: origTrackId, swappedTrack: swapped });
+              currentBatchSwapped++;
+            }
+          } else {
+            newCandidatesUpdate[origTrackId] = "none";
+            currentBatchUnfound++;
+          }
+        });
+
+        if (newlySwapped.length > 0) {
+          const swapMap = new Map(newlySwapped.map((s) => [s.origId, s.swappedTrack]));
+          const updater = (prev) => prev.map((t) => (swapMap.has(t.id) ? swapMap.get(t.id) : t));
+
+          setScannedTracks(updater);
+          if (setWorkingList) {
+            setWorkingList(updater);
+          }
+          if (playlist && setPlaylist) {
+            setPlaylist((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    tracks: (prev.tracks || []).map((t) => (swapMap.has(t.id) ? swapMap.get(t.id) : t)),
+                  }
+                : prev
+            );
+          }
+        }
+
+        if (batchLyrics && Object.keys(batchLyrics).length > 0 && setLyricsByTrackId) {
+          setLyricsByTrackId((prev) => ({
+            ...prev,
+            ...batchLyrics,
+          }));
+        }
+
+        setCleanCandidates((prev) => {
+          const updated = { ...prev };
+          newlySwapped.forEach((s) => {
+            delete updated[s.origId];
+          });
+          Object.assign(updated, newCandidatesUpdate);
+          return updated;
+        });
+      },
+    });
+
+    setBulkCleaning(false);
+    setBulkCleanProgress("");
+
+    const totalSwapped = cumulativeStats.swapped + currentBatchSwapped;
+    const totalUnfound = cumulativeStats.unfound + currentBatchUnfound;
+
+    if (outcome.error) {
+      const isRateLimit = outcome.error.status === 429 || outcome.error.isRateLimit;
+      const errorMsg = isRateLimit
+        ? "Rate limit reached while searching clean versions. You can retry remaining tracks."
+        : outcome.error.message || "Failed to search clean versions. You can retry remaining tracks.";
+
+      setScanProgressAnnouncement(errorMsg);
+      setActiveNotice({
+        type: isRateLimit ? "rate_limit" : "caution",
+        message: errorMsg,
+        actionLabel: "Retry",
+        onAction: () => {
+          setActiveNotice(null);
+          handleBulkClean(outcome.unprocessedTracks, {
+            swapped: totalSwapped,
+            unfound: totalUnfound,
+            initialTotal,
+          });
+        },
+      });
+      return;
+    }
+
+    // Fire-and-forget telemetry event emission
+    try {
+      fetch("/api/telemetry/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_name: "clean_swap_applied",
+          properties: {
+            mode: "bulk",
+            swapped_count: totalSwapped,
+            unfound_count: totalUnfound,
+          },
+        }),
+      }).catch(() => {});
+    } catch {
+      // Fire-and-forget: ignore network failure or missing telemetry endpoint
+    }
+
+    const totalProcessed = totalSwapped + totalUnfound;
+    let completionMsg = "";
+    if (totalUnfound === 0 && totalSwapped > 0) {
+      completionMsg = `Swapped all ${totalSwapped} flagged tracks to clean versions.`;
+    } else {
+      completionMsg = `Swapped ${totalSwapped} of ${totalProcessed} flagged tracks; ${
+        totalUnfound === 1 ? "1 still needs review" : `${totalUnfound} still need review`
+      }.`;
+    }
+
+    setScanProgressAnnouncement(completionMsg);
+    setActiveNotice({
+      type: totalSwapped > 0 ? "clean" : "caution",
+      message: completionMsg,
+    });
+  };
+
   const handleExportCSV = async () => {
     try {
       const res = await fetch("/api/export", {
@@ -774,8 +950,10 @@ export default function ScanTab({
     return matchesFilter && matchesSearch;
   });
 
-  const flaggedCount = scannedTracks.filter((t) => t.is_flagged).length;
-  const cleanCount = scannedTracks.length - flaggedCount;
+  const flaggedCount = currentTracks.filter(
+    (t) => (t.is_flagged || t.verification_status === "flagged") && t.verification_status !== "clean_swapped"
+  ).length;
+  const cleanCount = currentTracks.length - flaggedCount;
   const initialTrackCount = playlist?.tracks?.length ?? scannedTracks.length;
   const removedCount = Math.max(0, initialTrackCount - scannedTracks.length);
 
@@ -849,6 +1027,10 @@ export default function ScanTab({
           scanProgressAnnouncement={scanProgressAnnouncement}
           isMasked={isMasked}
           onToggleMasking={onToggleMasking}
+          onBulkClean={() => handleBulkClean()}
+          bulkCleaning={bulkCleaning}
+          bulkCleanProgress={bulkCleanProgress}
+          flaggedCount={flaggedCount}
         />
       )}
 
