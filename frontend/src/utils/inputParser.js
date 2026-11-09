@@ -38,6 +38,26 @@ export function isYouTubeUrl(url) {
   );
 }
 
+export function isYouTubePlaylistUrl(url) {
+  if (typeof url !== 'string') return false;
+  const raw = url.trim();
+  if (!raw) return false;
+  if (!isYouTubeUrl(raw)) return false;
+  return /[?&]list=([a-zA-Z0-9_-]+)/i.test(raw);
+}
+
+export function isYouTubePlaylistId(id) {
+  if (typeof id !== 'string') return false;
+  const raw = id.trim();
+  if (!raw) return false;
+  if (raw.includes('/') || raw.includes(':') || raw.includes('?') || raw.includes(' ')) return false;
+  return /^(?:PL|VLPL)[a-zA-Z0-9_-]{16,34}$|^(?:OLAK5uy_|RDCLAK5uy_)[a-zA-Z0-9_-]{10,34}$|^(?:UU|FL|LL|LM)[a-zA-Z0-9_-]{18,34}$|^(?:RD)[a-zA-Z0-9_-]{11,34}$/.test(raw);
+}
+
+export function isYouTubePlaylist(input) {
+  return isYouTubePlaylistUrl(input) || isYouTubePlaylistId(input);
+}
+
 export function classifyInput(input, activePlatform = 'spotify') {
   if (!input || typeof input !== 'string') {
     return { type: 'empty', isCrossPlatform: false, targetPlatform: null };
@@ -53,6 +73,22 @@ export function classifyInput(input, activePlatform = 'spotify') {
       isCrossPlatform: false,
       targetPlatform: null,
       lines: parseTrackListLines(trimmed),
+    };
+  }
+
+  if (isYouTubePlaylist(trimmed)) {
+    return {
+      type: 'playlist',
+      isCrossPlatform: activePlatform === 'spotify',
+      targetPlatform: 'ytmusic',
+    };
+  }
+
+  if (isSpotifyPlaylistUrl(trimmed)) {
+    return {
+      type: 'playlist',
+      isCrossPlatform: activePlatform === 'ytmusic',
+      targetPlatform: 'spotify',
     };
   }
 

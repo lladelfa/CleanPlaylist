@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Plus, Music, Disc, Loader2, Sparkles, X } from 'lucide-react';
-import { isSpotifyPlaylistUrl } from '../utils/inputParser';
+import { Search, Plus, Music, Disc, Loader2, Sparkles, X, Library } from 'lucide-react';
+import { isSpotifyPlaylistUrl, isYouTubePlaylist } from '../utils/inputParser';
 import SpotifyPlaylistHelper from './SpotifyPlaylistHelper';
 
 const SAMPLE_CHIPS = [
@@ -15,7 +15,10 @@ export default function SmartInputBar({
   onAddAlbum,
   onOpenPastePanel,
   onSpotifyPlaylistDetected,
+  onLoadPlaylist,
+  onOpenLibraryPicker,
   vipMode = false,
+  isLoading = false,
   className = '',
 }) {
   const [query, setQuery] = useState('');
@@ -26,6 +29,14 @@ export default function SmartInputBar({
   const inputRef = useRef(null);
   const debounceTimerRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const onLoadPlaylistRef = useRef(onLoadPlaylist);
+  useEffect(() => {
+    onLoadPlaylistRef.current = onLoadPlaylist;
+  }, [onLoadPlaylist]);
+  const onSpotifyPlaylistDetectedRef = useRef(onSpotifyPlaylistDetected);
+  useEffect(() => {
+    onSpotifyPlaylistDetectedRef.current = onSpotifyPlaylistDetected;
+  }, [onSpotifyPlaylistDetected]);
 
   const platformLabel = activePlatform === 'spotify' ? 'Spotify' : 'YouTube Music';
 
@@ -46,8 +57,7 @@ export default function SmartInputBar({
         return;
       }
 
-      // If Spotify playlist URL and not authenticated VIP, intercept client-side with 0 network calls
-      if (isSpotifyPlaylistUrl(trimmed) && !vipMode) {
+      if (isYouTubePlaylist(trimmed)) {
         if (debounceTimerRef.current) {
           clearTimeout(debounceTimerRef.current);
         }
@@ -56,9 +66,24 @@ export default function SmartInputBar({
         }
         setResults(null);
         setIsSearching(false);
-        setShowPlaylistHelper(true);
-        if (onSpotifyPlaylistDetected) {
-          onSpotifyPlaylistDetected(trimmed);
+        setShowPlaylistHelper(false);
+        return;
+      }
+
+      if (isSpotifyPlaylistUrl(trimmed) && (!vipMode || onLoadPlaylistRef.current)) {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        setResults(null);
+        setIsSearching(false);
+        if (!vipMode) {
+          setShowPlaylistHelper(true);
+          if (onSpotifyPlaylistDetectedRef.current) {
+            onSpotifyPlaylistDetectedRef.current(trimmed);
+          }
         }
         return;
       }
@@ -99,7 +124,7 @@ export default function SmartInputBar({
         setIsSearching(false);
       }
     },
-    [activePlatform, vipMode, onSpotifyPlaylistDetected]
+    [activePlatform, vipMode]
   );
 
   useEffect(() => {
@@ -115,9 +140,15 @@ export default function SmartInputBar({
       setShowPlaylistHelper(true);
       setResults(null);
       setIsSearching(false);
-      if (onSpotifyPlaylistDetected) {
-        onSpotifyPlaylistDetected(query);
+      if (onSpotifyPlaylistDetectedRef.current) {
+        onSpotifyPlaylistDetectedRef.current(query);
       }
+      return;
+    }
+
+    if (isYouTubePlaylist(query) || (vipMode && isSpotifyPlaylistUrl(query) && onLoadPlaylistRef.current)) {
+      setResults(null);
+      setIsSearching(false);
       return;
     }
 
@@ -130,7 +161,7 @@ export default function SmartInputBar({
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [query, executeSearch, vipMode, onSpotifyPlaylistDetected]);
+  }, [query, executeSearch, vipMode]);
 
   const handleInputChange = (e) => {
     const val = e.target.value;
@@ -155,7 +186,7 @@ export default function SmartInputBar({
       setResults(null);
       setIsSearching(false);
       setShowPlaylistHelper(true);
-      if (onSpotifyPlaylistDetected) {
+      if (onSpotifyPlaylistDetectedRef.current) {
         onSpotifyPlaylistDetected(val);
       }
       return;
@@ -175,7 +206,7 @@ export default function SmartInputBar({
       return;
     }
 
-    if (isSpotifyPlaylistUrl(pasted) && !vipMode) {
+    if (isYouTubePlaylist(pasted)) {
       e.preventDefault();
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
@@ -183,14 +214,40 @@ export default function SmartInputBar({
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      setQuery(pasted);
       setResults(null);
       setIsSearching(false);
-      setShowPlaylistHelper(true);
-      if (onSpotifyPlaylistDetected) {
-        onSpotifyPlaylistDetected(pasted);
+      setShowPlaylistHelper(false);
+      if (onLoadPlaylistRef.current) {
+        onLoadPlaylistRef.current(pasted.trim());
+        setQuery('');
       }
+      return;
     }
+
+    if (isSpotifyPlaylistUrl(pasted)) {
+      e.preventDefault();
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      setResults(null);
+      setIsSearching(false);
+      if (!vipMode) {
+        setShowPlaylistHelper(true);
+        setQuery(pasted);
+        if (onSpotifyPlaylistDetectedRef.current) {
+          onSpotifyPlaylistDetectedRef.current(pasted.trim());
+        }
+      } else if (onLoadPlaylistRef.current) {
+        setShowPlaylistHelper(false);
+        onLoadPlaylistRef.current(pasted.trim());
+        setQuery('');
+      }
+      return;
+    }
+
   };
 
   const handleKeyDown = (e) => {
@@ -199,6 +256,44 @@ export default function SmartInputBar({
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
+      const trimmed = query.trim();
+      if (!trimmed) return;
+
+      if (isYouTubePlaylist(trimmed)) {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        setResults(null);
+        setIsSearching(false);
+        setShowPlaylistHelper(false);
+        if (onLoadPlaylistRef.current) {
+          onLoadPlaylistRef.current(trimmed);
+          setQuery('');
+        }
+        return;
+      }
+
+      if (isSpotifyPlaylistUrl(trimmed)) {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        setResults(null);
+        setIsSearching(false);
+        if (!vipMode) {
+          setShowPlaylistHelper(true);
+          if (onSpotifyPlaylistDetectedRef.current) {
+            onSpotifyPlaylistDetectedRef.current(trimmed);
+          }
+        } else if (onLoadPlaylistRef.current) {
+          setShowPlaylistHelper(false);
+          onLoadPlaylistRef.current(trimmed);
+          setQuery('');
+        } else {
+          executeSearch(query);
+        }
+        return;
+      }
+
       executeSearch(query);
     } else if (e.key === 'Escape') {
       handleClear();
@@ -255,10 +350,12 @@ export default function SmartInputBar({
           />
 
           <div className="absolute inset-y-0 right-3 flex items-center gap-2">
-            {isSearching ? (
+            {(isSearching || isLoading) ? (
               <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-surface-elevated border border-border-subtle text-xs font-mono text-brand-tint">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-primary" aria-hidden="true" />
-                <span className="hidden sm:inline">Matching {platformLabel} Catalog</span>
+                <span className="hidden sm:inline">
+                  {isLoading ? 'Loading Playlist...' : `Matching ${platformLabel} Catalog`}
+                </span>
               </span>
             ) : query.trim() ? (
               <button
@@ -283,6 +380,19 @@ export default function SmartInputBar({
           >
             <Sparkles className="w-4 h-4 text-brand-tint" aria-hidden="true" />
             <span>Paste Track List</span>
+          </button>
+        )}
+
+        {/* Spotify VIP Library Picker Button */}
+        {activePlatform === 'spotify' && vipMode && onOpenLibraryPicker && (
+          <button
+            type="button"
+            onClick={onOpenLibraryPicker}
+            aria-label="Browse Library"
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-surface-elevated hover:bg-surface-highest border border-border-subtle rounded-lg text-sm font-medium text-brand-tint hover:text-brand-primary transition-all whitespace-nowrap active:scale-[0.98]"
+          >
+            <Library className="w-4 h-4 text-brand-primary" aria-hidden="true" />
+            <span>Browse Library</span>
           </button>
         )}
       </div>

@@ -2,7 +2,7 @@
 title: 'Story 5.3: Direct Spotify Playlist Creation & Overwrite (SavePlaylistModal)'
 type: 'feature'
 created: '2026-11-08'
-status: 'review'
+status: 'done'
 route: 'oneshot'
 review_loop_iteration: 0
 context: []

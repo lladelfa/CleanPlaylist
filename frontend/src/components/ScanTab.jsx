@@ -5,12 +5,9 @@ import {
   CheckCircle2,
   ShieldAlert,
   Sparkles,
-  ArrowRight,
   FileText,
-  RefreshCw,
   Save,
   Trash2,
-  Library,
 } from "lucide-react";
 
 import SavePlaylistModal from "./SavePlaylistModal";
@@ -21,8 +18,10 @@ import PasteTrackListPanel from "./PasteTrackListPanel";
 import PlatformSwitchModal from "./PlatformSwitchModal";
 import WorkingListWorkbench from "./WorkingListWorkbench";
 import ScreeningControlsBar from "./ScreeningControlsBar";
+import EmptyStateHero from "./EmptyStateHero";
 import { reevaluateTracks } from "../utils/lyricEvaluator";
 import { runScreeningPipeline } from "../utils/screeningPipeline";
+import { isYouTubePlaylist, isSpotifyPlaylistUrl } from "../utils/inputParser";
 
 export default function ScanTab({
   playlist,
@@ -49,8 +48,6 @@ export default function ScanTab({
   isMasked = true,
   onToggleMasking,
 }) {
-  const [urlInput, setUrlInput] = useState("");
-  const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [filterMode, setFilterMode] = useState("all"); // 'all' | 'flagged' | 'clean'
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,6 +64,7 @@ export default function ScanTab({
   const [isResolvingPaste, setIsResolvingPaste] = useState(false);
   const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
   const [pendingPlatform, setPendingPlatform] = useState(null);
+  const [isPlaylistLoading, setIsPlaylistLoading] = useState(false);
 
   const currentTracks = workingList && workingList.length > 0 ? workingList : scannedTracks;
   const currentTracksRef = useRef(currentTracks);
@@ -190,6 +188,7 @@ export default function ScanTab({
         const omittedCount = normalizedTracks.length - remaining;
 
         setScannedTracks((prev) => [...prev, ...toAdd]);
+        if (setWorkingList) setWorkingList((prev) => [...prev, ...toAdd]);
       currentTracksRef.current = [...activeTracks, ...toAdd];
 
         if (!playlist) {
@@ -212,6 +211,7 @@ export default function ScanTab({
         });
       } else {
         setScannedTracks((prev) => [...prev, ...normalizedTracks]);
+        if (setWorkingList) setWorkingList((prev) => [...prev, ...normalizedTracks]);
 
         if (!playlist) {
           setPlaylist({
@@ -394,23 +394,17 @@ export default function ScanTab({
     }
   };
 
-  // Sample playlists for instant testing
-  const samplePlaylists = [
-    {
-      label: "Top Hits Sample",
-      url: "https://music.youtube.com/playlist?list=PLq9HLaXrThm0pOPOiFHy8a0WHlsIwRANk",
-    },
-    {
-      label: "Popular Pop",
-      url: "https://music.youtube.com/playlist?list=PLGW0Is3f0CKuxqGlK13w5h4r-62mHJR1Y",
-    },
-  ];
-
   const handleFetchPlaylist = async (urlToFetch) => {
-    const targetUrl = urlToFetch || urlInput;
-    if (!targetUrl.trim()) return;
+    const targetUrl = urlToFetch;
+    if (!targetUrl || !targetUrl.trim()) return;
 
-    setLoading(true);
+    const targetPlatform = isYouTubePlaylist(targetUrl)
+      ? "ytmusic"
+      : isSpotifyPlaylistUrl(targetUrl)
+      ? "spotify"
+      : activePlatform;
+
+    setIsPlaylistLoading(true);
     setStatusMessage(null);
     try {
       const res = await fetch("/api/playlist/fetch", {
@@ -419,25 +413,31 @@ export default function ScanTab({
         body: JSON.stringify({
           url_or_id: targetUrl,
           limit: 100,
-          platform: activePlatform,
+          platform: targetPlatform,
         }),
       });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || "Failed to fetch playlist");
       }
       const data = await res.json();
       setPlaylist(data);
       // Initialize scanned tracks with default explicit tag
+      const platformName = targetPlatform === "spotify" ? "Spotify" : "YouTube Music";
       const initial = data.tracks.map((t) => ({
         ...t,
-        is_flagged: t.is_explicit,
-        reasons: t.is_explicit ? ["Marked Explicit by YouTube Music"] : [],
+        source_platform: targetPlatform,
+        verification_status: "unscanned",
+        is_flagged: Boolean(t.is_explicit),
+        reasons: t.is_explicit ? [`Marked Explicit by ${platformName}`] : [],
         detected_terms: [],
         snippets: [],
         has_lyrics: false,
       }));
       setScannedTracks(initial);
+      if (setWorkingList) {
+        setWorkingList(initial);
+      }
       setStatusMessage({
         type: "success",
         text: `Loaded "${data.title}" with ${data.tracks.length} tracks.`,
@@ -445,7 +445,7 @@ export default function ScanTab({
     } catch (err) {
       setStatusMessage({ type: "error", text: err.message });
     } finally {
-      setLoading(false);
+      setIsPlaylistLoading(false);
     }
   };
 
@@ -734,7 +734,10 @@ export default function ScanTab({
         onAddSong={handleAddSong}
         onAddAlbum={handleAddAlbum}
         onOpenPastePanel={handleOpenPastePanel}
+        onLoadPlaylist={handleFetchPlaylist}
+        onOpenLibraryPicker={() => setIsPickerModalOpen(true)}
         vipMode={isAuthenticated}
+        isLoading={isPlaylistLoading}
       />
 
       {/* 1.1 Paste Track List Panel */}
@@ -746,83 +749,31 @@ export default function ScanTab({
         isLoading={isResolvingPaste}
       />
 
-      {/* Legacy / Direct Playlist Input Bar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
-        <label className="block text-sm font-semibold text-slate-200 mb-2">
-          YouTube Music Playlist URL or Playlist ID
-        </label>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              placeholder="e.g. https://music.youtube.com/playlist?list=PL... or PL..."
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-            />
-          </div>
-          {activePlatform === "spotify" && isAuthenticated && (
-            <button
-              type="button"
-              onClick={() => setIsPickerModalOpen(true)}
-              className="flex items-center justify-center space-x-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-green-400 border border-slate-700 font-medium text-sm rounded-xl transition"
-            >
-              <Library className="w-4 h-4" />
-              <span>Browse Library</span>
-            </button>
+      {/* Status Message */}
+      {statusMessage && (
+        <div
+          className={`p-3.5 rounded-xl border text-sm flex items-center space-x-2 ${
+            statusMessage.type === "error"
+              ? "bg-status-flagged-bg border-status-flagged-border text-status-flagged"
+              : "bg-status-clean-bg border-status-clean-border text-status-clean"
+          }`}
+        >
+          {statusMessage.type === "error" ? (
+            <AlertCircle className="w-4 h-4 shrink-0" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
           )}
-          <button
-            onClick={() => handleFetchPlaylist()}
-            disabled={loading}
-            className="flex items-center justify-center space-x-2 px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-medium text-sm rounded-xl transition shadow-lg shadow-purple-600/30 disabled:opacity-50"
-          >
-            {loading ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <ArrowRight className="w-4 h-4" />
-            )}
-            <span>{loading ? "Fetching..." : "Load Playlist"}</span>
-          </button>
+          <span>{statusMessage.text}</span>
         </div>
+      )}
 
-        {/* Quick sample chips */}
-        <div className="mt-3 flex items-center space-x-2 text-xs text-slate-400 flex-wrap gap-2">
-          <span>Try a sample:</span>
-          {samplePlaylists.map((sample, idx) => (
-            <button
-              key={idx}
-              onClick={() => {
-                setUrlInput(sample.url);
-                handleFetchPlaylist(sample.url);
-              }}
-              className="bg-slate-800 hover:bg-slate-700 text-purple-300 px-2.5 py-1 rounded-lg border border-slate-700 transition"
-            >
-              {sample.label}
-            </button>
-          ))}
-        </div>
-
-        {statusMessage && (
-          <div
-            className={`mt-4 p-3 rounded-xl border text-sm flex items-center space-x-2 ${
-              statusMessage.type === "error"
-                ? "bg-red-950/40 border-red-800 text-red-300"
-                : "bg-emerald-950/40 border-emerald-800 text-emerald-300"
-            }`}
-          >
-            {statusMessage.type === "error" ? (
-              <AlertCircle className="w-4 h-4 shrink-0" />
-            ) : (
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-            )}
-            <span>{statusMessage.text}</span>
-          </div>
-        )}
-      </div>
-
+      {/* 3-Step Empty State Hero (shown when working list is empty) */}
+      {currentTracks.length === 0 && (
+        <EmptyStateHero />
+      )}
 
       {/* 2. Screening Controls Bar (shown when playlist loaded) */}
-      {(playlist || scannedTracks.length > 0) && (
+      {currentTracks.length > 0 && (
         <ScreeningControlsBar
           preset={preset}
           onSelectPreset={handleSelectPreset}
@@ -838,7 +789,7 @@ export default function ScanTab({
       )}
 
       {/* 3. Scanned Tracks Results */}
-      {(playlist || scannedTracks.length > 0) && (
+      {currentTracks.length > 0 && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
           {/* Header Stats */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
@@ -981,7 +932,6 @@ export default function ScanTab({
         isOpen={isPickerModalOpen}
         onClose={() => setIsPickerModalOpen(false)}
         onSelectPlaylist={(selectedUrl) => {
-          setUrlInput(selectedUrl);
           handleFetchPlaylist(selectedUrl);
         }}
       />
