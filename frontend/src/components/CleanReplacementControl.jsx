@@ -57,18 +57,21 @@ export default function CleanReplacementControl({
       <button
         type="button"
         onClick={() => onSwapTrack && onSwapTrack(track, cleanCandidate)}
+        aria-label="Swap to Clean"
         title={`Swap to Clean: ${candTitle} (${deltaLabel})`}
         className={
           isMobile
             ? 'min-h-[44px] min-w-[44px] px-3 py-1.5 rounded-lg bg-status-clean hover:bg-status-clean/90 text-status-clean-ink border border-status-clean-border flex items-center justify-center gap-1.5 text-xs font-semibold shadow transition-colors max-w-full'
-            : 'px-2.5 py-1 rounded-lg bg-status-clean-bg hover:bg-status-clean/20 text-status-clean border border-status-clean-border text-xs font-semibold transition-colors inline-flex items-center gap-1.5 shrink-0 max-w-[210px]'
+            : 'px-2.5 py-1 rounded-lg bg-status-clean-bg hover:bg-status-clean/20 text-status-clean border border-status-clean-border text-xs font-semibold transition-colors inline-flex items-center gap-1 shrink-0'
         }
       >
         <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
         <span className="shrink-0">Swap to Clean</span>
-        <span className="truncate font-normal opacity-90 text-[11px]">
-          • {candTitle}
-        </span>
+        {isMobile && (
+          <span className="truncate font-normal opacity-90 text-[11px]">
+            • {candTitle}
+          </span>
+        )}
         <span className="shrink-0 font-mono font-normal opacity-90 text-[11px]">
           ({deltaLabel})
         </span>

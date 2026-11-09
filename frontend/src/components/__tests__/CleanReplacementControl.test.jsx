@@ -90,7 +90,7 @@ describe('Story 3.2: CleanReplacementControl & Per-Track / In-Modal Swap Workflo
       const swapBtn = screen.getByRole('button', { name: /Swap to Clean/i });
       expect(swapBtn).toBeInTheDocument();
       expect(swapBtn).toHaveTextContent('Swap to Clean');
-      expect(swapBtn).toHaveTextContent('Explicit Hit Song (Radio Edit)');
+      // desktop title in title attribute
       expect(swapBtn).toHaveTextContent('-2s');
 
       fireEvent.click(swapBtn);
@@ -176,7 +176,7 @@ describe('Story 3.2: CleanReplacementControl & Per-Track / In-Modal Swap Workflo
       );
 
       const swapBtn = screen.getByRole('button', { name: /Swap to Clean/i });
-      expect(swapBtn).toHaveTextContent('Explicit Hit Song (Radio Edit)');
+      // desktop title in title attribute
       expect(swapBtn).toHaveTextContent('-2s');
 
       rerender(
@@ -326,7 +326,7 @@ describe('Story 3.2: CleanReplacementControl & Per-Track / In-Modal Swap Workflo
       });
 
       const swapBtn = await screen.findByRole('button', { name: /Swap to Clean/i });
-      expect(swapBtn).toHaveTextContent('Explicit Hit Song (Radio Edit)');
+      // desktop title in title attribute
       expect(swapBtn).toHaveTextContent('-2s');
 
       await user.click(swapBtn);
