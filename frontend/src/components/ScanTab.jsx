@@ -20,6 +20,7 @@ import WorkingListWorkbench from "./WorkingListWorkbench";
 import ScreeningControlsBar from "./ScreeningControlsBar";
 import EmptyStateHero from "./EmptyStateHero";
 import FinishLineBar from "./FinishLineBar";
+import { exportCleanPlaylistFile, getReadyTracks } from "../utils/finishLine";
 import { reevaluateTracks } from "../utils/lyricEvaluator";
 import { runScreeningPipeline, runBulkCleanPipeline } from "../utils/screeningPipeline";
 import { isYouTubePlaylist, isSpotifyPlaylistUrl } from "../utils/inputParser";
@@ -754,32 +755,15 @@ export default function ScanTab({
       message: completionMsg,
     });
   };
-
   const handleExportCSV = async () => {
-    try {
-      const res = await fetch("/api/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          format: "csv",
-          tracks: scannedTracks,
-          playlist_title: playlist?.title || "CleanPlaylist",
-        }),
-      });
-      if (!res.ok) throw new Error("Export failed");
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${playlist?.title || "CleanPlaylist"}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a.remove();
-    } catch (err) {
-      alert("Failed to export: " + err.message);
-    }
+    const readyTracks = getReadyTracks(currentTracks, keptTrackIds);
+    await exportCleanPlaylistFile({
+      readyTracks,
+      format: "csv",
+      playlistTitle: playlist?.title || "CleanPlaylist",
+      platform: activePlatform,
+      onNotice: (n) => setActiveNotice(n),
+    });
   };
 
   const handleSwapTrack = (originalTrack, cleanTrack) => {
@@ -1027,6 +1011,8 @@ export default function ScanTab({
           scanning={scanning}
           scanProgressAnnouncement={scanProgressAnnouncement}
           isMasked={isMasked}
+          activePlatform={activePlatform}
+          playlistTitle={playlist?.title || 'Clean Playlist'}
           onToggleMasking={onToggleMasking}
           onBulkClean={() => handleBulkClean()}
           bulkCleaning={bulkCleaning}
@@ -1052,6 +1038,8 @@ export default function ScanTab({
           keptTrackIds={keptTrackIds}
           onKeepTrack={onKeepTrack}
           isMasked={isMasked}
+          activePlatform={activePlatform}
+          playlistTitle={playlist?.title || 'Clean Playlist'}
           headerActions={
             <div className="flex items-center flex-wrap gap-2.5">
               <div className="hidden sm:flex items-center space-x-1.5 bg-status-flagged-bg/60 text-status-flagged text-xs px-3 py-1.5 rounded-xl border border-status-flagged-border/40">
@@ -1151,6 +1139,7 @@ export default function ScanTab({
           tracks={currentTracks}
           keptTrackIds={keptTrackIds}
           activePlatform={activePlatform}
+          playlistTitle={playlist?.title || 'Clean Playlist'}
           onNotice={(notice) => {
             setActiveNotice(notice);
             if (typeof window !== "undefined" && typeof window.scrollTo === "function") {

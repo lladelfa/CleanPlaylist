@@ -3,6 +3,7 @@ import { Music, Trash2, FileText, ExternalLink } from 'lucide-react';
 import VerificationStatusBadge from './VerificationStatusBadge';
 import CleanReplacementControl from './CleanReplacementControl';
 import { maskWord, maskText, getTrackFlaggedWords } from '../utils/masking';
+import { getTrackCanonicalUrl, isTrackReady } from '../utils/finishLine';
 
 function formatDuration(track) {
   if (track?.duration) return track.duration;
@@ -25,11 +26,20 @@ export default function MobileTrackCard({
   onSwapTrack,
   className = '',
   isMasked = true,
+  activePlatform = 'spotify',
+  keptTrackIds,
 }) {
   if (!track) return null;
 
   const displayDuration = formatDuration(track);
   const wordsToMask = getTrackFlaggedWords(track, track.snippets?.[0]);
+
+  const isReady = isTrackReady(track, keptTrackIds);
+  const canonicalUrl = getTrackCanonicalUrl(track, activePlatform) || track.video_url;
+  const linkLabel = isReady ? 'Open Clean Track' : 'Open track link';
+  const linkTitle = isReady
+    ? `Open Clean Track: ${track.title || 'Track'}`
+    : `Open track link: ${track.title || 'Track'}`;
 
   return (
     <article
@@ -154,13 +164,13 @@ export default function MobileTrackCard({
             variant="mobile"
           />
 
-          {track.video_url && (
+          {canonicalUrl && (
             <a
-              href={track.video_url}
+              href={canonicalUrl}
               target="_blank"
-              rel="noreferrer"
-              title="Open track link"
-              aria-label="Open track link"
+              rel="noopener noreferrer"
+              title={linkTitle}
+              aria-label={linkLabel}
               className="min-h-[44px] min-w-[44px] rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-elevated flex items-center justify-center transition-colors"
             >
               <ExternalLink className="w-4 h-4" aria-hidden="true" />

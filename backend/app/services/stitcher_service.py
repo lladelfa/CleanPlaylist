@@ -175,31 +175,46 @@ class StitcherService:
             }
         }
 
-    def export_as_m3u(self, tracks: List[Dict], playlist_title: str = "Clean Playlist") -> str:
+    @staticmethod
+    def _resolve_track_export_url(t: Dict, platform: str) -> str:
+        url = t.get("video_url")
+        if url and isinstance(url, str) and url.strip():
+            return url.strip()
+        tid = t.get("id")
+        if not tid or not isinstance(tid, str) or not tid.strip():
+            return ""
+        tid = tid.strip()
+        if platform == "spotify" or tid.startswith("spotify:"):
+            clean_id = tid.replace("spotify:track:", "").strip()
+            return f"https://open.spotify.com/track/{clean_id}" if clean_id else ""
+        return f"https://music.youtube.com/watch?v={tid}"
+
+    def export_as_m3u(self, tracks: List[Dict], playlist_title: str = "Clean Playlist", platform: str = "ytmusic") -> str:
         """Export tracks as an extended M3U8 playlist."""
         lines = ["#EXTM3U", f"#PLAYLIST:{playlist_title}"]
         for t in tracks:
             sec = t.get("duration_seconds", 0)
             title = t.get("title", "Unknown Title")
             artist = t.get("artist", "Unknown Artist")
-            url = t.get("video_url", f"https://music.youtube.com/watch?v={t.get('id')}")
+            url = self._resolve_track_export_url(t, platform)
             lines.append(f"#EXTINF:{sec},{artist} - {title}")
             lines.append(url)
         return "\n".join(lines)
 
-    def export_as_csv(self, tracks: List[Dict]) -> str:
+    def export_as_csv(self, tracks: List[Dict], platform: str = "ytmusic") -> str:
         """Export tracks to CSV string."""
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["Index", "Title", "Artist", "Duration", "Explicit", "YouTube Music Link", "Source Playlist"])
+        writer.writerow(["Index", "Title", "Artist", "Duration", "Explicit", "Track Link", "Source Playlist"])
         for idx, t in enumerate(tracks, start=1):
+            url = self._resolve_track_export_url(t, platform)
             writer.writerow([
                 idx,
                 t.get("title", ""),
                 t.get("artist", ""),
                 t.get("duration", ""),
                 "Yes" if t.get("is_explicit") else "No",
-                t.get("video_url", ""),
+                url,
                 t.get("source_playlist_title", "")
             ])
         return output.getvalue()

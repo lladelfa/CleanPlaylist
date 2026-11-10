@@ -1,9 +1,9 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import FinishLineBar from '../FinishLineBar';
 
-describe('Story 3.4: FinishLineBar Component', () => {
+describe('FinishLineBar Component', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -37,12 +37,11 @@ describe('Story 3.4: FinishLineBar Component', () => {
       />
     );
 
-    // Now all 3 tracks are ready (2 clean + 1 kept) and 0 need review
     expect(screen.getAllByText(/3 tracks ready/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/need review/i)).not.toBeInTheDocument();
   });
 
-  it('disables Play Clean Queue when 0 tracks are ready', () => {
+  it('disables Play Clean Queue and Copy buttons when 0 tracks are ready', () => {
     const flaggedOnly = [
       { id: 't1', title: 'Song 1', verification_status: 'flagged' },
     ];
@@ -58,6 +57,12 @@ describe('Story 3.4: FinishLineBar Component', () => {
     const playButtons = screen.getAllByRole('button', { name: /play clean queue/i });
     expect(playButtons.length).toBeGreaterThan(0);
     playButtons.forEach((btn) => {
+      expect(btn).toBeDisabled();
+    });
+
+    const copyButtons = screen.getAllByRole('button', { name: /copy clean track links/i });
+    expect(copyButtons.length).toBeGreaterThan(0);
+    copyButtons.forEach((btn) => {
       expect(btn).toBeDisabled();
     });
   });
@@ -111,5 +116,115 @@ describe('Story 3.4: FinishLineBar Component', () => {
         message: expect.stringContaining('Run lyric scan first'),
       })
     );
+  });
+
+  describe('Story 3.5: Desktop & Mobile Finishing Actions', () => {
+    it('renders desktop primary Copy CTA with Spotify Desktop paste instruction hint', () => {
+      render(
+        <FinishLineBar
+          tracks={mockTracks}
+          activePlatform="spotify"
+          onNotice={vi.fn()}
+        />
+      );
+
+      // Desktop primary CTA copy button
+      const copyButtons = screen.getAllByRole('button', { name: /copy clean track links/i });
+      expect(copyButtons.length).toBeGreaterThan(0);
+
+      // Monospace paste hint
+      expect(screen.getByText(/Ctrl\+V \/ Cmd\+V in Spotify Desktop/i)).toBeInTheDocument();
+    });
+
+    it('copies clean links to clipboard and announces notice when Copy Clean Track Links is clicked', async () => {
+      const onNotice = vi.fn();
+      const writeTextMock = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator, {
+        clipboard: {
+          writeText: writeTextMock,
+        },
+      });
+
+      render(
+        <FinishLineBar
+          tracks={mockTracks}
+          activePlatform="spotify"
+          onNotice={onNotice}
+        />
+      );
+
+      const copyButtons = screen.getAllByRole('button', { name: /copy clean track links/i });
+      fireEvent.click(copyButtons[0]);
+
+      await waitFor(() => {
+        expect(writeTextMock).toHaveBeenCalledWith(
+          'https://open.spotify.com/track/t1\nhttps://open.spotify.com/track/t2'
+        );
+        expect(onNotice).toHaveBeenCalledWith({
+          type: 'success',
+          message: 'Copied 2 Clean Track Links',
+        });
+      });
+    });
+
+    it('opens Export popover and triggers export action on format selection', async () => {
+      const onNotice = vi.fn();
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        blob: vi.fn().mockResolvedValue(new Blob(['test'], { type: 'text/csv' })),
+        headers: new Headers({ 'Content-Disposition': 'attachment; filename="Export.csv"' }),
+      });
+      global.fetch = fetchMock;
+
+      render(
+        <FinishLineBar
+          tracks={mockTracks}
+          activePlatform="spotify"
+          playlistTitle="Party Mix"
+          onNotice={onNotice}
+        />
+      );
+
+      // Open export menu
+      const exportButtons = screen.getAllByRole('button', { name: /export/i });
+      fireEvent.click(exportButtons[0]);
+
+      // Popover options appear
+      const csvButtons = screen.getAllByRole('button', { name: /export as csv/i });
+      expect(csvButtons.length).toBeGreaterThan(0);
+      expect(screen.getAllByRole('button', { name: /export as m3u8/i }).length).toBeGreaterThan(0);
+      expect(screen.getAllByRole('button', { name: /export as json/i }).length).toBeGreaterThan(0);
+
+      // Click CSV export
+      fireEvent.click(csvButtons[0]);
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          '/api/export',
+          expect.objectContaining({
+            method: 'POST',
+            body: expect.stringContaining('"format":"csv"'),
+          })
+        );
+      });
+    });
+
+    it('closes export popover when clicking outside or pressing Escape', () => {
+      render(
+        <FinishLineBar
+          tracks={mockTracks}
+          activePlatform="spotify"
+          onNotice={vi.fn()}
+        />
+      );
+
+      const exportButtons = screen.getAllByRole('button', { name: /export/i });
+      fireEvent.click(exportButtons[0]);
+      expect(screen.getAllByRole('button', { name: /export as csv/i }).length).toBeGreaterThan(0);
+
+      // Press Escape
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.queryByRole('button', { name: /export as csv/i })).not.toBeInTheDocument();
+    });
   });
 });

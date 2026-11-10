@@ -177,6 +177,7 @@ class ExportRequest(BaseModel):
     format: str
     tracks: List[Dict[str, Any]]
     playlist_title: Optional[str] = "Clean Playlist"
+    platform: Optional[str] = "ytmusic"
 
 # Router imports
 from app.spotify_endpoints import router as spotify_router
@@ -699,13 +700,13 @@ def stitch_playlists_endpoint(req: StitchRequest):
 def export_playlist_file(req: ExportRequest):
     fmt = req.format.lower()
     title = req.playlist_title or "CleanPlaylist"
-    safe_filename = "".join(c for c in title if c.isalnum() or c in (" ", "_", "-")).rstrip()
+    safe_filename = "".join(c for c in title if c.isalnum() or c in (" ", "_", "-")).rstrip() or "CleanPlaylist"
 
     if fmt in ("m3u", "m3u8"):
-        content = stitcher_service.export_as_m3u(req.tracks, title)
+        content = stitcher_service.export_as_m3u(req.tracks, title, platform=req.platform or "ytmusic")
         return Response(content=content, media_type="audio/x-mpegurl", headers={"Content-Disposition": f'attachment; filename="{safe_filename}.m3u8"'})
     elif fmt == "csv":
-        content = stitcher_service.export_as_csv(req.tracks)
+        content = stitcher_service.export_as_csv(req.tracks, platform=req.platform or "ytmusic")
         return Response(content=content, media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{safe_filename}.csv"'})
     elif fmt == "json":
         import json

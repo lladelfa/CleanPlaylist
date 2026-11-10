@@ -1,9 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
+  isTrackReady,
   getReadyTracks,
   extractYouTubeVideoIds,
   buildYouTubeWatchVideosUrl,
   launchYouTubeCleanQueue,
+  getTrackCanonicalUrl,
+  formatCleanTrackLinks,
+  copyCleanTrackLinks,
+  exportCleanPlaylistFile,
 } from '../finishLine';
 
 describe('Story 3.4: Universal YouTube Clean Queue Generation & finishLine utility', () => {
@@ -235,6 +240,234 @@ describe('Story 3.4: Universal YouTube Clean Queue Generation & finishLine utili
 
       expect(result.success).toBe(false);
       expect(openSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Story 3.5: Clean Track Deep Links, Clipboard Copy, & Offline Exports', () => {
+    describe('isTrackReady', () => {
+      it('returns false for null or non-object track', () => {
+        expect(isTrackReady(null)).toBe(false);
+        expect(isTrackReady(undefined)).toBe(false);
+        expect(isTrackReady('not an object')).toBe(false);
+      });
+
+      it('returns true for verified_clean or clean_swapped or was_replaced tracks', () => {
+        expect(isTrackReady({ id: 't1', verification_status: 'verified_clean' })).toBe(true);
+        expect(isTrackReady({ id: 't2', verification_status: 'clean_swapped' })).toBe(true);
+        expect(isTrackReady({ id: 't3', was_replaced: true })).toBe(true);
+      });
+
+      it('returns true if track is in keptTrackIds Set or Array', () => {
+        expect(isTrackReady({ id: 't4', verification_status: 'flagged' }, new Set(['t4']))).toBe(true);
+        expect(isTrackReady({ id: 't5', verification_status: 'flagged' }, ['t5'])).toBe(true);
+        expect(isTrackReady({ id: 't6', verification_status: 'flagged' }, new Set(['other']))).toBe(false);
+      });
+    });
+
+    describe('getTrackCanonicalUrl', () => {
+      it('returns null for null or missing track', () => {
+        expect(getTrackCanonicalUrl(null)).toBeNull();
+        expect(getTrackCanonicalUrl({})).toBeNull();
+      });
+
+      it('constructs Spotify track URL stripping spotify:track: prefix', () => {
+        expect(getTrackCanonicalUrl({ id: 'spotify:track:4cOdK2wGLETKBW3PvgPWqT' }, 'spotify')).toBe(
+          'https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT'
+        );
+        expect(getTrackCanonicalUrl({ id: '4cOdK2wGLETKBW3PvgPWqT' }, 'spotify')).toBe(
+          'https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT'
+        );
+      });
+
+      it('preserves existing open.spotify.com video_url', () => {
+        expect(
+          getTrackCanonicalUrl(
+            { id: '123', video_url: 'https://open.spotify.com/track/canonical123' },
+            'spotify'
+          )
+        ).toBe('https://open.spotify.com/track/canonical123');
+      });
+
+      it('constructs YouTube Music track URL using id, video_id, or parsed video_url', () => {
+        expect(getTrackCanonicalUrl({ id: 'xyz789' }, 'ytmusic')).toBe(
+          'https://music.youtube.com/watch?v=xyz789'
+        );
+        expect(getTrackCanonicalUrl({ id: '', video_id: 'vid123' }, 'ytmusic')).toBe(
+          'https://music.youtube.com/watch?v=vid123'
+        );
+        expect(
+          getTrackCanonicalUrl(
+            { id: '', video_url: 'https://music.youtube.com/watch?v=customUrl' },
+            'ytmusic'
+          )
+        ).toBe('https://music.youtube.com/watch?v=customUrl');
+      });
+    });
+
+    describe('formatCleanTrackLinks', () => {
+      it('joins canonical URLs with newline and zero trailing whitespace', () => {
+        const readyTracks = [
+          { id: 'sp1', title: 'Song 1' },
+          { id: 'sp2', title: 'Song 2' },
+        ];
+        const formatted = formatCleanTrackLinks(readyTracks, 'spotify');
+        expect(formatted).toBe(
+          'https://open.spotify.com/track/sp1\nhttps://open.spotify.com/track/sp2'
+        );
+        expect(formatted.endsWith('\n')).toBe(false);
+      });
+
+      it('returns empty string when readyTracks is empty', () => {
+        expect(formatCleanTrackLinks([], 'spotify')).toBe('');
+        expect(formatCleanTrackLinks(null, 'spotify')).toBe('');
+      });
+    });
+
+    describe('copyCleanTrackLinks', () => {
+      it('writes formatted URLs to clipboard and announces confirmation notice', async () => {
+        const readyTracks = [
+          { id: 'sp1', title: 'Song 1' },
+          { id: 'sp2', title: 'Song 2' },
+        ];
+        const writeTextMock = vi.fn().mockResolvedValue(undefined);
+        const onNotice = vi.fn();
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+        global.fetch = fetchMock;
+
+        const result = await copyCleanTrackLinks({
+          readyTracks,
+          platform: 'spotify',
+          onNotice,
+          clipboard: { writeText: writeTextMock },
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.count).toBe(2);
+        expect(writeTextMock).toHaveBeenCalledWith(
+          'https://open.spotify.com/track/sp1\nhttps://open.spotify.com/track/sp2'
+        );
+        expect(onNotice).toHaveBeenCalledWith({
+          type: 'success',
+          message: 'Copied 2 Clean Track Links',
+        });
+        expect(fetchMock).toHaveBeenCalledWith(
+          '/api/telemetry/event',
+          expect.objectContaining({
+            method: 'POST',
+            body: expect.stringContaining('"action":"copy_clean_links"'),
+          })
+        );
+      });
+
+      it('handles empty ready tracks with caution notice', async () => {
+        const onNotice = vi.fn();
+        const writeTextMock = vi.fn();
+
+        const result = await copyCleanTrackLinks({
+          readyTracks: [],
+          platform: 'spotify',
+          onNotice,
+          clipboard: { writeText: writeTextMock },
+        });
+
+        expect(result.success).toBe(false);
+        expect(writeTextMock).not.toHaveBeenCalled();
+        expect(onNotice).toHaveBeenCalledWith({
+          type: 'caution',
+          message: 'No ready tracks available to copy.',
+        });
+      });
+
+      it('surfaces caution notice when clipboard writing fails', async () => {
+        const readyTracks = [{ id: 'sp1', title: 'Song 1' }];
+        const writeTextMock = vi.fn().mockRejectedValue(new Error('Permission denied'));
+        const onNotice = vi.fn();
+
+        const result = await copyCleanTrackLinks({
+          readyTracks,
+          platform: 'spotify',
+          onNotice,
+          clipboard: { writeText: writeTextMock },
+        });
+
+        expect(result.success).toBe(false);
+        expect(onNotice).toHaveBeenCalledWith({
+          type: 'caution',
+          message: 'Failed to copy links to clipboard.',
+        });
+      });
+    });
+
+    describe('exportCleanPlaylistFile', () => {
+      it('POSTs /api/export and triggers file download', async () => {
+        const readyTracks = [{ id: 'sp1', title: 'Song 1' }];
+        const mockBlob = new Blob(['sample,csv'], { type: 'text/csv' });
+        const fetchFn = vi.fn().mockResolvedValue({
+          ok: true,
+          blob: vi.fn().mockResolvedValue(mockBlob),
+          headers: new Headers({
+            'Content-Disposition': 'attachment; filename="CleanPlaylist.csv"',
+          }),
+        });
+        const onNotice = vi.fn();
+
+        const appendChildSpy = vi.spyOn(document.body, 'appendChild');
+        const removeChildSpy = vi.spyOn(document.body, 'removeChild');
+        globalThis.URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-url');
+        globalThis.URL.revokeObjectURL = vi.fn();
+
+        const result = await exportCleanPlaylistFile({
+          readyTracks,
+          format: 'csv',
+          playlistTitle: 'CleanPlaylist',
+          platform: 'spotify',
+          onNotice,
+          fetchFn,
+        });
+
+        expect(result.success).toBe(true);
+        expect(fetchFn).toHaveBeenCalledWith(
+          '/api/export',
+          expect.objectContaining({
+            method: 'POST',
+            body: JSON.stringify({
+              tracks: readyTracks,
+              format: 'csv',
+              playlist_title: 'CleanPlaylist',
+              platform: 'spotify',
+            }),
+          })
+        );
+        expect(globalThis.URL.createObjectURL).toHaveBeenCalledWith(mockBlob);
+        expect(appendChildSpy).toHaveBeenCalled();
+        expect(removeChildSpy).toHaveBeenCalled();
+        expect(onNotice).toHaveBeenCalledWith({
+          type: 'success',
+          message: 'Exported Clean Playlist successfully',
+        });
+      });
+
+      it('surfaces error notice when export API fails', async () => {
+        const fetchFn = vi.fn().mockResolvedValue({
+          ok: false,
+          status: 500,
+          json: vi.fn().mockResolvedValue({ detail: 'Export failed' }),
+        });
+        const onNotice = vi.fn();
+
+        const result = await exportCleanPlaylistFile({
+          readyTracks: [{ id: 'sp1' }],
+          format: 'm3u8',
+          onNotice,
+          fetchFn,
+        });
+
+        expect(result.success).toBe(false);
+        expect(onNotice).toHaveBeenCalledWith({
+          type: 'caution',
+          message: 'Export failed. Please try again.',
+        });
+      });
     });
   });
 });
