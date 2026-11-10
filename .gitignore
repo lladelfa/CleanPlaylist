@@ -63,3 +63,6 @@ backend/backend.log
 
 # Vercel
 .vercel
+
+# BMAD
+.bmad-viewer/

@@ -41,6 +41,7 @@ export default function ScanTab({
   setPreset,
   presetsData = null,
   isAuthenticated,
+  vipMode: propVipMode,
   onOpenAuth,
   activePlatform = "spotify",
   onSwitchPlatform,
@@ -52,6 +53,7 @@ export default function ScanTab({
   cleanCandidates: externalCleanCandidates,
   setCleanCandidates: externalSetCleanCandidates,
 }) {
+  const vipMode = propVipMode ?? Boolean(isAuthenticated);
   const [scanning, setScanning] = useState(false);
   const [filterMode, setFilterMode] = useState("all"); // 'all' | 'flagged' | 'clean'
   const [searchQuery, setSearchQuery] = useState("");
@@ -963,7 +965,7 @@ export default function ScanTab({
         onOpenPastePanel={handleOpenPastePanel}
         onLoadPlaylist={handleFetchPlaylist}
         onOpenLibraryPicker={() => setIsPickerModalOpen(true)}
-        vipMode={isAuthenticated}
+        vipMode={vipMode}
         isLoading={isPlaylistLoading}
       />
 
@@ -1056,23 +1058,25 @@ export default function ScanTab({
               </div>
 
               {activePlatform === "spotify" ? (
-                isAuthenticated ? (
-                  <button
-                    onClick={() => setIsSaveModalOpen(true)}
-                    className="px-4 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-sm font-medium rounded-xl flex items-center space-x-2 transition shadow"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>Save to Spotify...</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={onOpenAuth}
-                    className="px-4 py-1.5 bg-surface-elevated hover:bg-surface-highest text-text-primary text-sm font-medium rounded-xl flex items-center space-x-2 border border-border-subtle transition"
-                  >
-                    <Sparkles className="w-4 h-4 text-brand-tint" />
-                    <span>Login to Save</span>
-                  </button>
-                )
+                vipMode ? (
+                  isAuthenticated ? (
+                    <button
+                      onClick={() => setIsSaveModalOpen(true)}
+                      className="px-4 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-sm font-medium rounded-xl flex items-center space-x-2 transition shadow"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>Save to Spotify...</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={onOpenAuth}
+                      className="px-4 py-1.5 bg-surface-elevated hover:bg-surface-highest text-text-primary text-sm font-medium rounded-xl flex items-center space-x-2 border border-border-subtle transition"
+                    >
+                      <Sparkles className="w-4 h-4 text-brand-tint" />
+                      <span>Login to Save</span>
+                    </button>
+                  )
+                ) : null
               ) : (
                 <button
                   onClick={() => handleExportCSV()}
