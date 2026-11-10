@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 11-06-2026 10:39
-last_updated: 11-10-2026 11:12
+last_updated: 11-10-2026 12:28
 project: CleanPlaylist
 project_key: NOKEY
 tracking_system: file-system
@@ -67,7 +67,7 @@ development_status:
   epic-4: in-progress
   4-1-multi-source-input-pool-50-track-staged-quota-bar: review
   4-2-automated-stitch-pre-screening-pipeline-batch-clean-rule-enf: review
-  4-3-multi-source-merging-engine-ordering-deduplication-post-api: backlog
+  4-3-multi-source-merging-engine-ordering-deduplication-post-api: review
   4-4-stitched-clean-output-workbench-isolated-finish-line-handoff: backlog
   epic-4-retrospective: optional
 

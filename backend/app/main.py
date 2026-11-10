@@ -172,6 +172,7 @@ class StitchRequest(BaseModel):
     clean_mode: Optional[str] = "keep_all"
     manual_replacements: Optional[Dict[str, Dict[str, Any]]] = Field(default_factory=dict)
     manual_actions: Optional[Dict[str, str]] = Field(default_factory=dict)
+    platform: Optional[str] = "ytmusic"
 
 class ExportRequest(BaseModel):
     format: str
@@ -692,7 +693,8 @@ def stitch_playlists_endpoint(req: StitchRequest):
         deduplication_mode=req.deduplication_mode or "exact_id",
         clean_mode=req.clean_mode or "keep_all",
         manual_replacements=req.manual_replacements or {},
-        manual_actions=req.manual_actions or {}
+        manual_actions=req.manual_actions or {},
+        platform=req.platform or "ytmusic"
     )
     return result
 
