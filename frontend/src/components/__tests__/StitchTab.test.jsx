@@ -155,6 +155,19 @@ describe('Story 4.1: StitchTab Multi-Source Input Pool & 50-Track Quota Bar', ()
       expect(screen.getByText('Greatest Hits')).toBeInTheDocument();
     });
 
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/catalog/search',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'Greatest Hits',
+          platform: 'ytmusic',
+          limit: 10,
+        }),
+      })
+    );
+
     // Click to add album
     const addAlbumItemBtn = screen.getByRole('button', { name: /add album greatest hits/i });
     fireEvent.click(addAlbumItemBtn);
@@ -162,6 +175,18 @@ describe('Story 4.1: StitchTab Multi-Source Input Pool & 50-Track Quota Bar', ()
     await waitFor(() => {
       expect(screen.getByText(/combined track quota:\s*2\s*\/\s*50\s*staged/i)).toBeInTheDocument();
     });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/catalog/album',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          album_id: 'album-99',
+          platform: 'ytmusic',
+        }),
+      })
+    );
   });
 
   it('opens PasteTrackListPanel and stages pasted songs as a source card', async () => {
@@ -256,22 +281,43 @@ describe('Story 4.1: StitchTab Multi-Source Input Pool & 50-Track Quota Bar', ()
   });
 
   it('handles stitch execution, surfaces stats badges and track rows, and exports playlist', async () => {
-    // 1. Mock stitch response
-    global.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        tracks: [
-          { id: 'stitched-1', title: 'Stitched Clean Song', artist: 'Clean Artist', verification_status: 'clean_swapped' },
-          { id: 'stitched-2', title: 'Clean Jam', artist: 'Groove Band', verification_status: 'verified_clean' },
-        ],
-        stats: {
-          initial_total_tracks: 2,
-          duplicates_removed: 0,
-          tracks_replaced: 1,
-          tracks_dropped: 0,
-          final_track_count: 2,
-        },
-      }),
+    // Mock endpoints for pre-screening and stitch
+    global.fetch.mockImplementation(async (url) => {
+      if (url.includes('/api/scan/playlist')) {
+        return {
+          ok: true,
+          json: async () => ({
+            tracks: mockWorkingList.map((t) => ({ ...t, verification_status: 'verified_clean', is_flagged: false })),
+            lyrics_by_id: {},
+          }),
+        };
+      }
+      if (url.includes('/api/stitch')) {
+        return {
+          ok: true,
+          json: async () => ({
+            tracks: [
+              { id: 'stitched-1', title: 'Stitched Clean Song', artist: 'Clean Artist', verification_status: 'clean_swapped' },
+              { id: 'stitched-2', title: 'Clean Jam', artist: 'Groove Band', verification_status: 'verified_clean' },
+            ],
+            stats: {
+              initial_total_tracks: 2,
+              duplicates_removed: 0,
+              tracks_replaced: 1,
+              tracks_dropped: 0,
+              final_track_count: 2,
+            },
+          }),
+        };
+      }
+      if (url.includes('/api/export')) {
+        const mockBlob = new Blob(['sample-data'], { type: 'text/plain' });
+        return {
+          ok: true,
+          blob: async () => mockBlob,
+        };
+      }
+      return { ok: false, status: 404 };
     });
 
     render(
@@ -320,6 +366,184 @@ describe('Story 4.1: StitchTab Multi-Source Input Pool & 50-Track Quota Bar', ()
           body: expect.stringContaining('"format":"m3u"'),
         })
       );
+    });
+  });
+
+  describe('Story 4.2: Automated Stitch Pre-Screening Pipeline & Batch Clean Enforcement', () => {
+    it('executes pre-screening pipeline on stitch: resolves pasted lines, scans uncached tracks, finds clean replacements, and passes manual_replacements to /api/stitch', async () => {
+      global.fetch.mockImplementation(async (url, options) => {
+        if (url.includes('/api/catalog/resolve')) {
+          return {
+            ok: true,
+            json: async () => ({
+              resolved: [
+                { id: 'res-song-1', title: 'Song One', artist: 'Artist A', duration_seconds: 180 },
+              ],
+              unresolved: [
+                { line: 'Unknown Unresolvable Song', reason: 'not_found' },
+              ],
+            }),
+          };
+        }
+        if (url.includes('/api/scan/playlist')) {
+          const body = JSON.parse(options.body);
+          return {
+            ok: true,
+            json: async () => ({
+              tracks: body.tracks.map((t) => ({
+                ...t,
+                verification_status: t.id === 'track-2' ? 'flagged_explicit' : 'verified_clean',
+                is_flagged: t.id === 'track-2',
+                reasons: t.id === 'track-2' ? ['Explicit lyrics'] : [],
+              })),
+              lyrics_by_id: { 'track-2': 'explicit lyrics text' },
+              summary: {},
+            }),
+          };
+        }
+        if (url.includes('/api/replacements/find-batch')) {
+          return {
+            ok: true,
+            json: async () => ({
+              results: {
+                'track-2': { id: 'clean-track-2', title: 'Song Two (Clean Edit)', artist: 'Artist B' },
+              },
+              lyrics_by_id: { 'clean-track-2': 'clean lyrics' },
+            }),
+          };
+        }
+        if (url.includes('/api/stitch')) {
+          const body = JSON.parse(options.body);
+          return {
+            ok: true,
+            json: async () => ({
+              tracks: [
+                { id: 'clean-track-2', title: 'Song Two (Clean Edit)', artist: 'Artist B', verification_status: 'clean_swapped' },
+                { id: 'res-song-1', title: 'Song One', artist: 'Artist A', verification_status: 'verified_clean' },
+              ],
+              stats: {
+                initial_total_tracks: 2,
+                duplicates_removed: 0,
+                tracks_replaced: 1,
+                tracks_dropped: 0,
+                final_track_count: 2,
+              },
+              echoed_manual_replacements: body.manual_replacements,
+            }),
+          };
+        }
+        return { ok: false, status: 404 };
+      });
+
+      render(
+        <StitchTab
+          initialPlaylist={{
+            id: 'paste-src',
+            title: 'Pasted Requests',
+            type: 'paste',
+            rawLines: ['Song One', 'Unknown Unresolvable Song'],
+            tracks: [
+              { id: 'p-1', title: 'Song One' },
+              { id: 'p-2', title: 'Unknown Unresolvable Song' },
+            ],
+          }}
+          workingList={mockWorkingList}
+          lyricsByTrackId={mockLyricsByTrackId}
+          activePlatform="ytmusic"
+        />
+      );
+
+      // Add working list source
+      fireEvent.click(screen.getByRole('button', { name: /add current working list/i }));
+
+      // Click Stitch & Clean button
+      const stitchBtn = screen.getByRole('button', { name: /stitch/i });
+      fireEvent.click(stitchBtn);
+
+      // Wait for pre-screening and stitch to complete
+      await waitFor(() => {
+        expect(screen.getByRole('region', { name: /stitched clean queue/i })).toBeInTheDocument();
+      });
+
+      // Verify unresolved lines banner surfaced
+      expect(screen.getByText(/could not be resolved/i)).toBeInTheDocument();
+      expect(screen.getByText(/Unknown Unresolvable Song/i)).toBeInTheDocument();
+
+      // Verify stitch request payload sent manual_replacements
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/stitch',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('"clean-track-2"'),
+        })
+      );
+    });
+
+    it('pauses cleanly and surfaces retry banner with accessible retry button when HTTP 429 rate limit occurs', async () => {
+      let scanCallCount = 0;
+      global.fetch.mockImplementation(async (url) => {
+        if (url.includes('/api/scan/playlist')) {
+          scanCallCount++;
+          if (scanCallCount === 1) {
+            return {
+              ok: false,
+              status: 429,
+              json: async () => ({ detail: 'Rate limit exceeded: too many scan requests' }),
+            };
+          }
+          return {
+            ok: true,
+            json: async () => ({
+              tracks: [
+                { id: 'track-1', verification_status: 'verified_clean', is_flagged: false },
+              ],
+              lyrics_by_id: {},
+            }),
+          };
+        }
+        if (url.includes('/api/stitch')) {
+          return {
+            ok: true,
+            json: async () => ({
+              tracks: [{ id: 'track-1', title: 'Song One', artist: 'Artist A' }],
+              stats: { final_track_count: 1 },
+            }),
+          };
+        }
+        return { ok: false, status: 404 };
+      });
+
+      render(
+        <StitchTab
+          workingList={[{ id: 'track-1', title: 'Song One', artist: 'Artist A' }]}
+          lyricsByTrackId={{}}
+          activePlatform="ytmusic"
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /add current working list/i }));
+
+      const stitchBtn = screen.getByRole('button', { name: /stitch/i });
+      fireEvent.click(stitchBtn);
+
+      // Expect rate limit retry banner to appear
+      await waitFor(() => {
+        expect(screen.getByText(/rate limit/i)).toBeInTheDocument();
+      });
+
+      const retryBtn = screen.getByRole('button', { name: /retry pre-screening/i });
+      expect(retryBtn).toBeInTheDocument();
+
+      // Ensure staged pool was not cleared
+      expect(screen.getByRole('button', { name: /remove source current working list/i })).toBeInTheDocument();
+
+      // Click retry button
+      fireEvent.click(retryBtn);
+
+      // Successfully completes stitch on retry
+      await waitFor(() => {
+        expect(screen.getByRole('region', { name: /stitched clean queue/i })).toBeInTheDocument();
+      });
     });
   });
 });

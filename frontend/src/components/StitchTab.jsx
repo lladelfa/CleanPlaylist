@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Shuffle, Plus, Trash2, Download,
   Sliders, Music, Disc, ListMusic, Library, RefreshCw, Sparkles,
@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import NoticeBanner from './NoticeBanner';
 import PasteTrackListPanel from './PasteTrackListPanel';
+import { runStitchPreScreeningPipeline } from '../utils/screeningPipeline';
 
 export default function StitchTab({
   initialPlaylist,
@@ -14,20 +15,35 @@ export default function StitchTab({
   workingList = [],
   lyricsByTrackId = {},
   vipMode = false,
+  preset = 'moderate',
+  customBlocklist = [],
 }) {
+  const abortControllerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
   const [playlistPool, setPlaylistPool] = useState(
     initialPlaylist
       ? [
           {
             ...initialPlaylist,
             tracks: initialScannedTracks || initialPlaylist.tracks || [],
-            type: 'playlist',
+            type: initialPlaylist.type || 'playlist',
           },
         ]
       : []
   );
 
-  const [_stitchLyricsCache, setStitchLyricsCache] = useState({});
+  const [stitchLyricsCache, setStitchLyricsCache] = useState({});
+  const [screeningProgressText, setScreeningProgressText] = useState(null);
+  const [unresolvedLinesNotice, setUnresolvedLinesNotice] = useState([]);
+  const [rateLimitError, setRateLimitError] = useState(null);
   const [newUrl, setNewUrl] = useState('');
   const [loadingNew, setLoadingNew] = useState(false);
 
@@ -60,7 +76,7 @@ export default function StitchTab({
         {
           ...initialPlaylist,
           tracks: initialScannedTracks || initialPlaylist.tracks || [],
-          type: 'playlist',
+          type: initialPlaylist.type || 'playlist',
         },
       ];
     });
@@ -124,12 +140,19 @@ export default function StitchTab({
     setIsSearchingAlbums(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/catalog/search?q=${encodeURIComponent(trimmed)}&type=album&platform=${
-          activePlatform || 'ytmusic'
-        }`
-      );
-      if (!res.ok) throw new Error('Failed to search albums');
+      const res = await fetch('/api/catalog/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: trimmed,
+          platform: activePlatform || 'ytmusic',
+          limit: 10,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to search albums');
+      }
       const data = await res.json();
       setAlbumResults(data.albums || []);
     } catch (err) {
@@ -143,12 +166,18 @@ export default function StitchTab({
     setLoadingAlbumId(album.id);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/catalog/album?browse_id=${encodeURIComponent(album.id)}&platform=${
-          activePlatform || 'ytmusic'
-        }`
-      );
-      if (!res.ok) throw new Error('Failed to load album tracks');
+      const res = await fetch('/api/catalog/album', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          album_id: album.id,
+          platform: activePlatform || 'ytmusic',
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to load album tracks');
+      }
       const data = await res.json();
       setPlaylistPool((prev) => [
         ...prev,
@@ -226,35 +255,110 @@ export default function StitchTab({
     setPlaylistPool((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  // Stitch Execution
+  // Stitch Execution with Automated Pre-Screening Pipeline
   const handleStitch = async () => {
     if (playlistPool.length === 0) {
       setError('Please add at least one playlist to stitch.');
       return;
     }
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     setStitching(true);
     setError(null);
+    setRateLimitError(null);
+    setScreeningProgressText('Starting pre-screening…');
+
     try {
+      // 1. Run Automated Stitch Pre-Screening Pipeline
+      const preScreenResult = await runStitchPreScreeningPipeline({
+        playlistPool,
+        cleanMode,
+        platform: activePlatform || 'ytmusic',
+        preset,
+        customBlocklist,
+        cachedLyrics: stitchLyricsCache,
+        signal,
+        onProgress: ({ announcement }) => {
+          setScreeningProgressText(announcement);
+        },
+        onError: (err) => {
+          console.warn('[StitchTab] Pre-screening warning:', err);
+        },
+      });
+
+      // 2. Surface any unresolved lines without blocking valid tracks
+      if (preScreenResult.unresolvedLines && preScreenResult.unresolvedLines.length > 0) {
+        setUnresolvedLinesNotice(preScreenResult.unresolvedLines);
+      } else {
+        setUnresolvedLinesNotice([]);
+      }
+
+      // 3. Handle rate limit pause cleanly
+      if (
+        preScreenResult.status === 'rate_limited' ||
+        preScreenResult.error?.isRateLimit ||
+        preScreenResult.error?.status === 429
+      ) {
+        setRateLimitError(preScreenResult.error || new Error('Rate limit encountered'));
+        if (preScreenResult.sources) {
+          setPlaylistPool(preScreenResult.sources);
+        }
+        if (preScreenResult.lyricsById) {
+          setStitchLyricsCache(preScreenResult.lyricsById);
+        }
+        return;
+      }
+
+      if (preScreenResult.status === 'error' && preScreenResult.error) {
+        throw preScreenResult.error;
+      }
+
+      // 4. Update pool with resolved tracks & screened metadata, and save lyrics
+      if (preScreenResult.sources) {
+        setPlaylistPool(preScreenResult.sources);
+      }
+      if (preScreenResult.lyricsById) {
+        setStitchLyricsCache(preScreenResult.lyricsById);
+      }
+
+      setScreeningProgressText('Merging playlists…');
+
+      // 5. Invoke backend stitch engine with manual_replacements
       const res = await fetch('/api/stitch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          playlists: playlistPool,
+          playlists: preScreenResult.sources || playlistPool,
           order_mode: orderMode,
           deduplication_mode: dedupMode,
           clean_mode: cleanMode,
+          manual_replacements: preScreenResult.manualReplacements || {},
           platform: activePlatform || 'ytmusic',
         }),
       });
-      if (!res.ok) throw new Error('Stitching failed');
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Stitching failed');
+      }
+
       const data = await res.json();
       setStitchedResult(data);
     } catch (err) {
       setError(err.message);
     } finally {
       setStitching(false);
+      setScreeningProgressText(null);
     }
+  };
+
+  const handleRetryPreScreening = () => {
+    handleStitch();
   };
 
   // Export
@@ -586,6 +690,26 @@ export default function StitchTab({
             {error}
           </p>
         )}
+
+        {unresolvedLinesNotice.length > 0 && (
+          <NoticeBanner
+            type="caution"
+            message={`${unresolvedLinesNotice.length} pasted song request(s) could not be resolved and were omitted: ${unresolvedLinesNotice.map((u) => u.line).join(', ')}`}
+            onDismiss={() => setUnresolvedLinesNotice([])}
+            className="mt-2"
+          />
+        )}
+
+        {rateLimitError && (
+          <NoticeBanner
+            type="warning"
+            message="Rate limit encountered during pre-screening. Evaluated progress has been saved. Please wait a moment and try again."
+            actionLabel="Retry Pre-Screening"
+            onAction={handleRetryPreScreening}
+            onDismiss={() => setRateLimitError(null)}
+            className="mt-2"
+          />
+        )}
       </section>
 
       {/* 2. Merge & Stitch Configuration */}
@@ -593,6 +717,10 @@ export default function StitchTab({
         aria-label="Merge & Filter Settings"
         className="bg-surface-card border border-border-subtle rounded-2xl p-5 shadow-xl space-y-4"
       >
+        <div className="sr-only" aria-live="polite">
+          {screeningProgressText}
+        </div>
+
         <div className="flex items-center space-x-2 border-b border-border-subtle pb-3">
           <Sliders className="w-4 h-4 text-brand-primary" aria-hidden="true" />
           <h3 className="font-semibold text-sm text-text-primary">Merge & Filter Settings</h3>
@@ -659,12 +787,13 @@ export default function StitchTab({
 
           <button
             type="button"
+            aria-label={stitching ? (screeningProgressText || 'Stitching in progress') : 'Stitch Playlists & Clean'}
             onClick={handleStitch}
             disabled={stitching || playlistPool.length === 0}
             className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-brand-primary hover:bg-brand-hover text-white font-semibold text-xs rounded-xl shadow-lg transition disabled:opacity-50"
           >
             {stitching ? <RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Sparkles className="w-4 h-4" aria-hidden="true" />}
-            <span>{stitching ? 'Stitching...' : 'Stitch Playlists'}</span>
+            <span>{stitching ? (screeningProgressText || 'Stitching...') : 'Stitch Playlists & Clean'}</span>
           </button>
         </div>
       </section>
@@ -751,7 +880,7 @@ export default function StitchTab({
                       <p className="text-[11px] text-text-muted truncate">{track.artist}</p>
                     </div>
                   </div>
-                  {track.verification_status === 'clean_swapped' && (
+                  {(track.verification_status === 'clean_swapped' || track.replaced_original) && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-status-clean-bg text-status-clean border border-status-clean-border shrink-0">
                       Clean Swapped
                     </span>

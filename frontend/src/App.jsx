@@ -207,6 +207,8 @@ export default function App() {
             workingList={workingList}
             lyricsByTrackId={lyricsByTrackId}
             vipMode={isAuthenticated}
+            preset={preset}
+            customBlocklist={customBlocklist}
           />
         )}
       </main>
