@@ -68,7 +68,7 @@ development_status:
   4-1-multi-source-input-pool-50-track-staged-quota-bar: review
   4-2-automated-stitch-pre-screening-pipeline-batch-clean-rule-enf: review
   4-3-multi-source-merging-engine-ordering-deduplication-post-api: review
-  4-4-stitched-clean-output-workbench-isolated-finish-line-handoff: backlog
+  4-4-stitched-clean-output-workbench-isolated-finish-line-handoff: review
   epic-4-retrospective: optional
 
   epic-5: in-progress

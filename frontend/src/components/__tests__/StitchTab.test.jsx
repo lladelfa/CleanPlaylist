@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import StitchTab from '../StitchTab';
 
@@ -544,6 +544,232 @@ describe('Story 4.1: StitchTab Multi-Source Input Pool & 50-Track Quota Bar', ()
       await waitFor(() => {
         expect(screen.getByRole('region', { name: /stitched clean queue/i })).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Story 4.4: Stitched Clean Output Workbench & Isolated Finish Line Handoff', () => {
+    const mockStitchedResponse = {
+      tracks: [
+        {
+          id: 'track-1',
+          title: 'Clean Hit One',
+          artist: 'Pop Star',
+          duration: '3:20',
+          duration_seconds: 200,
+          verification_status: 'verified_clean',
+          source_playlist_title: 'Summer Hits',
+          video_url: 'https://music.youtube.com/watch?v=track-1',
+        },
+        {
+          id: 'track-2',
+          title: 'Clean Hit Two (Clean Edit)',
+          artist: 'Rapper A',
+          duration: '2:45',
+          duration_seconds: 165,
+          verification_status: 'clean_swapped',
+          source_playlist_title: 'Pasted Song Requests',
+          video_url: 'https://music.youtube.com/watch?v=track-2',
+          replaced_original: { id: 'orig-2', title: 'Explicit Hit Two', artist: 'Rapper A' },
+        },
+      ],
+      stats: {
+        total_input_tracks: 3,
+        initial_total_tracks: 3,
+        duplicates_removed: 0,
+        tracks_replaced: 1,
+        tracks_dropped: 1,
+        final_track_count: 2,
+      },
+    };
+
+    const setupFetchMock = (customStitchResponse = mockStitchedResponse) => {
+      global.fetch.mockImplementation(async (url) => {
+        if (url.includes('/api/scan/playlist')) {
+          return {
+            ok: true,
+            json: async () => ({
+              tracks: [
+                { id: 'track-1', title: 'Clean Hit One', artist: 'Pop Star', verification_status: 'verified_clean' },
+              ],
+              lyrics_by_id: {},
+              summary: {},
+            }),
+          };
+        }
+        if (url.includes('/api/catalog/resolve')) {
+          return {
+            ok: true,
+            json: async () => ({
+              resolved: [{ id: 'track-1', title: 'Song One', artist: 'Artist A', verification_status: 'verified_clean' }],
+              unresolved: [{ line: 'Typo Song That Does Not Exist - Unknown Artist', raw: '...' }],
+            }),
+          };
+        }
+        if (url.includes('/api/replacements/find-batch')) {
+          return {
+            ok: true,
+            json: async () => ({ results: {}, lyrics_by_id: {} }),
+          };
+        }
+        if (url.includes('/api/stitch')) {
+          return {
+            ok: true,
+            json: async () => customStitchResponse,
+          };
+        }
+        return { ok: true, json: async () => ({}) };
+      });
+    };
+
+    it('renders summary pills displaying all 5 metrics', async () => {
+      setupFetchMock();
+
+      render(
+        <StitchTab
+          initialPlaylist={{
+            id: 'p1',
+            title: 'Summer Hits',
+            tracks: [{ id: 'track-1', title: 'Clean Hit One', artist: 'Pop Star', verification_status: 'verified_clean' }],
+          }}
+          workingList={[]}
+          activePlatform="ytmusic"
+        />
+      );
+
+      const stitchBtn = screen.getByRole('button', { name: /stitch playlists & clean/i });
+      fireEvent.click(stitchBtn);
+
+      await waitFor(() => {
+        expect(screen.getByRole('region', { name: /stitched clean queue/i })).toBeInTheDocument();
+      });
+
+      const outputRegion = screen.getByRole('region', { name: /stitched clean queue/i });
+
+      // 5 summary pills
+      expect(within(outputRegion).getByText(/total input/i)).toBeInTheDocument();
+      expect(within(outputRegion).getByText(/duplicates removed/i)).toBeInTheDocument();
+      expect(within(outputRegion).getByText(/replaced clean/i)).toBeInTheDocument();
+      expect(within(outputRegion).getByText(/dropped flagged/i)).toBeInTheDocument();
+      expect(within(outputRegion).getByText(/final track count/i)).toBeInTheDocument();
+      expect(within(outputRegion).getByText('3')).toBeInTheDocument(); // total input
+      expect(within(outputRegion).getAllByText('2').length).toBeGreaterThan(0); // final tracks
+    });
+
+    it('displays dismissible amber NoticeBanner listing skipped lines when pasted song lines had typos', async () => {
+      setupFetchMock();
+
+      render(
+        <StitchTab
+          workingList={[]}
+          activePlatform="ytmusic"
+        />
+      );
+
+      // Open paste panel and add valid + typo lines
+      fireEvent.click(screen.getByRole('button', { name: /paste track list/i }));
+      const textarea = screen.getByRole('textbox', { name: /pasted track list input/i });
+      fireEvent.change(textarea, { target: { value: 'Artist A - Song One\nTypo Song That Does Not Exist - Unknown Artist' } });
+      fireEvent.click(screen.getByRole('button', { name: /resolve & add/i }));
+
+      // Click stitch
+      const stitchBtn = screen.getByRole('button', { name: /stitch playlists & clean/i });
+      fireEvent.click(stitchBtn);
+
+      await waitFor(() => {
+        expect(screen.getByRole('region', { name: /stitched clean queue/i })).toBeInTheDocument();
+      });
+
+      // NoticeBanner with skipped lines should be visible in the output area
+      expect(screen.getByText(/could not be resolved and were omitted/i)).toBeInTheDocument();
+      expect(screen.getByText(/Typo Song That Does Not Exist/i)).toBeInTheDocument();
+    });
+
+    it('renders stitched output table rows with origin badge, title, artist, duration, VerificationStatusBadge, and link', async () => {
+      setupFetchMock();
+
+      render(
+        <StitchTab
+          initialPlaylist={{
+            id: 'p1',
+            title: 'Summer Hits',
+            tracks: [{ id: 'track-1', title: 'Clean Hit One', artist: 'Pop Star', verification_status: 'verified_clean' }],
+          }}
+          workingList={[]}
+          activePlatform="ytmusic"
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /stitch playlists & clean/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('region', { name: /stitched clean queue/i })).toBeInTheDocument();
+      });
+
+      const outputRegion = screen.getByRole('region', { name: /stitched clean queue/i });
+
+      // Origin badges
+      expect(within(outputRegion).getByText('Summer Hits')).toBeInTheDocument();
+      expect(within(outputRegion).getByText('Pasted Song Requests')).toBeInTheDocument();
+
+      // Titles & Artists
+      expect(within(outputRegion).getByText('Clean Hit One')).toBeInTheDocument();
+      expect(within(outputRegion).getByText('Pop Star')).toBeInTheDocument();
+      expect(within(outputRegion).getByText('Clean Hit Two (Clean Edit)')).toBeInTheDocument();
+      expect(within(outputRegion).getByText('Rapper A')).toBeInTheDocument();
+
+      // Durations
+      expect(within(outputRegion).getByText('3:20')).toBeInTheDocument();
+      expect(within(outputRegion).getByText('2:45')).toBeInTheDocument();
+
+      // VerificationStatusBadges
+      expect(within(outputRegion).getByText('Verified Clean')).toBeInTheDocument();
+      expect(within(outputRegion).getByText('Clean Swapped')).toBeInTheDocument();
+
+      // External links
+      const link1 = within(outputRegion).getByRole('link', { name: /open clean hit one/i });
+      expect(link1).toHaveAttribute('href', expect.stringContaining('youtube.com'));
+    });
+
+    it('renders FinishLineBar operating strictly on stitchedResult.tracks with Play Clean Queue as primary action without modifying workingList', async () => {
+      const originalWorkingList = [
+        { id: 'working-1', title: 'Original Staged Song', artist: 'Artist X', verification_status: 'verified_clean' },
+      ];
+
+      setupFetchMock();
+
+      render(
+        <StitchTab
+          initialPlaylist={{
+            id: 'p1',
+            title: 'Summer Hits',
+            tracks: [{ id: 'track-1', title: 'Clean Hit One', artist: 'Pop Star', verification_status: 'verified_clean' }],
+          }}
+          workingList={originalWorkingList}
+          activePlatform="ytmusic"
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /stitch playlists & clean/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('region', { name: /stitched clean queue/i })).toBeInTheDocument();
+      });
+
+      // FinishLineBar should render 2 ready tracks (from stitchedResult.tracks, NOT 1 from workingList)
+      expect(screen.getByText(/2 tracks ready/i)).toBeInTheDocument();
+
+      // Primary action should be Play Clean Queue
+      const playButtons = screen.getAllByRole('button', { name: /play clean queue/i });
+      expect(playButtons.length).toBeGreaterThan(0);
+      const desktopPlayBtn = playButtons.find((btn) => btn.className.includes('bg-brand-primary'));
+      expect(desktopPlayBtn).toBeDefined();
+
+      // Secondary action Copy Clean Track Links should be present
+      expect(screen.getAllByRole('button', { name: /copy clean track links/i }).length).toBeGreaterThan(0);
+
+      // Verify original workingList was untouched (length still 1)
+      expect(originalWorkingList.length).toBe(1);
+      expect(originalWorkingList[0].id).toBe('working-1');
     });
   });
 });

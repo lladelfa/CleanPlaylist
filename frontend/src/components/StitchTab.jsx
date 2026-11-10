@@ -2,11 +2,26 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Shuffle, Plus, Trash2, Download,
   Sliders, Music, Disc, ListMusic, Library, RefreshCw, Sparkles,
-  Search, X, FileSpreadsheet
+  Search, X, FileSpreadsheet, ExternalLink
 } from 'lucide-react';
 import NoticeBanner from './NoticeBanner';
 import PasteTrackListPanel from './PasteTrackListPanel';
+import VerificationStatusBadge from './VerificationStatusBadge';
+import FinishLineBar from './FinishLineBar';
 import { runStitchPreScreeningPipeline } from '../utils/screeningPipeline';
+import { getTrackCanonicalUrl } from '../utils/finishLine';
+
+function formatDuration(track) {
+  if (typeof track?.duration === 'string' && track.duration.includes(':')) {
+    return track.duration;
+  }
+  if (typeof track?.duration_seconds === 'number' && track.duration_seconds > 0) {
+    const mins = Math.floor(track.duration_seconds / 60);
+    const secs = String(Math.floor(track.duration_seconds % 60)).padStart(2, '0');
+    return `${mins}:${secs}`;
+  }
+  return typeof track?.duration === 'string' ? track.duration : '0:00';
+}
 
 export default function StitchTab({
   initialPlaylist,
@@ -17,6 +32,7 @@ export default function StitchTab({
   vipMode = false,
   preset = 'moderate',
   customBlocklist = [],
+  onNotice,
 }) {
   const abortControllerRef = useRef(null);
 
@@ -395,7 +411,7 @@ export default function StitchTab({
   };
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${stitchedResult?.tracks?.length > 0 ? 'pb-36 md:pb-24' : ''}`}>
       {/* 1. Multi-Source Input Pool Card */}
       <section
         aria-label="Multi-Source Input Pool"
@@ -691,7 +707,7 @@ export default function StitchTab({
           </p>
         )}
 
-        {unresolvedLinesNotice.length > 0 && (
+        {!stitchedResult && unresolvedLinesNotice.length > 0 && (
           <NoticeBanner
             type="caution"
             message={`${unresolvedLinesNotice.length} pasted song request(s) could not be resolved and were omitted: ${unresolvedLinesNotice.map((u) => u.line).join(', ')}`}
@@ -836,13 +852,13 @@ export default function StitchTab({
             </div>
           </div>
 
-          {/* Merge Statistics Summary Cards */}
+          {/* Merge Statistics 5-Pill Summary */}
           {stitchedResult.stats && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-2 border-b border-border-subtle">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 py-3 border-b border-border-subtle">
               <div className="bg-surface-elevated border border-border-subtle p-3 rounded-xl text-center">
                 <p className="text-[11px] text-text-muted">Total Input</p>
                 <p className="text-lg font-bold text-text-primary">
-                  {stitchedResult.stats.initial_total_tracks ?? stitchedResult.tracks?.length ?? 0}
+                  {stitchedResult.stats.initial_total_tracks ?? stitchedResult.stats.total_input_tracks ?? stitchedResult.tracks?.length ?? 0}
                 </p>
               </div>
               <div className="bg-surface-elevated border border-border-subtle p-3 rounded-xl text-center">
@@ -863,33 +879,98 @@ export default function StitchTab({
                   {stitchedResult.stats.tracks_dropped ?? 0}
                 </p>
               </div>
+              <div className="bg-surface-elevated border border-border-subtle p-3 rounded-xl text-center col-span-2 sm:col-span-1">
+                <p className="text-[11px] text-text-muted">Final Track Count</p>
+                <p className="text-lg font-bold text-brand-primary">
+                  {stitchedResult.stats.final_track_count ?? stitchedResult.tracks?.length ?? 0}
+                </p>
+              </div>
             </div>
           )}
 
-          {/* Stitched Output Track Preview */}
+          {/* Skipped / Unresolved Lines NoticeBanner */}
+          {unresolvedLinesNotice.length > 0 && (
+            <NoticeBanner
+              type="warning"
+              message={`${unresolvedLinesNotice.length} pasted song request(s) could not be resolved and were omitted: ${unresolvedLinesNotice.map((u) => u.line || u).join(', ')}`}
+              onDismiss={() => setUnresolvedLinesNotice([])}
+              className="mt-2"
+            />
+          )}
+
+          {/* Stitched Output Track Table */}
           {stitchedResult.tracks && stitchedResult.tracks.length > 0 && (
-            <div className="max-h-72 overflow-y-auto space-y-1.5 divide-y divide-border-subtle/50">
-              {stitchedResult.tracks.map((track, i) => (
-                <div key={track.id || i} className="flex items-center justify-between py-2 text-xs">
-                  <div className="flex items-center space-x-2.5 min-w-0">
-                    <span className="text-[11px] font-mono text-text-muted w-6 text-right shrink-0">
-                      {i + 1}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="font-medium text-text-primary truncate">{track.title}</p>
-                      <p className="text-[11px] text-text-muted truncate">{track.artist}</p>
+            <div className="divide-y divide-border-subtle border border-border-subtle/50 rounded-xl overflow-hidden bg-surface-inset/30">
+              <div className="max-h-96 overflow-y-auto divide-y divide-border-subtle/40">
+                {stitchedResult.tracks.map((track, i) => {
+                  const trackUrl = getTrackCanonicalUrl(track, activePlatform);
+                  return (
+                    <div
+                      key={`${track.id || 'track'}-${i}`}
+                      className="flex items-center justify-between gap-3 p-3 hover:bg-surface-elevated/40 transition-colors text-xs"
+                    >
+                      {/* Left: Index & Origin & Title/Artist */}
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <span className="text-[11px] font-mono text-text-muted w-6 text-right shrink-0">
+                          {i + 1}
+                        </span>
+
+                        {/* Origin Badge */}
+                        {track.source_playlist_title && (
+                          <span
+                            className="text-[10px] px-2 py-0.5 rounded-md bg-surface-elevated text-text-secondary border border-border-subtle shrink-0 truncate max-w-[140px]"
+                            title={track.source_playlist_title}
+                          >
+                            {track.source_playlist_title}
+                          </span>
+                        )}
+
+                        {/* Title & Artist */}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-text-primary truncate">{track.title}</p>
+                          <p className="text-[11px] text-text-muted truncate">{track.artist}</p>
+                        </div>
+                      </div>
+
+                      {/* Right: Duration, VerificationStatusBadge, Link */}
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <span className="text-[11px] font-mono text-text-muted">
+                          {formatDuration(track)}
+                        </span>
+
+                        <VerificationStatusBadge track={track} />
+
+                        {trackUrl && (
+                          <a
+                            href={trackUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Open ${track.title} on ${activePlatform === 'spotify' ? 'Spotify' : 'YouTube Music'}`}
+                            className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                          </a>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  {(track.verification_status === 'clean_swapped' || track.replaced_original) && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-status-clean-bg text-status-clean border border-status-clean-border shrink-0">
-                      Clean Swapped
-                    </span>
-                  )}
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
           )}
         </section>
+      )}
+
+      {/* 4. Isolated Finish Line Bar for Stitched Result */}
+      {stitchedResult?.tracks?.length > 0 && (
+        <FinishLineBar
+          tracks={stitchedResult.tracks}
+          activePlatform={activePlatform}
+          playlistTitle={playlistTitle}
+          primaryAction="play"
+          onNotice={onNotice}
+          className="mt-6"
+        />
       )}
     </div>
   );

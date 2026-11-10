@@ -226,5 +226,47 @@ describe('FinishLineBar Component', () => {
       fireEvent.keyDown(document, { key: 'Escape' });
       expect(screen.queryByRole('button', { name: /export as csv/i })).not.toBeInTheDocument();
     });
+
+    it('renders Play Clean Queue as primary CTA on desktop when primaryAction="play"', () => {
+      render(
+        <FinishLineBar
+          tracks={mockTracks}
+          activePlatform="ytmusic"
+          primaryAction="play"
+          onNotice={vi.fn()}
+        />
+      );
+
+      // Desktop primary CTA should have Play Clean Queue with brand-primary styling
+      const desktopPlayBtn = screen.getByTestId('desktop-primary-play-btn');
+      expect(desktopPlayBtn).toBeInTheDocument();
+      expect(desktopPlayBtn).toHaveTextContent(/play clean queue/i);
+      expect(desktopPlayBtn.className).toContain('bg-brand-primary');
+
+      // Copy Clean Track Links should be present as a secondary action
+      const copyButtons = screen.getAllByRole('button', { name: /copy clean track links/i });
+      expect(copyButtons.length).toBeGreaterThan(0);
+    });
+
+    it('defaults to Copy Clean Track Links as primary CTA on desktop when primaryAction is omitted or set to copy', () => {
+      render(
+        <FinishLineBar
+          tracks={mockTracks}
+          activePlatform="spotify"
+          onNotice={vi.fn()}
+        />
+      );
+
+      // Desktop primary CTA should NOT have desktop-primary-play-btn
+      expect(screen.queryByTestId('desktop-primary-play-btn')).not.toBeInTheDocument();
+
+      // Primary desktop button should be Copy Clean Track Links with brand-primary
+      const copyButtons = screen.getAllByRole('button', { name: /copy clean track links/i });
+      const primaryCopyBtn = copyButtons.find((btn) => btn.className.includes('bg-brand-primary'));
+      expect(primaryCopyBtn).toBeDefined();
+
+      // Desktop paste hint should be visible
+      expect(screen.getByText(/ctrl\+v \/ cmd\+v in spotify desktop/i)).toBeInTheDocument();
+    });
   });
 });
