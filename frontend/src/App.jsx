@@ -204,6 +204,9 @@ export default function App() {
             initialPlaylist={playlist}
             initialScannedTracks={scannedTracks}
             activePlatform={activePlatform}
+            workingList={workingList}
+            lyricsByTrackId={lyricsByTrackId}
+            vipMode={isAuthenticated}
           />
         )}
       </main>
