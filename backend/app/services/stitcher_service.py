@@ -8,13 +8,27 @@ from typing import Any, Dict, List, Optional, Set
 
 class StitcherService:
     @staticmethod
-    def normalize_title_artist(title: str, artist: str) -> str:
+    def normalize_title_artist(title: Optional[str], artist: Optional[str]) -> str:
         """Create a simplified key for fuzzy deduplication."""
         # Strip featured artists, punctuation, and casing
-        t = re.sub(r"\(.*?\)|\[.*?\]", "", title.lower())
+        t = re.sub(r"\(.*?\)|\[.*?\]", "", (title or "").lower())
         t = re.sub(r"[^\w\s]", "", t).strip()
-        a = re.sub(r"[^\w\s]", "", artist.lower()).strip()
+        a = re.sub(r"[^\w\s]", "", (artist or "").lower()).strip()
         return f"{t}___{a}"
+
+    def _create_swapped_track(self, original_track: Dict, clean_rep: Dict) -> Dict:
+        """Create a swapped track with verified status, original metadata, and origin title."""
+        rep_track = dict(clean_rep)
+        rep_track["verification_status"] = "clean_swapped"
+        rep_track["is_flagged"] = False
+        rep_track["is_explicit"] = False
+        rep_track["replaced_original"] = {
+            "id": original_track.get("id"),
+            "title": original_track.get("title"),
+            "artist": original_track.get("artist"),
+        }
+        rep_track["source_playlist_title"] = original_track.get("source_playlist_title")
+        return rep_track
 
     def stitch_playlists(
         self,
@@ -23,7 +37,8 @@ class StitcherService:
         deduplication_mode: str = "exact_id",  # "exact_id" | "title_artist" | "none"
         clean_mode: str = "keep_all",  # "keep_all" | "exclude_flagged" | "replace_clean_or_drop" | "replace_clean_or_keep"
         manual_replacements: Optional[Dict[str, Dict]] = None,
-        manual_actions: Optional[Dict[str, str]] = None  # video_id -> "keep" | "replace" | "drop"
+        manual_actions: Optional[Dict[str, str]] = None,  # video_id -> "keep" | "replace" | "drop"
+        platform: str = "ytmusic",
     ) -> Dict[str, Any]:
         """
         Merges tracks from multiple playlists, applies deduplication, clean filters,
@@ -37,8 +52,8 @@ class StitcherService:
         playlist_track_lists: List[List[Dict]] = []
 
         for p_idx, pl in enumerate(playlists):
-            p_title = pl.get("title", f"Playlist {p_idx + 1}")
-            p_tracks = pl.get("tracks", [])
+            p_title = pl.get("title") or f"Playlist {p_idx + 1}"
+            p_tracks = pl.get("tracks") or []
             annotated = []
             for t in p_tracks:
                 item = dict(t)
@@ -59,11 +74,11 @@ class StitcherService:
         elif order_mode == "title_asc":
             for p_tracks in playlist_track_lists:
                 raw_tracks.extend(p_tracks)
-            raw_tracks.sort(key=lambda x: x.get("title", "").lower())
+            raw_tracks.sort(key=lambda x: (x.get("title") or "").lower())
         elif order_mode == "artist_asc":
             for p_tracks in playlist_track_lists:
                 raw_tracks.extend(p_tracks)
-            raw_tracks.sort(key=lambda x: x.get("artist", "").lower())
+            raw_tracks.sort(key=lambda x: (x.get("artist") or "").lower())
         else:
             for p_tracks in playlist_track_lists:
                 raw_tracks.extend(p_tracks)
@@ -80,18 +95,20 @@ class StitcherService:
 
         for track in raw_tracks:
             v_id = track.get("id")
-            norm_key = self.normalize_title_artist(track.get("title", ""), track.get("artist", ""))
+            norm_key = self.normalize_title_artist(track.get("title"), track.get("artist"))
 
             if deduplication_mode == "exact_id":
-                if v_id in seen_ids:
-                    duplicates_removed += 1
-                    continue
-                seen_ids.add(v_id)
+                if v_id:
+                    if v_id in seen_ids:
+                        duplicates_removed += 1
+                        continue
+                    seen_ids.add(v_id)
             elif deduplication_mode == "title_artist":
-                if norm_key in seen_keys:
-                    duplicates_removed += 1
-                    continue
-                seen_keys.add(norm_key)
+                if norm_key and norm_key != "___":
+                    if norm_key in seen_keys:
+                        duplicates_removed += 1
+                        continue
+                    seen_keys.add(norm_key)
 
             deduped_tracks.append(track)
 
@@ -100,7 +117,12 @@ class StitcherService:
 
         for track in deduped_tracks:
             v_id = track.get("id")
-            is_flagged = track.get("is_flagged", False) or track.get("is_explicit", False)
+            v_status = track.get("verification_status")
+            if v_status is not None and str(v_status).strip():
+                is_flagged = (str(v_status).strip().lower() == "flagged")
+            else:
+                is_flagged = bool(track.get("is_flagged") or track.get("is_explicit"))
+
             clean_rep = manual_replacements.get(v_id) or track.get("clean_replacement")
             user_action = manual_actions.get(v_id)
 
@@ -109,13 +131,7 @@ class StitcherService:
                 tracks_dropped += 1
                 continue
             elif user_action == "replace" and clean_rep:
-                rep_track = dict(clean_rep)
-                rep_track["replaced_original"] = {
-                    "id": track.get("id"),
-                    "title": track.get("title"),
-                    "artist": track.get("artist")
-                }
-                rep_track["source_playlist_title"] = track.get("source_playlist_title")
+                rep_track = self._create_swapped_track(track, clean_rep)
                 final_tracks.append(rep_track)
                 tracks_replaced += 1
                 continue
@@ -130,13 +146,7 @@ class StitcherService:
                     continue
                 elif clean_mode == "replace_clean_or_drop":
                     if clean_rep:
-                        rep_track = dict(clean_rep)
-                        rep_track["replaced_original"] = {
-                            "id": track.get("id"),
-                            "title": track.get("title"),
-                            "artist": track.get("artist")
-                        }
-                        rep_track["source_playlist_title"] = track.get("source_playlist_title")
+                        rep_track = self._create_swapped_track(track, clean_rep)
                         final_tracks.append(rep_track)
                         tracks_replaced += 1
                     else:
@@ -144,17 +154,14 @@ class StitcherService:
                     continue
                 elif clean_mode == "replace_clean_or_keep":
                     if clean_rep:
-                        rep_track = dict(clean_rep)
-                        rep_track["replaced_original"] = {
-                            "id": track.get("id"),
-                            "title": track.get("title"),
-                            "artist": track.get("artist")
-                        }
-                        rep_track["source_playlist_title"] = track.get("source_playlist_title")
+                        rep_track = self._create_swapped_track(track, clean_rep)
                         final_tracks.append(rep_track)
                         tracks_replaced += 1
                     else:
                         final_tracks.append(track)
+                    continue
+                elif clean_mode == "keep_all":
+                    final_tracks.append(track)
                     continue
 
             # Standard clean track
@@ -164,15 +171,19 @@ class StitcherService:
         for idx, t in enumerate(final_tracks, start=1):
             t["stitched_index"] = idx
 
+        summary = {
+            "total_input_tracks": total_input,
+            "initial_total_tracks": total_input,
+            "duplicates_removed": duplicates_removed,
+            "tracks_replaced": tracks_replaced,
+            "tracks_dropped": tracks_dropped,
+            "final_track_count": len(final_tracks),
+        }
+
         return {
             "tracks": final_tracks,
-            "stats": {
-                "total_input_tracks": total_input,
-                "duplicates_removed": duplicates_removed,
-                "tracks_replaced": tracks_replaced,
-                "tracks_dropped": tracks_dropped,
-                "final_track_count": len(final_tracks),
-            }
+            "summary": summary,
+            "stats": summary,
         }
 
     @staticmethod
