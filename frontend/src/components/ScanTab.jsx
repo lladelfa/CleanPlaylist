@@ -19,6 +19,7 @@ import PlatformSwitchModal from "./PlatformSwitchModal";
 import WorkingListWorkbench from "./WorkingListWorkbench";
 import ScreeningControlsBar from "./ScreeningControlsBar";
 import EmptyStateHero from "./EmptyStateHero";
+import FinishLineBar from "./FinishLineBar";
 import { reevaluateTracks } from "../utils/lyricEvaluator";
 import { runScreeningPipeline, runBulkCleanPipeline } from "../utils/screeningPipeline";
 import { isYouTubePlaylist, isSpotifyPlaylistUrl } from "../utils/inputParser";
@@ -958,7 +959,7 @@ export default function ScanTab({
   const removedCount = Math.max(0, initialTrackCount - scannedTracks.length);
 
   return (
-    <div className="space-y-8">
+    <div className={`space-y-8 ${currentTracks.length > 0 ? "pb-36 md:pb-24" : ""}`}>
       {/* 0. Notice Banner */}
       {activeNotice && (
         <NoticeBanner
@@ -1143,6 +1144,19 @@ export default function ScanTab({
               </div>
             </div>
           }
+        />
+      )}
+      {currentTracks.length > 0 && (
+        <FinishLineBar
+          tracks={currentTracks}
+          keptTrackIds={keptTrackIds}
+          activePlatform={activePlatform}
+          onNotice={(notice) => {
+            setActiveNotice(notice);
+            if (typeof window !== "undefined" && typeof window.scrollTo === "function") {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+          }}
         />
       )}
       <SavePlaylistModal
