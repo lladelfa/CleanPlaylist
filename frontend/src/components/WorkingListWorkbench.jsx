@@ -4,6 +4,7 @@ import VerificationStatusBadge from './VerificationStatusBadge';
 import MobileTrackCard from './MobileTrackCard';
 import CleanReplacementControl from './CleanReplacementControl';
 import { maskWord, maskText, getTrackFlaggedWords } from '../utils/masking';
+import { getTrackCanonicalUrl, isTrackReady } from '../utils/finishLine';
 
 function formatDuration(track) {
   if (track?.duration) return track.duration;
@@ -24,7 +25,7 @@ export default function WorkingListWorkbench({
   searchingClean = {},
   onFindClean,
   onSwapTrack,
-  _keptTrackIds,
+  keptTrackIds,
   _onKeepTrack,
   className = '',
   isMasked = true,
@@ -33,6 +34,7 @@ export default function WorkingListWorkbench({
   totalTrackCount,
   headerActions = null,
   toolbar = null,
+  activePlatform = 'spotify',
 }) {
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' && typeof window.innerWidth === 'number'
@@ -131,6 +133,12 @@ export default function WorkingListWorkbench({
                     const cleanCand = cleanCandidates[track.id];
                     const isSearching = searchingClean[track.id];
                     const wordsToMask = getTrackFlaggedWords(track, track.snippets?.[0]);
+                    const isReady = isTrackReady(track, keptTrackIds);
+                    const canonicalUrl = getTrackCanonicalUrl(track, activePlatform) || track.video_url;
+                    const linkLabel = isReady ? 'Open Clean Track' : 'Open track link';
+                    const linkTitle = isReady
+                      ? `Open Clean Track: ${track.title || 'Track'}`
+                      : `Open track link: ${track.title || 'Track'}`;
 
                     return (
                       <tr
@@ -271,13 +279,13 @@ export default function WorkingListWorkbench({
                               variant="desktop"
                             />
 
-                            {track.video_url && (
+                            {canonicalUrl && (
                               <a
-                                href={track.video_url}
+                                href={canonicalUrl}
                                 target="_blank"
-                                rel="noreferrer"
-                                title="Open track link"
-                                aria-label="Open track link"
+                                rel="noopener noreferrer"
+                                title={linkTitle}
+                                aria-label={linkLabel}
                                 className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-elevated rounded transition-colors"
                               >
                                 <ExternalLink className="w-4 h-4" aria-hidden="true" />
@@ -320,6 +328,8 @@ export default function WorkingListWorkbench({
                   isSearchingClean={searchingClean[track.id]}
                   onFindClean={onFindClean}
                   onSwapTrack={onSwapTrack}
+                  activePlatform={activePlatform}
+                  keptTrackIds={keptTrackIds}
                 />
               ))}
             </div>
