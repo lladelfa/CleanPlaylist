@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { chunkTracks, runScreeningPipeline, runBulkCleanPipeline } from '../screeningPipeline';
+import { chunkTracks, runScreeningPipeline, runBulkCleanPipeline, runStitchPreScreeningPipeline } from '../screeningPipeline';
 
 describe('screeningPipeline utility', () => {
   beforeEach(() => {
@@ -398,6 +398,227 @@ describe('screeningPipeline utility', () => {
       });
 
       expect(outcome.results['trk_0'].id).toBe('clean_0');
+    });
+  });
+
+  describe('runStitchPreScreeningPipeline', () => {
+    it('resolves pasted sources, scans uncached tracks, finds clean replacements, and returns manual_replacements', async () => {
+      const playlistPool = [
+        {
+          id: 'paste-1',
+          title: 'Pasted Tracks',
+          type: 'paste',
+          rawLines: ['Song A by Artist A', 'Invalid Song'],
+          tracks: [
+            { id: 'p-0', title: 'Song A by Artist A', artist: 'Unknown' },
+            { id: 'p-1', title: 'Invalid Song', artist: 'Unknown' },
+          ],
+        },
+        {
+          id: 'pl-1',
+          title: 'YouTube Playlist',
+          type: 'playlist',
+          tracks: [
+            { id: 'yt-1', title: 'Track 1', artist: 'Artist 1', duration_seconds: 180 },
+          ],
+        },
+      ];
+
+      global.fetch = vi.fn().mockImplementation(async (url, options) => {
+        if (url.includes('/api/catalog/resolve')) {
+          return {
+            ok: true,
+            json: async () => ({
+              resolved: [
+                { id: 'res-1', title: 'Song A', artist: 'Artist A', duration_seconds: 200 },
+              ],
+              unresolved: [
+                { line: 'Invalid Song', reason: 'not_found' },
+              ],
+            }),
+          };
+        }
+        if (url.includes('/api/scan/playlist')) {
+          const body = JSON.parse(options.body);
+          return {
+            ok: true,
+            json: async () => ({
+              tracks: body.tracks.map((t) => ({
+                ...t,
+                verification_status: t.id === 'yt-1' ? 'flagged_explicit' : 'verified_clean',
+                is_flagged: t.id === 'yt-1',
+                reasons: t.id === 'yt-1' ? ['Contains profanity'] : [],
+              })),
+              lyrics_by_id: { 'yt-1': 'explicit lyrics text' },
+              summary: {},
+            }),
+          };
+        }
+        if (url.includes('/api/replacements/find-batch')) {
+          return {
+            ok: true,
+            json: async () => ({
+              results: {
+                'yt-1': { id: 'clean-yt-1', title: 'Track 1 (Clean)', artist: 'Artist 1' },
+              },
+              lyrics_by_id: { 'clean-yt-1': 'clean lyrics text' },
+            }),
+          };
+        }
+        return { ok: false, status: 404 };
+      });
+
+      const outcome = await runStitchPreScreeningPipeline({
+        playlistPool,
+        cleanMode: 'replace_clean_or_drop',
+        platform: 'ytmusic',
+      });
+
+      expect(outcome.status).toBe('complete');
+      expect(outcome.unresolvedLines).toHaveLength(1);
+      expect(outcome.unresolvedLines[0].line).toBe('Invalid Song');
+      expect(outcome.sources[0].tracks).toHaveLength(1);
+      expect(outcome.sources[0].tracks[0].id).toBe('res-1');
+      expect(outcome.manualReplacements['yt-1']).toBeDefined();
+      expect(outcome.manualReplacements['yt-1'].id).toBe('clean-yt-1');
+    });
+
+    it('skips replacement lookup when clean_mode is exclude_flagged or keep_all', async () => {
+      const playlistPool = [
+        {
+          id: 'pl-1',
+          title: 'Playlist',
+          type: 'playlist',
+          tracks: [
+            { id: 'yt-1', title: 'Track 1', artist: 'Artist 1' },
+          ],
+        },
+      ];
+
+      const fetchMock = vi.fn().mockImplementation(async (url) => {
+        if (url.includes('/api/scan/playlist')) {
+          return {
+            ok: true,
+            json: async () => ({
+              tracks: [{ id: 'yt-1', is_flagged: true, verification_status: 'flagged_explicit' }],
+              lyrics_by_id: {},
+            }),
+          };
+        }
+        return { ok: false, status: 404 };
+      });
+      global.fetch = fetchMock;
+
+      const outcome = await runStitchPreScreeningPipeline({
+        playlistPool,
+        cleanMode: 'exclude_flagged',
+        platform: 'ytmusic',
+      });
+
+      expect(outcome.status).toBe('complete');
+      expect(outcome.manualReplacements).toEqual({});
+      expect(fetchMock).not.toHaveBeenCalledWith(
+        expect.stringContaining('/api/replacements/find-batch'),
+        expect.anything()
+      );
+    });
+
+    it('pauses cleanly, retains evaluated tracks, and flags rate limit status when 429 occurs', async () => {
+      const playlistPool = [
+        {
+          id: 'pl-1',
+          title: 'Playlist',
+          type: 'playlist',
+          tracks: [
+            { id: 'yt-1', title: 'Track 1', artist: 'Artist 1' },
+            { id: 'yt-2', title: 'Track 2', artist: 'Artist 2' },
+          ],
+        },
+      ];
+
+      global.fetch = vi.fn().mockImplementation(async (url) => {
+        if (url.includes('/api/scan/playlist')) {
+          return {
+            ok: false,
+            status: 429,
+            json: async () => ({ detail: 'Rate limit exceeded' }),
+          };
+        }
+        return { ok: false, status: 404 };
+      });
+
+      const outcome = await runStitchPreScreeningPipeline({
+        playlistPool,
+        cleanMode: 'replace_clean_or_drop',
+        platform: 'ytmusic',
+      });
+
+      expect(outcome.status).toBe('rate_limited');
+      expect(outcome.error).toBeDefined();
+      expect(outcome.error.status).toBe(429);
+      // Sources remain intact and retained
+      expect(outcome.sources).toBeDefined();
+      expect(outcome.sources[0].tracks).toHaveLength(2);
+    });
+
+    it('retains evaluated tracks when second chunk encounters 429, so first chunk tracks are marked screened', async () => {
+      // 12 tracks: chunk 1 has 10 tracks, chunk 2 has 2 tracks
+      const tracks = Array.from({ length: 12 }, (_, i) => ({
+        id: `t_${i}`,
+        title: `Song ${i}`,
+        artist: 'Artist',
+      }));
+
+      const playlistPool = [
+        {
+          id: 'pl-large',
+          title: 'Large Playlist',
+          type: 'playlist',
+          tracks,
+        },
+      ];
+
+      let scanCall = 0;
+      global.fetch = vi.fn().mockImplementation(async (url, options) => {
+        if (url.includes('/api/scan/playlist')) {
+          scanCall++;
+          if (scanCall === 1) {
+            const body = JSON.parse(options.body);
+            return {
+              ok: true,
+              json: async () => ({
+                tracks: body.tracks.map((t) => ({
+                  ...t,
+                  verification_status: 'verified_clean',
+                  is_flagged: false,
+                })),
+                lyrics_by_id: {},
+              }),
+            };
+          }
+          // Second chunk hits 429
+          return {
+            ok: false,
+            status: 429,
+            json: async () => ({ detail: 'Rate limit on second chunk' }),
+          };
+        }
+        return { ok: false, status: 404 };
+      });
+
+      const outcome = await runStitchPreScreeningPipeline({
+        playlistPool,
+        cleanMode: 'replace_clean_or_drop',
+        platform: 'ytmusic',
+      });
+
+      expect(outcome.status).toBe('rate_limited');
+      // Verify chunk 1 tracks in sources were updated with screened status
+      const updatedTracks = outcome.sources[0].tracks;
+      expect(updatedTracks[0].verification_status).toBe('verified_clean');
+      expect(updatedTracks[9].verification_status).toBe('verified_clean');
+      // Chunk 2 tracks were not screened yet
+      expect(updatedTracks[10].verification_status).toBeUndefined();
     });
   });
 });

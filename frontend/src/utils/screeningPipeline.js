@@ -328,3 +328,404 @@ export async function runBulkCleanPipeline({
     lyricsById: allLyricsById,
   };
 }
+
+/**
+ * Automated Stitch Pre-Screening Pipeline.
+ *
+ * Orchestrates pre-screening across multiple staged sources:
+ * 1. Resolves pasted lines via POST /api/catalog/resolve, collecting unresolved lines
+ *    without blocking valid tracks.
+ * 2. Runs chunked lyric scanning across all uncached tracks via POST /api/scan/playlist.
+ * 3. Queries POST /api/replacements/find-batch across flagged tracks if cleanMode requires replacements.
+ * 4. Maps non-null clean replacement candidates into manual_replacements.
+ * 5. Fails soft on HTTP 429 or network errors, returning rate_limited status and retaining evaluated tracks.
+ *
+ * @param {Object} options
+ * @param {Array} options.playlistPool Staged sources
+ * @param {string} [options.cleanMode="replace_clean_or_drop"]
+ * @param {string} [options.platform="ytmusic"]
+ * @param {string} [options.preset="moderate"]
+ * @param {Array<string>} [options.customBlocklist=[]]
+ * @param {Object} [options.cachedLyrics={}]
+ * @param {AbortSignal} [options.signal]
+ * @param {Function} [options.onProgress] Callback receiving ({ phase, scanned, total, announcement })
+ * @param {Function} [options.onError] Callback receiving Error
+ * @returns {Promise<{ status: string, sources: Array, allTracks: Array, lyricsById: Object, manualReplacements: Object, unresolvedLines: Array, error?: Error }>}
+ */
+export async function runStitchPreScreeningPipeline({
+  playlistPool = [],
+  cleanMode = 'replace_clean_or_drop',
+  platform = 'ytmusic',
+  preset = 'moderate',
+  customBlocklist = [],
+  cachedLyrics = {},
+  signal,
+  onProgress,
+  onError,
+}) {
+  if (!playlistPool || playlistPool.length === 0) {
+    return {
+      status: 'complete',
+      sources: [],
+      allTracks: [],
+      lyricsById: {},
+      manualReplacements: {},
+      unresolvedLines: [],
+      error: null,
+    };
+  }
+
+  // Clone sources shallowly so we don't mutate input objects directly
+  const sources = playlistPool.map((p) => ({
+    ...p,
+    tracks: p.tracks ? [...p.tracks] : [],
+  }));
+
+  const allLyricsById = { ...cachedLyrics };
+  const unresolvedLines = [];
+  const manualReplacements = {};
+
+  // Step 1: Resolve pasted sources via POST /api/catalog/resolve
+  for (const source of sources) {
+    if (signal?.aborted) {
+      const abortErr = new Error('Pre-screening aborted');
+      abortErr.name = 'AbortError';
+      return {
+        status: 'aborted',
+        sources,
+        allTracks: [],
+        lyricsById: allLyricsById,
+        manualReplacements,
+        unresolvedLines,
+        error: abortErr,
+      };
+    }
+
+    if (
+      !source.resolved &&
+      (source.type === 'paste' || source.rawLines) &&
+      source.rawLines &&
+      source.rawLines.length > 0
+    ) {
+      // Lines beyond 50 are surfaced as unresolved so user is notified of truncation
+      if (source.rawLines.length > 50) {
+        const truncated = source.rawLines.slice(50).map((line) => ({
+          line,
+          reason: 'limit_exceeded',
+        }));
+        unresolvedLines.push(...truncated);
+      }
+
+      if (onProgress) {
+        try {
+          onProgress({
+            phase: 'resolve',
+            announcement: `Resolving pasted tracks for ${source.title}…`,
+          });
+        } catch (e) {
+          console.error('[runStitchPreScreeningPipeline] onProgress error:', e);
+        }
+      }
+      try {
+        const res = await fetch('/api/catalog/resolve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lines: source.rawLines.slice(0, 50),
+            platform,
+          }),
+          signal,
+        });
+
+        if (res.status === 429) {
+          const rateErr = new Error('Rate limit exceeded during line resolution');
+          rateErr.status = 429;
+          rateErr.isRateLimit = true;
+          if (onError) {
+            try { onError(rateErr); } catch (e) { console.error(e); }
+          }
+          return {
+            status: 'rate_limited',
+            sources,
+            allTracks: [],
+            lyricsById: allLyricsById,
+            manualReplacements,
+            unresolvedLines,
+            error: rateErr,
+          };
+        }
+
+        if (res.ok) {
+          const data = await res.json();
+          const resolvedTracks = data.resolved || [];
+          const unresolved = data.unresolved || [];
+          if (unresolved.length > 0) {
+            unresolvedLines.push(...unresolved);
+          }
+          source.tracks = resolvedTracks;
+          source.resolved = true;
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          const err = new Error(errData.detail || `Resolve failed with status ${res.status}`);
+          err.status = res.status;
+          if (onError) {
+            try { onError(err); } catch (e) { console.error(e); }
+          }
+        }
+      } catch (e) {
+        if (e.name === 'AbortError') throw e;
+        if (onError) {
+          try { onError(e); } catch (cbErr) { console.error(cbErr); }
+        }
+      }
+    }
+  }
+
+  // Helper to map screened tracks back into sources
+  const applyScreenedToSources = (screenedList) => {
+    const screenedMap = new Map();
+    for (const t of screenedList) {
+      if (t?.id) screenedMap.set(t.id, t);
+    }
+    for (const s of sources) {
+      s.tracks = s.tracks.map((t) => (t?.id && screenedMap.has(t.id) ? screenedMap.get(t.id) : t));
+    }
+  };
+
+  // Step 2: Lyric & profanity scanning across all uncached source tracks
+  const tracksToScan = [];
+  const seenTrackIds = new Set();
+
+  for (const source of sources) {
+    for (const track of source.tracks) {
+      if (!track || !track.id) continue;
+      // Skip unresolved temporary paste placeholder IDs
+      if (typeof track.id === 'string' && track.id.startsWith('paste-')) continue;
+
+      if (track.verification_status && track.is_flagged !== undefined) {
+        // already screened
+      } else if (!seenTrackIds.has(track.id)) {
+        seenTrackIds.add(track.id);
+        tracksToScan.push(track);
+      }
+    }
+  }
+
+  const screenedTracks = [];
+  if (tracksToScan.length > 0) {
+    if (onProgress) {
+      try {
+        onProgress({
+          phase: 'scan',
+          scanned: 0,
+          total: tracksToScan.length,
+          announcement: `Screening lyrics for ${tracksToScan.length} tracks…`,
+        });
+      } catch (e) {
+        console.error('[runStitchPreScreeningPipeline] onProgress error:', e);
+      }
+    }
+
+    const chunks = chunkTracks(tracksToScan, 10, 15);
+    let scannedCount = 0;
+
+    for (const chunk of chunks) {
+      if (signal?.aborted) {
+        applyScreenedToSources(screenedTracks);
+        const abortErr = new Error('Pre-screening aborted');
+        abortErr.name = 'AbortError';
+        return {
+          status: 'aborted',
+          sources,
+          allTracks: screenedTracks,
+          lyricsById: allLyricsById,
+          manualReplacements,
+          unresolvedLines,
+          error: abortErr,
+        };
+      }
+
+      let batchRes;
+      try {
+        batchRes = await fetch('/api/scan/playlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tracks: chunk,
+            preset,
+            custom_blocklist: customBlocklist,
+            platform,
+            deep_scan_lyrics: true,
+          }),
+          signal,
+        });
+      } catch (netErr) {
+        applyScreenedToSources(screenedTracks);
+        if (onError) {
+          try { onError(netErr); } catch (e) { console.error(e); }
+        }
+        return {
+          status: 'error',
+          sources,
+          allTracks: screenedTracks,
+          lyricsById: allLyricsById,
+          manualReplacements,
+          unresolvedLines,
+          error: netErr,
+        };
+      }
+
+      if (batchRes.status === 429) {
+        applyScreenedToSources(screenedTracks);
+        const rateErr = new Error('Rate limit exceeded during lyric scan');
+        rateErr.status = 429;
+        rateErr.isRateLimit = true;
+        if (onError) {
+          try { onError(rateErr); } catch (e) { console.error(e); }
+        }
+        return {
+          status: 'rate_limited',
+          sources,
+          allTracks: screenedTracks,
+          lyricsById: allLyricsById,
+          manualReplacements,
+          unresolvedLines,
+          error: rateErr,
+        };
+      }
+
+      if (!batchRes.ok) {
+        const errData = await batchRes.json().catch(() => ({}));
+        const scanErr = new Error(errData.detail || `Scan request failed with status ${batchRes.status}`);
+        scanErr.status = batchRes.status;
+        if (onError) {
+          try { onError(scanErr); } catch (e) { console.error(e); }
+        }
+        const fallback = chunk.map((t) => ({
+          ...t,
+          verification_status: 'scan_error',
+          is_flagged: false,
+          reasons: [scanErr.message || 'Scan error'],
+          detected_terms: [],
+          snippets: [],
+          total_flagged_count: 0,
+          has_lyrics: false,
+        }));
+        screenedTracks.push(...fallback);
+      } else {
+        const data = await batchRes.json();
+        const batchScanned = data.tracks || [];
+        screenedTracks.push(...batchScanned);
+        if (data.lyrics_by_id) {
+          Object.assign(allLyricsById, data.lyrics_by_id);
+        }
+      }
+
+      scannedCount += chunk.length;
+      if (onProgress) {
+        try {
+          onProgress({
+            phase: 'scan',
+            scanned: scannedCount,
+            total: tracksToScan.length,
+            announcement: `Screened ${scannedCount} of ${tracksToScan.length} tracks…`,
+          });
+        } catch (e) {
+          console.error('[runStitchPreScreeningPipeline] onProgress error:', e);
+        }
+      }
+    }
+  }
+
+  // Update source tracks with screened metadata
+  applyScreenedToSources(screenedTracks);
+
+  const allCurrentTracks = sources.flatMap((s) => s.tracks);
+
+  // Step 3: Batch Clean Replacements if cleanMode requires them
+  const requiresReplacements =
+    cleanMode === 'replace_clean_or_drop' || cleanMode === 'replace_clean_or_keep';
+
+  if (requiresReplacements) {
+    const flaggedTracks = allCurrentTracks.filter((t) => t.is_flagged);
+    if (flaggedTracks.length > 0) {
+      if (onProgress) {
+        try {
+          onProgress({
+            phase: 'replacements',
+            current: 0,
+            total: flaggedTracks.length,
+            announcement: `Finding clean replacements for ${flaggedTracks.length} flagged tracks…`,
+          });
+        } catch (e) {
+          console.error('[runStitchPreScreeningPipeline] onProgress error:', e);
+        }
+      }
+
+      const bulkOutcome = await runBulkCleanPipeline({
+        tracks: flaggedTracks,
+        platform,
+        signal,
+        onProgress: ({ processed, total, announcement }) => {
+          if (onProgress) {
+            try {
+              onProgress({ phase: 'replacements', current: processed, total, announcement });
+            } catch (e) {
+              console.error('[runStitchPreScreeningPipeline] onProgress error:', e);
+            }
+          }
+        },
+        onError,
+      });
+
+      // Map any completed replacements before rate-limit or error exit
+      if (bulkOutcome.results) {
+        for (const [origId, cand] of Object.entries(bulkOutcome.results)) {
+          if (cand) {
+            manualReplacements[origId] = cand;
+          }
+        }
+      }
+      if (bulkOutcome.lyricsById) {
+        Object.assign(allLyricsById, bulkOutcome.lyricsById);
+      }
+
+      if (bulkOutcome.error?.isRateLimit || bulkOutcome.error?.status === 429) {
+        const rateErr = bulkOutcome.error;
+        rateErr.status = 429;
+        rateErr.isRateLimit = true;
+        return {
+          status: 'rate_limited',
+          sources,
+          allTracks: allCurrentTracks,
+          lyricsById: allLyricsById,
+          manualReplacements,
+          unresolvedLines,
+          error: rateErr,
+        };
+      }
+
+      if (bulkOutcome.error) {
+        return {
+          status: 'error',
+          sources,
+          allTracks: allCurrentTracks,
+          lyricsById: allLyricsById,
+          manualReplacements,
+          unresolvedLines,
+          error: bulkOutcome.error,
+        };
+      }
+    }
+  }
+
+  return {
+    status: 'complete',
+    sources,
+    allTracks: allCurrentTracks,
+    lyricsById: allLyricsById,
+    manualReplacements,
+    unresolvedLines,
+    error: null,
+  };
+}
