@@ -21,6 +21,7 @@ export default function FinishLineBar({
   keptTrackIds,
   activePlatform = 'spotify',
   playlistTitle = 'Clean Playlist',
+  primaryAction = 'copy',
   onNotice,
   className = '',
 }) {
@@ -30,6 +31,15 @@ export default function FinishLineBar({
 
   const desktopExportRef = useRef(null);
   const mobileExportRef = useRef(null);
+  const copyTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const readyTracks = getReadyTracks(tracks, keptTrackIds);
   const readyCount = readyTracks.length;
@@ -98,7 +108,8 @@ export default function FinishLineBar({
 
     if (result.success) {
       setIsCopied(true);
-      setTimeout(() => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => {
         setIsCopied(false);
       }, 2000);
     }
@@ -121,6 +132,63 @@ export default function FinishLineBar({
     activePlatform === 'spotify'
       ? 'Ctrl+V / Cmd+V in Spotify Desktop'
       : 'Paste links in YouTube Music';
+
+  const renderDesktopExportPopover = () => (
+    <div className="relative" ref={desktopExportRef}>
+      <button
+        type="button"
+        onClick={() => setExportMenuOpen((prev) => !prev)}
+        disabled={readyCount === 0 || isExporting}
+        aria-label="Export options"
+        aria-haspopup="true"
+        aria-expanded={exportMenuOpen}
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-elevated hover:bg-surface-highest text-text-primary border border-border-subtle text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+      >
+        {isExporting ? (
+          <Loader2 className="w-4 h-4 text-text-muted animate-spin shrink-0" aria-hidden="true" />
+        ) : (
+          <Download className="w-4 h-4 text-text-muted shrink-0" aria-hidden="true" />
+        )}
+        <span>Export</span>
+        <ChevronDown className="w-3.5 h-3.5 text-text-muted" aria-hidden="true" />
+      </button>
+
+      {exportMenuOpen && (
+        <div
+          aria-label="Export format options"
+          className="absolute bottom-full mb-2 right-0 bg-surface-card border border-border-subtle rounded-xl shadow-xl p-1.5 min-w-[150px] flex flex-col gap-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150"
+        >
+          <button
+            type="button"
+            onClick={() => handleExportFormat('csv')}
+            aria-label="Export as CSV"
+            className="w-full text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
+          >
+            <span>CSV</span>
+            <span className="text-[10px] text-text-muted font-mono">.csv</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleExportFormat('m3u8')}
+            aria-label="Export as M3U8"
+            className="w-full text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
+          >
+            <span>M3U8</span>
+            <span className="text-[10px] text-text-muted font-mono">.m3u8</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleExportFormat('json')}
+            aria-label="Export as JSON"
+            className="w-full text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
+          >
+            <span>JSON</span>
+            <span className="text-[10px] text-text-muted font-mono">.json</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <footer
@@ -265,99 +333,90 @@ export default function FinishLineBar({
 
         {/* Right: Actions Cluster */}
         <div className="flex items-center gap-3">
-          {/* Secondary Action: Play Clean Queue */}
-          <button
-            type="button"
-            onClick={handlePlayCleanQueue}
-            disabled={readyCount === 0}
-            aria-label="Play Clean Queue"
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-elevated hover:bg-surface-highest text-text-primary border border-border-subtle text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-          >
-            <PlayCircle className="w-4 h-4 text-text-muted" aria-hidden="true" />
-            <span>Play Clean Queue</span>
-          </button>
-
-          {/* Secondary Action: Export ▾ Popover */}
-          <div className="relative" ref={desktopExportRef}>
-            <button
-              type="button"
-              onClick={() => setExportMenuOpen((prev) => !prev)}
-              disabled={readyCount === 0 || isExporting}
-              aria-label="Export options"
-              aria-haspopup="true"
-              aria-expanded={exportMenuOpen}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-elevated hover:bg-surface-highest text-text-primary border border-border-subtle text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-            >
-              {isExporting ? (
-                <Loader2 className="w-4 h-4 text-text-muted animate-spin shrink-0" aria-hidden="true" />
-              ) : (
-                <Download className="w-4 h-4 text-text-muted shrink-0" aria-hidden="true" />
-              )}
-              <span>Export</span>
-              <ChevronDown className="w-3.5 h-3.5 text-text-muted" aria-hidden="true" />
-            </button>
-
-            {exportMenuOpen && (
-              <div
-                aria-label="Export format options"
-                className="absolute bottom-full mb-2 right-0 bg-surface-card border border-border-subtle rounded-xl shadow-xl p-1.5 min-w-[150px] flex flex-col gap-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150"
+          {primaryAction === 'play' ? (
+            <>
+              {/* Secondary Action: Copy Clean Track Links */}
+              <button
+                type="button"
+                onClick={handleCopyLinks}
+                disabled={readyCount === 0}
+                aria-label="Copy Clean Track Links"
+                title={desktopPasteHint}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-elevated hover:bg-surface-highest text-text-primary border border-border-subtle text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
-                <button
-                  type="button"
-                  onClick={() => handleExportFormat('csv')}
-                  aria-label="Export as CSV"
-                  className="w-full text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
-                >
-                  <span>CSV</span>
-                  <span className="text-[10px] text-text-muted font-mono">.csv</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleExportFormat('m3u8')}
-                  aria-label="Export as M3U8"
-                  className="w-full text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
-                >
-                  <span>M3U8</span>
-                  <span className="text-[10px] text-text-muted font-mono">.m3u8</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleExportFormat('json')}
-                  aria-label="Export as JSON"
-                  className="w-full text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
-                >
-                  <span>JSON</span>
-                  <span className="text-[10px] text-text-muted font-mono">.json</span>
-                </button>
-              </div>
-            )}
-          </div>
+                {isCopied ? (
+                  <>
+                    <Check className="w-4 h-4 text-status-clean shrink-0" aria-hidden="true" />
+                    <span className="text-status-clean font-semibold">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 text-text-muted shrink-0" aria-hidden="true" />
+                    <span>Copy Clean Track Links</span>
+                  </>
+                )}
+              </button>
 
-          {/* Primary Studio CTA on Desktop: Electric Violet Copy Clean Track Links stacked above paste hint */}
-          <div className="flex flex-col items-center">
-            <button
-              type="button"
-              onClick={handleCopyLinks}
-              disabled={readyCount === 0}
-              aria-label="Copy Clean Track Links"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-primary hover:bg-brand-primary-hover text-white text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-brand-primary/20"
-            >
-              {isCopied ? (
-                <>
-                  <Check className="w-4 h-4 text-white" aria-hidden="true" />
-                  <span>Copied Links!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4 text-white" aria-hidden="true" />
-                  <span>Copy Clean Track Links</span>
-                </>
-              )}
-            </button>
-            <span className="font-mono text-[10px] text-text-muted text-center tracking-tight mt-0.5">
-              {desktopPasteHint}
-            </span>
-          </div>
+              {/* Secondary Action: Export ▾ Popover */}
+              {renderDesktopExportPopover()}
+
+              {/* Primary Studio CTA on Desktop: Electric Violet Play Clean Queue */}
+              <button
+                type="button"
+                onClick={handlePlayCleanQueue}
+                disabled={readyCount === 0}
+                aria-label="Play Clean Queue"
+                data-testid="desktop-primary-play-btn"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-primary hover:bg-brand-primary-hover text-white text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-brand-primary/20"
+              >
+                <Play className="w-4 h-4 fill-current" aria-hidden="true" />
+                <span>Play Clean Queue</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Secondary Action: Play Clean Queue */}
+              <button
+                type="button"
+                onClick={handlePlayCleanQueue}
+                disabled={readyCount === 0}
+                aria-label="Play Clean Queue"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-elevated hover:bg-surface-highest text-text-primary border border-border-subtle text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                <PlayCircle className="w-4 h-4 text-text-muted" aria-hidden="true" />
+                <span>Play Clean Queue</span>
+              </button>
+
+              {/* Secondary Action: Export ▾ Popover */}
+              {renderDesktopExportPopover()}
+
+              {/* Primary Studio CTA on Desktop: Electric Violet Copy Clean Track Links stacked above paste hint */}
+              <div className="flex flex-col items-center">
+                <button
+                  type="button"
+                  onClick={handleCopyLinks}
+                  disabled={readyCount === 0}
+                  aria-label="Copy Clean Track Links"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-primary hover:bg-brand-primary-hover text-white text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-brand-primary/20"
+                >
+                  {isCopied ? (
+                    <>
+                      <Check className="w-4 h-4 text-white" aria-hidden="true" />
+                      <span>Copied Links!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-white" aria-hidden="true" />
+                      <span>Copy Clean Track Links</span>
+                    </>
+                  )}
+                </button>
+                <span className="font-mono text-[10px] text-text-muted text-center tracking-tight mt-0.5">
+                  {desktopPasteHint}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </footer>
