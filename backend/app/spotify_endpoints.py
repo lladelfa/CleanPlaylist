@@ -2,6 +2,9 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
+import urllib.parse
+import spotipy
+from spotipy.exceptions import SpotifyException
 from app.services.spotify_service import spotify_service
 
 router = APIRouter()
@@ -33,17 +36,40 @@ def login(request: Request):
 @router.get("/api/spotify/callback")
 def auth_callback(request: Request, code: str = None, error: str = None):
     if error:
-        return RedirectResponse(url=f"/?auth_error={error}&platform=spotify")
+        safe_err = urllib.parse.quote_plus(str(error)[:200])
+        redirect_resp = RedirectResponse(url=f"/?auth_error={safe_err}&platform=spotify")
+        spotify_service.clear_session_cookie(redirect_resp)
+        return redirect_resp
     if not code:
-        return RedirectResponse(url="/?auth_error=missing_code&platform=spotify")
+        redirect_resp = RedirectResponse(url="/?auth_error=missing_code&platform=spotify")
+        spotify_service.clear_session_cookie(redirect_resp)
+        return redirect_resp
 
     try:
         token_info = spotify_service.exchange_code(code, request=request)
+        sp = spotipy.Spotify(auth=token_info.get("access_token"))
+        sp.current_user()
+
         redirect_resp = RedirectResponse(url="/?auth_success=true&platform=spotify")
         spotify_service.set_session_cookie(redirect_resp, token_info, request=request)
         return redirect_resp
+    except SpotifyException as se:
+        if se.http_status == 403:
+            redirect_resp = RedirectResponse(url="/?auth_error=allowlist_blocked&platform=spotify")
+        else:
+            safe_err = urllib.parse.quote_plus(str(se)[:200])
+            redirect_resp = RedirectResponse(url=f"/?auth_error={safe_err}&platform=spotify")
+        spotify_service.clear_session_cookie(redirect_resp)
+        return redirect_resp
     except Exception as e:
-        return RedirectResponse(url=f"/?auth_error={str(e)}&platform=spotify")
+        is_403 = getattr(e, "http_status", None) == 403 or getattr(getattr(e, "response", None), "status_code", None) == 403
+        if is_403:
+            redirect_resp = RedirectResponse(url="/?auth_error=allowlist_blocked&platform=spotify")
+        else:
+            safe_err = urllib.parse.quote_plus(str(e)[:200])
+            redirect_resp = RedirectResponse(url=f"/?auth_error={safe_err}&platform=spotify")
+        spotify_service.clear_session_cookie(redirect_resp)
+        return redirect_resp
 
 @router.post("/api/spotify/logout")
 def logout(response: Response):

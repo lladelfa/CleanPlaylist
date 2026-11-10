@@ -62,4 +62,80 @@ describe('GlobalHeader', () => {
     await user.click(screen.getByRole('button', { name: /stitch studio/i }));
     expect(setActiveTab).toHaveBeenCalledWith('stitch');
   });
+
+  it('renders VIP badge, Connect Spotify button, and Exit VIP Mode button when vipMode={true} and unauthenticated', async () => {
+    const onLogin = vi.fn();
+    const onExitVip = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <GlobalHeader
+        activeTab="scan"
+        setActiveTab={() => {}}
+        activePlatform="spotify"
+        onSelectPlatform={() => {}}
+        vipMode={true}
+        isAuthenticated={false}
+        onLogin={onLogin}
+        onExitVip={onExitVip}
+      />
+    );
+
+    expect(screen.getByText('VIP')).toBeInTheDocument();
+    const loginBtn = screen.getByRole('button', { name: /connect spotify/i });
+    expect(loginBtn).toBeInTheDocument();
+    const exitBtn = screen.getByRole('button', { name: /exit vip mode/i });
+    expect(exitBtn).toBeInTheDocument();
+    expect(screen.queryByText(/spotify connected/i)).not.toBeInTheDocument();
+
+    await user.click(loginBtn);
+    expect(onLogin).toHaveBeenCalledTimes(1);
+
+    await user.click(exitBtn);
+    expect(onExitVip).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders VIP badge, Spotify Connected pill, and Exit VIP Mode button when vipMode={true} and authenticated', async () => {
+    const onExitVip = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <GlobalHeader
+        activeTab="scan"
+        setActiveTab={() => {}}
+        activePlatform="spotify"
+        onSelectPlatform={() => {}}
+        vipMode={true}
+        isAuthenticated={true}
+        onExitVip={onExitVip}
+      />
+    );
+
+    expect(screen.getByText('VIP')).toBeInTheDocument();
+    expect(screen.getByText(/spotify connected/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /connect spotify/i })).not.toBeInTheDocument();
+    const exitBtn = screen.getByRole('button', { name: /exit vip mode/i });
+    expect(exitBtn).toBeInTheDocument();
+
+    await user.click(exitBtn);
+    expect(onExitVip).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits all VIP controls when vipMode={false}', () => {
+    render(
+      <GlobalHeader
+        activeTab="scan"
+        setActiveTab={() => {}}
+        activePlatform="spotify"
+        onSelectPlatform={() => {}}
+        vipMode={false}
+        isAuthenticated={false}
+      />
+    );
+
+    expect(screen.queryByText('VIP')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /connect spotify/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/spotify connected/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /exit vip mode/i })).not.toBeInTheDocument();
+  });
 });

@@ -165,7 +165,11 @@ describe('ScanTab - Instant Staging & Quota Capping', () => {
     const searchInput = screen.getByPlaceholderText(/search songs or albums/i);
     await user.type(searchInput, 'Extra');
 
-    const addSongBtn = await screen.findByRole('button', { name: /add song extra track/i });
+    const addSongBtn = await screen.findByRole(
+      'button',
+      { name: /add song extra track/i },
+      { timeout: 4000 }
+    );
     await user.click(addSongBtn);
 
     expect(

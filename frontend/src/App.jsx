@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GlobalHeader from './components/GlobalHeader';
 import PlatformSwitchModal from './components/PlatformSwitchModal';
 import ScanTab from './components/ScanTab';
 import KeywordsTab from './components/KeywordsTab';
 import StitchTab from './components/StitchTab';
 import LyricsModal from './components/LyricsModal';
+import NoticeBanner from './components/NoticeBanner';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('scan');
@@ -14,19 +15,63 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [presetsData, setPresetsData] = useState(null);
 
-  React.useEffect(() => {
+  const [vipMode, setVipMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('vip') === '1') {
+        return true;
+      }
+      return localStorage.getItem('cp_vip_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const [authError, setAuthError] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('auth_error');
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+
+    if (params.get('vip') === '1') {
+      setVipMode(true);
+      try {
+        localStorage.setItem('cp_vip_mode', 'true');
+      } catch {}
+    }
+
     if (params.get('auth_success')) {
       setIsAuthenticated(true);
+      setVipMode(true);
+      try {
+        localStorage.setItem('cp_vip_mode', 'true');
+      } catch {}
       setActivePlatform(params.get('platform') || 'spotify');
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (params.get('auth_error')) {
-      console.error("Auth Error:", params.get('auth_error'));
-      window.history.replaceState({}, document.title, window.location.pathname);
+      if (params.get('platform')) {
+        setActivePlatform(params.get('platform'));
+      }
     } else {
       fetch('/api/spotify/status')
         .then(res => res.json())
-        .then(data => setIsAuthenticated(data.authenticated))
+        .then(data => {
+          if (data && data.authenticated) {
+            setIsAuthenticated(true);
+            setVipMode(true);
+            try {
+              localStorage.setItem('cp_vip_mode', 'true');
+            } catch {}
+          }
+        })
         .catch(err => console.error("Failed to check auth status", err));
     }
 
@@ -114,13 +159,33 @@ export default function App() {
     setPendingPlatform(null);
   };
 
-  const _handleLogout = async () => {
+  const handleExitVip = async () => {
+    try {
+      localStorage.removeItem('cp_vip_mode');
+    } catch {
+      // ignore
+    }
     try {
       await fetch('/api/spotify/logout', { method: 'POST' });
-      setIsAuthenticated(false);
-      window.location.reload();
     } catch (err) {
-      console.error("Logout failed", err);
+      console.error('Logout failed during Exit VIP:', err);
+    }
+    setVipMode(false);
+    setIsAuthenticated(false);
+    setAuthError(null);
+    if (typeof window !== 'undefined' && window.history?.replaceState) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  };
+
+  const handleDismissAuthError = () => {
+    setAuthError(null);
+    if (typeof window !== 'undefined' && window.history?.replaceState) {
+      const params = new URLSearchParams(window.location.search);
+      params.delete('auth_error');
+      const newQuery = params.toString();
+      const newUrl = newQuery ? `${window.location.pathname}?${newQuery}` : window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
     }
   };
 
@@ -145,6 +210,10 @@ export default function App() {
         setActiveTab={setActiveTab}
         activePlatform={activePlatform}
         onSelectPlatform={handleRequestPlatformChange}
+        vipMode={vipMode}
+        isAuthenticated={isAuthenticated}
+        onLogin={handleLogin}
+        onExitVip={handleExitVip}
       />
 
       <PlatformSwitchModal
@@ -155,6 +224,28 @@ export default function App() {
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {authError === 'allowlist_blocked' && (
+          <div className="mb-6">
+            <NoticeBanner
+              type="error"
+              message="Spotify Developer Mode is restricted to 5 allowlisted accounts. Your account is not on the developer allowlist."
+              actionLabel="Exit VIP Mode"
+              onAction={handleExitVip}
+              onDismiss={handleDismissAuthError}
+            />
+          </div>
+        )}
+
+        {authError && authError !== 'allowlist_blocked' && (
+          <div className="mb-6">
+            <NoticeBanner
+              type="error"
+              message={`Spotify authentication error: ${authError}`}
+              onDismiss={handleDismissAuthError}
+            />
+          </div>
+        )}
+
         {activeTab === 'scan' && (
           <ScanTab
             playlist={playlist}
@@ -174,6 +265,7 @@ export default function App() {
             setPreset={setPreset}
             presetsData={presetsData}
             isAuthenticated={isAuthenticated}
+            vipMode={vipMode}
             onOpenAuth={handleLogin}
             activePlatform={activePlatform}
             onSwitchPlatform={setActivePlatform}
@@ -206,7 +298,7 @@ export default function App() {
             activePlatform={activePlatform}
             workingList={workingList}
             lyricsByTrackId={lyricsByTrackId}
-            vipMode={isAuthenticated}
+            vipMode={vipMode}
             preset={preset}
             customBlocklist={customBlocklist}
           />
