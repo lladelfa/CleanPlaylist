@@ -285,6 +285,8 @@ describe("ScanTab - Spotify Playlist Picker Integration", () => {
         }),
       })
     );
+    expect(await screen.findByText(/Loaded "My Picked Spotify Playlist" with 3 tracks/i)).toBeInTheDocument();
+    expect(screen.getByText("Clean Song One")).toBeInTheDocument();
   });
 
   it("renders EmptyStateHero when working list and playlist are empty, and does not render legacy input card", () => {

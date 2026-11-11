@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 11-06-2026 10:39
-last_updated: 11-10-2026 16:25
+last_updated: 11-11-2026 10:38
 project: CleanPlaylist
 project_key: NOKEY
 tracking_system: file-system
@@ -73,7 +73,7 @@ development_status:
 
   epic-5: in-progress
   5-1-query-parameter-vip-mode-gate-allowlist-protection-safe-exit: review
-  5-2-vip-spotify-library-browsing-playlistpickermodal-with-pagina: backlog
+  5-2-vip-spotify-library-browsing-playlistpickermodal-with-pagina: review
   5-3-direct-spotify-playlist-creation-overwrite-saveplaylistmodal: done
   5-4-privacy-safe-usage-event-telemetry-sink-post-api-telemetry-e: backlog
   epic-5-retrospective: optional

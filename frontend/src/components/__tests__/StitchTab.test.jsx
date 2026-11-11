@@ -19,6 +19,169 @@ describe('Story 4.1: StitchTab Multi-Source Input Pool & 50-Track Quota Bar', ()
     'track-2': 'Explicit lyrics for song two',
   };
 
+  it('shows Browse Library only for Spotify VIP users', () => {
+    const { rerender } = render(
+      <StitchTab activePlatform="spotify" vipMode workingList={[]} />
+    );
+    expect(screen.getByRole('button', { name: /browse library/i })).toBeInTheDocument();
+
+    rerender(<StitchTab activePlatform="spotify" vipMode={false} workingList={[]} />);
+    expect(screen.queryByRole('button', { name: /browse library/i })).not.toBeInTheDocument();
+
+    rerender(<StitchTab activePlatform="ytmusic" vipMode workingList={[]} />);
+    expect(screen.queryByRole('button', { name: /browse library/i })).not.toBeInTheDocument();
+  });
+
+  it('loads a selected Spotify playlist into the pool and announces success', async () => {
+    const onNotice = vi.fn();
+    global.fetch.mockImplementation(async (url, options) => {
+      if (url.startsWith('/api/spotify/playlists')) {
+        return {
+          ok: true,
+          json: async () => ({
+            items: [{ id: 'sp-1', name: 'My Spotify Mix', owner: 'Tester', tracks_total: 2 }],
+            total: 1,
+            has_next: false,
+            has_prev: false,
+          }),
+        };
+      }
+      if (url === '/api/playlist/fetch') {
+        expect(JSON.parse(options.body)).toEqual({
+          url_or_id: 'https://open.spotify.com/playlist/sp-1',
+          limit: 100,
+          platform: 'spotify',
+        });
+        return {
+          ok: true,
+          json: async () => ({
+            id: 'sp-1',
+            title: 'My Spotify Mix',
+            tracks: [{ id: 'track-1', title: 'A Clean Song' }],
+            thumbnail: 'cover.jpg',
+          }),
+        };
+      }
+      return { ok: false, status: 404 };
+    });
+
+    render(
+      <StitchTab activePlatform="spotify" vipMode workingList={[]} onNotice={onNotice} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /browse library/i }));
+    await screen.findByText('My Spotify Mix');
+    fireEvent.click(screen.getByRole('button', { name: /my spotify mix/i }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(await screen.findByText('My Spotify Mix')).toBeInTheDocument();
+    expect(await screen.findByText('1 tracks')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/loaded "my spotify mix" with 1 tracks/i);
+    expect(onNotice).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'info', message: expect.stringMatching(/loaded "my spotify mix"/i) })
+    );
+    expect(global.fetch).toHaveBeenCalledWith('/api/playlist/fetch', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('warns when a Spotify playlist fetch is truncated', async () => {
+    const onNotice = vi.fn();
+    global.fetch.mockImplementation(async (url) => {
+      if (url.startsWith('/api/spotify/playlists')) {
+        return {
+          ok: true,
+          json: async () => ({
+            items: [{ id: 'sp-long', name: 'Long Spotify Mix', tracks_total: 150 }],
+            total: 1,
+            has_next: false,
+            has_prev: false,
+          }),
+        };
+      }
+      if (url === '/api/playlist/fetch') {
+        return {
+          ok: true,
+          json: async () => ({
+            id: 'sp-long',
+            title: 'Long Spotify Mix',
+            tracks: [
+              { id: 'track-1', title: 'Track One' },
+              { id: 'track-2', title: 'Track Two' },
+              { id: 'track-3', title: 'Track Three' },
+            ],
+            source_track_count: 150,
+            truncated: true,
+          }),
+        };
+      }
+      return { ok: false, status: 404 };
+    });
+
+    render(
+      <StitchTab activePlatform="spotify" vipMode workingList={[]} onNotice={onNotice} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /browse library/i }));
+    await screen.findByText('Long Spotify Mix');
+    fireEvent.click(screen.getByRole('button', { name: /long spotify mix/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /loaded 3 of 150 tracks from "long spotify mix"/i
+    );
+    expect(screen.getByText('3 tracks')).toBeInTheDocument();
+    expect(onNotice).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'caution',
+        message: expect.stringMatching(/loaded 3 of 150 tracks/i),
+      })
+    );
+  });
+
+  it('announces playlist fetch errors without clearing existing sources', async () => {
+    const onNotice = vi.fn();
+    global.fetch.mockImplementation(async (url) => {
+      if (url.startsWith('/api/spotify/playlists')) {
+        return {
+          ok: true,
+          json: async () => ({
+            items: [{ id: 'sp-2', name: 'New Spotify Mix', tracks_total: 2 }],
+            total: 1,
+            has_next: false,
+            has_prev: false,
+          }),
+        };
+      }
+      if (url === '/api/playlist/fetch') {
+        return { ok: false, status: 403, json: async () => ({ detail: 'Spotify access denied' }) };
+      }
+      return { ok: false, status: 404 };
+    });
+
+    render(
+      <StitchTab
+        activePlatform="spotify"
+        vipMode
+        onNotice={onNotice}
+        initialPlaylist={{
+          id: 'existing',
+          title: 'Existing Source',
+          tracks: [{ id: 'existing-track', title: 'Keep Me' }],
+        }}
+        workingList={[]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /browse library/i }));
+    await screen.findByText('New Spotify Mix');
+    fireEvent.click(screen.getByRole('button', { name: /new spotify mix/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/spotify access denied/i);
+    expect(screen.getByText('Existing Source')).toBeInTheDocument();
+    expect(screen.queryByText('New Spotify Mix')).not.toBeInTheDocument();
+    expect(onNotice).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'error', message: expect.stringMatching(/spotify access denied/i) })
+    );
+  });
+
   it('renders all 4 source triggers and the combined quota meter', () => {
     render(
       <StitchTab

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   X,
   Search,
@@ -21,13 +21,39 @@ export default function PlaylistPickerModal({
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const [hasNext, setHasNext] = useState(false);
-  const [hasPrev, setHasPrev] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [searchFilter, setSearchFilter] = useState("");
 
+  const closeAndReset = useCallback(() => {
+    setOffset(0);
+    setTotal(0);
+    setPlaylists([]);
+    setHasNext(false);
+    setSearchFilter("");
+    setError(null);
+    setLoading(false);
+    setRetryCount(0);
+    onClose();
+  }, [onClose]);
+
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeAndReset();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, closeAndReset]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
 
     let isCancelled = false;
 
@@ -40,8 +66,13 @@ export default function PlaylistPickerModal({
         );
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
+          if (res.status === 401 || res.status === 403) {
+            throw new Error(
+              "Unable to access your Spotify library. Reconnect your Spotify account, then retry."
+            );
+          }
           throw new Error(
-            errData.detail || "Failed to load your Spotify playlists"
+            errData.detail || "Failed to load your Spotify playlists. Please retry."
           );
         }
         const data = await res.json();
@@ -49,11 +80,10 @@ export default function PlaylistPickerModal({
           setPlaylists(data.items || []);
           setTotal(data.total ?? 0);
           setHasNext(Boolean(data.has_next));
-          setHasPrev(Boolean(data.has_prev));
         }
       } catch (err) {
         if (!isCancelled) {
-          setError(err.message);
+          setError(err.message || "Failed to load your Spotify playlists. Please retry.");
         }
       } finally {
         if (!isCancelled) {
@@ -63,34 +93,35 @@ export default function PlaylistPickerModal({
     };
 
     fetchPlaylists();
-
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, offset]);
+  }, [isOpen, offset, retryCount]);
 
   if (!isOpen) return null;
 
-  const filteredPlaylists = playlists.filter((pl) =>
-    (pl.name || "").toLowerCase().includes(searchFilter.trim().toLowerCase())
+  const filteredPlaylists = playlists.filter((playlist) =>
+    (playlist.name || "")
+      .toLowerCase()
+      .includes(searchFilter.trim().toLowerCase())
   );
 
   const handleSelect = (playlist) => {
     const targetUrl =
       playlist.url || `https://open.spotify.com/playlist/${playlist.id}`;
     onSelectPlaylist(targetUrl);
-    onClose();
+    closeAndReset();
   };
 
   const handlePrev = () => {
-    if (hasPrev && offset >= PAGE_LIMIT) {
+    if (offset > 0 && !loading) {
       setSearchFilter("");
       setOffset((prev) => Math.max(0, prev - PAGE_LIMIT));
     }
   };
 
   const handleNext = () => {
-    if (hasNext) {
+    if (hasNext && !loading) {
       setSearchFilter("");
       setOffset((prev) => prev + PAGE_LIMIT);
     }
@@ -100,88 +131,114 @@ export default function PlaylistPickerModal({
   const endIdx = Math.min(offset + playlists.length, total);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-xl w-full shadow-2xl relative flex flex-col max-h-[85vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-backdrop/80 backdrop-blur-sm"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) closeAndReset();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="playlist-picker-modal-title"
+        className="bg-surface-card border border-border-subtle rounded-2xl p-6 max-w-xl w-full shadow-2xl relative flex flex-col max-h-[85vh]"
+      >
         <button
           type="button"
-          onClick={onClose}
-          aria-label="Close modal"
-          className="absolute top-4 right-4 text-slate-400 hover:text-white transition"
+          onClick={closeAndReset}
+          aria-label="Close playlist picker"
+          className="absolute top-4 right-4 p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-elevated transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
         >
-          <X className="w-5 h-5" />
+          <X className="w-5 h-5" aria-hidden="true" />
         </button>
 
-        {/* Header */}
-        <div className="flex items-center space-x-2.5 mb-4">
-          <div className="p-2 bg-green-950/60 border border-green-800/60 rounded-xl text-green-400">
-            <Library className="w-5 h-5" />
+        <div className="flex items-center space-x-2.5 mb-4 pr-8">
+          <div className="p-2 bg-surface-elevated border border-border-subtle rounded-xl text-brand-primary">
+            <Library className="w-5 h-5" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">
+            <h2
+              id="playlist-picker-modal-title"
+              className="text-xl font-bold text-text-primary"
+            >
               Spotify Playlist Picker
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-text-secondary">
               Browse your library and click a playlist to load it
             </p>
           </div>
         </div>
 
-        {/* Search Bar */}
         <div className="relative mb-4">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-500" />
+          <Search
+            className="w-4 h-4 absolute left-3.5 top-3 text-text-muted"
+            aria-hidden="true"
+          />
           <input
             type="text"
+            aria-label="Filter playlists by name"
             placeholder="Filter loaded playlists by name..."
             value={searchFilter}
-            onChange={(e) => setSearchFilter(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+            onChange={(event) => setSearchFilter(event.target.value)}
+            className="w-full bg-surface-inset border border-border-subtle rounded-xl pl-10 pr-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
           />
         </div>
 
-        {/* Playlist List Body */}
         <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[260px]">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-400 space-y-2">
-              <Loader2 className="w-6 h-6 animate-spin text-green-400" />
+            <div className="flex flex-col items-center justify-center py-16 text-text-secondary space-y-2">
+              <Loader2 className="w-6 h-6 animate-spin text-brand-primary" aria-hidden="true" />
               <span className="text-sm">Loading your Spotify playlists...</span>
             </div>
           ) : error ? (
-            <div className="bg-red-950/40 border border-red-900/50 p-4 rounded-xl flex items-start space-x-2 text-red-300 text-sm">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
+            <div
+              role="alert"
+              className="bg-status-flagged-bg border border-status-flagged-border p-4 rounded-xl flex items-start gap-3 text-status-flagged text-sm"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+              <div className="flex-1 space-y-3">
+                <p>{error}</p>
+                <button
+                  type="button"
+                  onClick={() => setRetryCount((count) => count + 1)}
+                  className="px-3 py-1.5 rounded-lg bg-surface-card border border-border-subtle text-text-primary hover:bg-surface-elevated font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
+                >
+                  Retry
+                </button>
+              </div>
             </div>
           ) : filteredPlaylists.length === 0 ? (
-            <div className="py-14 text-center text-slate-500 text-sm">
+            <div className="py-14 text-center text-text-muted text-sm">
               {searchFilter
                 ? "No playlists on this page match your filter."
                 : "No Spotify playlists found in your library."}
             </div>
           ) : (
-            filteredPlaylists.map((pl) => (
+            filteredPlaylists.map((playlist) => (
               <button
-                key={pl.id}
+                key={playlist.id}
                 type="button"
-                onClick={() => handleSelect(pl)}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 hover:border-green-600/50 transition text-left group"
+                onClick={() => handleSelect(playlist)}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-surface-inset hover:bg-surface-elevated border border-border-subtle hover:border-brand-primary transition text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
               >
                 <div className="flex items-center space-x-3 min-w-0">
-                  {pl.thumbnail ? (
+                  {playlist.thumbnail ? (
                     <img
-                      src={pl.thumbnail}
-                      alt={pl.name}
-                      className="w-12 h-12 rounded-lg object-cover border border-slate-800 shrink-0"
+                      src={playlist.thumbnail}
+                      alt=""
+                      className="w-12 h-12 rounded-lg object-cover border border-border-subtle shrink-0"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center text-slate-500 shrink-0">
-                      <Music className="w-5 h-5" />
+                    <div className="w-12 h-12 rounded-lg bg-surface-elevated border border-border-subtle flex items-center justify-center text-text-muted shrink-0">
+                      <Music className="w-5 h-5" aria-hidden="true" />
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white group-hover:text-green-400 transition truncate">
-                      {pl.name}
+                    <p className="text-sm font-semibold text-text-primary group-hover:text-brand-primary transition truncate">
+                      {playlist.name}
                     </p>
-                    <p className="text-xs text-slate-400 truncate">
-                      By {pl.owner || "Unknown"} • {pl.tracks_total ?? 0} tracks
+                    <p className="text-xs text-text-secondary truncate">
+                      By {playlist.owner || "Unknown"} • {playlist.tracks_total ?? 0} tracks
                     </p>
                   </div>
                 </div>
@@ -190,9 +247,8 @@ export default function PlaylistPickerModal({
           )}
         </div>
 
-        {/* Pagination Footer */}
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-800">
-          <span className="text-xs text-slate-400">
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-border-subtle">
+          <span className="text-xs text-text-secondary" aria-live="polite">
             {total > 0
               ? `Showing ${startIdx}–${endIdx} of ${total}`
               : "0 playlists"}
@@ -201,20 +257,20 @@ export default function PlaylistPickerModal({
             <button
               type="button"
               onClick={handlePrev}
-              disabled={!hasPrev || loading}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={offset === 0 || loading}
+              className="flex items-center space-x-1 px-3 py-1.5 bg-surface-elevated hover:bg-surface-inset text-text-primary text-xs font-medium rounded-lg border border-border-subtle transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
             >
-              <ChevronLeft className="w-3.5 h-3.5" />
+              <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Prev</span>
             </button>
             <button
               type="button"
               onClick={handleNext}
               disabled={!hasNext || loading}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center space-x-1 px-3 py-1.5 bg-surface-elevated hover:bg-surface-inset text-text-primary text-xs font-medium rounded-lg border border-border-subtle transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
             >
               <span>Next</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -222,4 +278,3 @@ export default function PlaylistPickerModal({
     </div>
   );
 }
-
