@@ -8,6 +8,7 @@ import NoticeBanner from './NoticeBanner';
 import PasteTrackListPanel from './PasteTrackListPanel';
 import VerificationStatusBadge from './VerificationStatusBadge';
 import FinishLineBar from './FinishLineBar';
+import PlaylistPickerModal from './PlaylistPickerModal';
 import { runStitchPreScreeningPipeline } from '../utils/screeningPipeline';
 import { getTrackCanonicalUrl } from '../utils/finishLine';
 
@@ -62,6 +63,8 @@ export default function StitchTab({
   const [rateLimitError, setRateLimitError] = useState(null);
   const [newUrl, setNewUrl] = useState('');
   const [loadingNew, setLoadingNew] = useState(false);
+  const [isLibraryPickerOpen, setIsLibraryPickerOpen] = useState(false);
+  const [libraryNotice, setLibraryNotice] = useState(null);
 
   // Paste Panel State
   const [isPasteOpen, setIsPasteOpen] = useState(false);
@@ -81,6 +84,62 @@ export default function StitchTab({
   const [stitching, setStitching] = useState(false);
   const [stitchedResult, setStitchedResult] = useState(null);
   const [error, setError] = useState(null);
+
+  const announceLibraryNotice = (notice) => {
+    setLibraryNotice(notice);
+    if (typeof onNotice === 'function') onNotice(notice);
+  };
+
+  const handleSelectLibraryPlaylist = async (playlistUrl) => {
+    try {
+      const res = await fetch('/api/playlist/fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url_or_id: playlistUrl,
+          limit: 100,
+          platform: 'spotify',
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const message =
+          errData.detail ||
+          (res.status === 401 || res.status === 403
+            ? 'Your Spotify account is not authorized to load this playlist.'
+            : 'Failed to load the Spotify playlist.');
+        throw new Error(message);
+      }
+
+      const data = await res.json();
+      const source = {
+        id: data.id || playlistUrl,
+        title: data.title || 'Spotify Playlist',
+        tracks: data.tracks || [],
+        type: 'playlist',
+        thumbnail: data.thumbnail || null,
+      };
+      setPlaylistPool((prev) => [...prev, source]);
+      const loadedNotice = data.truncated
+        ? {
+            type: 'caution',
+            message: `Loaded ${source.tracks.length} of ${
+              data.source_track_count ?? source.tracks.length
+            } tracks from "${source.title}" into Stitch Studio.`,
+          }
+        : {
+            type: 'info',
+            message: `Loaded "${source.title}" with ${source.tracks.length} tracks into Stitch Studio.`,
+          };
+      announceLibraryNotice(loadedNotice);
+    } catch (err) {
+      announceLibraryNotice({
+        type: 'error',
+        message: `Could not load the Spotify playlist: ${err.message || 'Please try again.'}`,
+      });
+    }
+  };
 
   // Sync if initialPlaylist changed
   useEffect(() => {
@@ -523,6 +582,18 @@ export default function StitchTab({
 
             {/* Quick Action Triggers: Album Search & Paste */}
             <div className="flex items-center gap-2">
+              {activePlatform === 'spotify' && vipMode && (
+                <button
+                  type="button"
+                  onClick={() => setIsLibraryPickerOpen(true)}
+                  aria-label="Browse Library"
+                  className="px-3 py-2.5 bg-surface-elevated hover:bg-surface-card text-text-primary border border-border-subtle font-medium text-xs rounded-xl flex items-center space-x-1.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
+                >
+                  <Library className="w-3.5 h-3.5 text-brand-primary" aria-hidden="true" />
+                  <span>Browse Library</span>
+                </button>
+              )}
+
               {/* Trigger 2: Search Album */}
               <button
                 type="button"
@@ -700,6 +771,15 @@ export default function StitchTab({
             )}
           </div>
         </div>
+
+        {libraryNotice && (
+          <NoticeBanner
+            type={libraryNotice.type}
+            message={libraryNotice.message}
+            onDismiss={() => setLibraryNotice(null)}
+            className="mt-2"
+          />
+        )}
 
         {error && (
           <p className="text-xs text-status-danger bg-status-danger-bg p-2.5 rounded-lg border border-status-danger-border">
@@ -972,6 +1052,12 @@ export default function StitchTab({
           className="mt-6"
         />
       )}
+
+      <PlaylistPickerModal
+        isOpen={isLibraryPickerOpen}
+        onClose={() => setIsLibraryPickerOpen(false)}
+        onSelectPlaylist={handleSelectLibraryPlaylist}
+      />
     </div>
   );
 }
