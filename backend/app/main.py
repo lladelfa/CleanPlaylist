@@ -21,6 +21,7 @@ from app.services.lyric_xref_service import lyric_xref_service
 from app.services.stitcher_service import stitcher_service
 from app.services.ytmusic_service import ytmusic_service
 from app.services.spotify_service import spotify_service
+from app.services.telemetry_service import telemetry_service, TelemetryEvent
 
 load_dotenv()
 
@@ -716,6 +717,11 @@ def export_playlist_file(req: ExportRequest):
         return Response(content=content, media_type="application/json", headers={"Content-Disposition": f'attachment; filename="{safe_filename}.json"'})
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported export format '{fmt}'")
+
+@app.post("/api/telemetry/event", status_code=204)
+def post_telemetry_event(event: TelemetryEvent):
+    telemetry_service.record_event(event)
+    return Response(status_code=204)
 
 # Static Files (only mounted when running standalone locally, as Vercel serves frontend/dist directly)
 FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"

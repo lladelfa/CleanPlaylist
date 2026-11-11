@@ -268,5 +268,26 @@ describe('FinishLineBar Component', () => {
       // Desktop paste hint should be visible
       expect(screen.getByText(/ctrl\+v \/ cmd\+v in spotify desktop/i)).toBeInTheDocument();
     });
+
+    it('propagates vipMode to finish-line actions and emits telemetry with vip_mode: true', () => {
+      vi.spyOn(window, 'open').mockImplementation(() => ({}));
+      const sendBeaconSpy = vi.fn().mockReturnValue(true);
+      Object.defineProperty(navigator, 'sendBeacon', { value: sendBeaconSpy, configurable: true, writable: true });
+
+      render(
+        <FinishLineBar
+          tracks={mockTracks}
+          vipMode={true}
+          activePlatform="spotify"
+          onNotice={vi.fn()}
+        />
+      );
+
+      const playButtons = screen.getAllByRole('button', { name: /play clean queue/i });
+      fireEvent.click(playButtons[0]);
+
+      expect(sendBeaconSpy).toHaveBeenCalled();
+      expect(sendBeaconSpy.mock.calls[0][0]).toBe('/api/telemetry/event');
+    });
   });
 });

@@ -20,6 +20,7 @@ export default function FinishLineBar({
   tracks = [],
   keptTrackIds,
   activePlatform = 'spotify',
+  vipMode = false,
   playlistTitle = 'Clean Playlist',
   primaryAction = 'copy',
   onNotice,
@@ -94,6 +95,7 @@ export default function FinishLineBar({
     launchYouTubeCleanQueue({
       readyTracks,
       platform: activePlatform,
+      vipMode,
       onNotice,
       openWindow: true,
     });
@@ -103,6 +105,7 @@ export default function FinishLineBar({
     const result = await copyCleanTrackLinks({
       readyTracks,
       platform: activePlatform,
+      vipMode,
       onNotice,
     });
 
@@ -123,6 +126,7 @@ export default function FinishLineBar({
       format,
       playlistTitle,
       platform: activePlatform,
+      vipMode,
       onNotice,
     });
     setIsExporting(false);

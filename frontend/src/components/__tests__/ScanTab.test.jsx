@@ -149,8 +149,9 @@ describe("ScanTab - Remove Tracks UI", () => {
     const confirmSaveBtn = screen.getByRole("button", { name: /^save playlist$/i });
     await user.click(confirmSaveBtn);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, options] = fetchMock.mock.calls[0];
+    expect(fetchMock).toHaveBeenCalledWith("/api/spotify/playlist/save", expect.any(Object));
+    const saveCall = fetchMock.mock.calls.find(([url]) => url === "/api/spotify/playlist/save");
+    const [url, options] = saveCall;
     expect(url).toBe("/api/spotify/playlist/save");
 
     const body = JSON.parse(options.body);

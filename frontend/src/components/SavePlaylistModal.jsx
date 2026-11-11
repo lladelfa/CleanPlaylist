@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, AlertTriangle, FilePlus, Loader2, CheckCircle2, ShieldCheck, Lock, Globe } from 'lucide-react';
+import { emitTelemetryEvent } from '../utils/telemetry';
 
 export default function SavePlaylistModal({
   isOpen,
@@ -85,6 +86,12 @@ export default function SavePlaylistModal({
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.detail || 'Failed to save playlist');
       }
+
+      emitTelemetryEvent('finish_action_clicked', {
+        platform: activePlatform || 'spotify',
+        vip_mode: true,
+        action: 'vip_spotify_save',
+      });
 
       setSuccess(true);
       setTimeout(() => {

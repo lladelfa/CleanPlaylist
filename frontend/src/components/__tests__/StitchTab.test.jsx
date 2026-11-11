@@ -483,6 +483,9 @@ describe('Story 4.1: StitchTab Multi-Source Input Pool & 50-Track Quota Bar', ()
       return { ok: false, status: 404 };
     });
 
+    const hookSpy = vi.fn();
+    window.__CP_ANALYTICS_HOOK__ = hookSpy;
+
     render(
       <StitchTab
         workingList={mockWorkingList}
@@ -501,6 +504,14 @@ describe('Story 4.1: StitchTab Multi-Source Input Pool & 50-Track Quota Bar', ()
     await waitFor(() => {
       expect(screen.getByRole('region', { name: /stitched clean queue/i })).toBeInTheDocument();
     });
+
+    expect(hookSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'stitch_completed',
+        platform: 'ytmusic',
+        output_count: 2,
+      })
+    );
 
     // Check stats badges
     expect(screen.getByText('Duplicates Removed')).toBeInTheDocument();
@@ -530,6 +541,14 @@ describe('Story 4.1: StitchTab Multi-Source Input Pool & 50-Track Quota Bar', ()
         })
       );
     });
+
+    expect(hookSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'finish_action_clicked',
+        action: 'file_export',
+      })
+    );
+    delete window.__CP_ANALYTICS_HOOK__;
   });
 
   describe('Story 4.2: Automated Stitch Pre-Screening Pipeline & Batch Clean Enforcement', () => {

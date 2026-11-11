@@ -24,6 +24,7 @@ import { exportCleanPlaylistFile, getReadyTracks } from "../utils/finishLine";
 import { reevaluateTracks } from "../utils/lyricEvaluator";
 import { runScreeningPipeline, runBulkCleanPipeline } from "../utils/screeningPipeline";
 import { isYouTubePlaylist, isSpotifyPlaylistUrl } from "../utils/inputParser";
+import { emitTelemetryEvent, getTrackCountBucket } from "../utils/telemetry";
 
 export default function ScanTab({
   playlist,
@@ -138,6 +139,13 @@ export default function ScanTab({
         tracks: [...(prev.tracks || []), newTrack],
       }));
     }
+
+    emitTelemetryEvent("input_loaded", {
+      platform: activePlatform,
+      vip_mode: vipMode,
+      input_type: "song_search",
+      track_count_bucket: getTrackCountBucket(1),
+    });
   };
 
   const handleAddAlbum = async (album) => {
@@ -242,6 +250,14 @@ export default function ScanTab({
           message: `Added ${normalizedTracks.length} tracks from "${album.title}".`,
         });
       }
+
+      const addedCount = normalizedTracks.length > remaining ? remaining : normalizedTracks.length;
+      emitTelemetryEvent("input_loaded", {
+        platform: activePlatform,
+        vip_mode: vipMode,
+        input_type: "album_search",
+        track_count_bucket: getTrackCountBucket(addedCount),
+      });
     } catch (err) {
       setActiveNotice({
         type: "error",
@@ -374,6 +390,13 @@ export default function ScanTab({
           tracks: [...(prev.tracks || []), ...toAdd],
         }));
       }
+
+      emitTelemetryEvent("input_loaded", {
+        platform: activePlatform,
+        vip_mode: vipMode,
+        input_type: "pasted_list",
+        track_count_bucket: getTrackCountBucket(toAdd.length),
+      });
     }
 
     const wrongPlatformItems = allUnresolved.filter((item) => item.reason === "wrong_platform");
@@ -454,6 +477,13 @@ export default function ScanTab({
         type: "success",
         text: `Loaded "${data.title}" with ${data.tracks.length} tracks.`,
       });
+
+      emitTelemetryEvent("input_loaded", {
+        platform: targetPlatform,
+        vip_mode: vipMode,
+        input_type: targetPlatform === "spotify" ? "vip_spotify_playlist" : "ytm_playlist",
+        track_count_bucket: getTrackCountBucket(data.tracks ? data.tracks.length : 0),
+      });
     } catch (err) {
       setStatusMessage({ type: "error", text: err.message });
     } finally {
@@ -523,12 +553,25 @@ export default function ScanTab({
         setScanProgressAnnouncement(errorText);
       } else {
         const flaggedCount = (result.tracks || []).filter((t) => t.is_flagged).length;
+        const lyricsUnavailableCount = (result.tracks || []).filter(
+          (t) => t.verification_status === "lyrics_unavailable" || t.has_lyrics === false
+        ).length;
         const summaryText = `Scan complete: ${flaggedCount} flagged tracks found out of ${totalScanned} tracks.`;
         setStatusMessage({
           type: "success",
           text: summaryText,
         });
         setScanProgressAnnouncement(summaryText);
+
+        const presetId = ["kid_safe", "moderate", "slurs_only"].includes(preset) ? preset : "custom";
+        emitTelemetryEvent("scan_completed", {
+          platform: activePlatform,
+          vip_mode: vipMode,
+          preset_id: presetId,
+          track_count: totalScanned,
+          flagged_count: flaggedCount,
+          lyrics_unavailable_count: lyricsUnavailableCount,
+        });
       }
     } catch (err) {
       setStatusMessage({ type: "error", text: err.message });
@@ -723,23 +766,14 @@ export default function ScanTab({
       return;
     }
 
-    // Fire-and-forget telemetry event emission
-    try {
-      fetch("/api/telemetry/event", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event_name: "clean_swap_applied",
-          properties: {
-            mode: "bulk",
-            swapped_count: totalSwapped,
-            unfound_count: totalUnfound,
-          },
-        }),
-      }).catch(() => {});
-    } catch {
-      // Fire-and-forget: ignore network failure or missing telemetry endpoint
-    }
+    // Fire-and-forget telemetry event conforming to AD-9 schema
+    emitTelemetryEvent("clean_swap_applied", {
+      platform: activePlatform,
+      vip_mode: vipMode,
+      mode: "bulk",
+      swapped_count: totalSwapped,
+      unfound_count: totalUnfound,
+    });
 
     const totalProcessed = totalSwapped + totalUnfound;
     let completionMsg = "";
@@ -829,6 +863,14 @@ export default function ScanTab({
     setStatusMessage({
       type: "success",
       text: swapMsg,
+    });
+
+    emitTelemetryEvent("clean_swap_applied", {
+      platform: activePlatform,
+      vip_mode: vipMode,
+      mode: "single",
+      swapped_count: 1,
+      unfound_count: 0,
     });
   };
 
@@ -1143,6 +1185,7 @@ export default function ScanTab({
           tracks={currentTracks}
           keptTrackIds={keptTrackIds}
           activePlatform={activePlatform}
+          vipMode={vipMode}
           playlistTitle={playlist?.title || 'Clean Playlist'}
           onNotice={(notice) => {
             setActiveNotice(notice);

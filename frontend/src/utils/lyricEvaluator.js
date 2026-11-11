@@ -6,6 +6,8 @@
  * snippet creation, category aggregation, and zero false-clean state machine.
  */
 
+import { emitTelemetryEvent } from './telemetry';
+
 export const DEFAULT_PRESET_PROFILES = {
   kid_safe: {
     id: 'kid_safe',
@@ -359,7 +361,7 @@ export function evaluateTrack(track, lyrics, options = {}) {
 export function reevaluateTracks(tracks, options = {}) {
   const {
     lyricsByTrackId = {},
-    preset = 'moderate',
+    preset: _preset = 'moderate',
   } = options || {};
 
   const safeLyricsMap = lyricsByTrackId && typeof lyricsByTrackId === 'object' ? lyricsByTrackId : {};
@@ -390,14 +392,6 @@ export function reevaluateTracks(tracks, options = {}) {
     lyricsUnavailable: lyricsUnavailableCount,
   };
 
-  // Fire-and-forget telemetry emission
-  sendScanCompletedTelemetry({
-    preset_id: preset,
-    track_count: updatedTracks.length,
-    flagged_count: flaggedCount,
-    lyrics_unavailable_count: lyricsUnavailableCount,
-  });
-
   return {
     tracks: updatedTracks,
     summary,
@@ -405,21 +399,10 @@ export function reevaluateTracks(tracks, options = {}) {
 }
 
 /**
- * Sends scan_completed telemetry event in a safe, fire-and-forget fashion.
+ * Sends scan_completed telemetry event in a safe, fire-and-forget fashion conforming to AD-9 schema.
  */
 export async function sendScanCompletedTelemetry(payload) {
-  try {
-    await fetch('/api/telemetry/event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event_name: 'scan_completed',
-        properties: payload,
-      }),
-    });
-  } catch {
-    // Fire-and-forget: ignore network failure or unimplemented telemetry endpoint
-  }
+  emitTelemetryEvent('scan_completed', payload);
 }
 
 /**

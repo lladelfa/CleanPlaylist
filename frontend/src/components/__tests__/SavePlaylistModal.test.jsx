@@ -154,6 +154,38 @@ describe('SavePlaylistModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('emits finish_action_clicked telemetry with vip_spotify_save on successful save', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const hookSpy = vi.fn();
+    window.__CP_ANALYTICS_HOOK__ = hookSpy;
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ status: 'success', playlist_id: 'pl_123' }),
+    });
+
+    render(
+      <SavePlaylistModal
+        isOpen={true}
+        onClose={vi.fn()}
+        playlist={mockPlaylist}
+        displayedTracks={mockTracks}
+      />
+    );
+
+    const saveBtn = screen.getByRole('button', { name: /save playlist/i });
+    await user.click(saveBtn);
+
+    expect(hookSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'finish_action_clicked',
+        action: 'vip_spotify_save',
+        vip_mode: true,
+      })
+    );
+    delete window.__CP_ANALYTICS_HOOK__;
+  });
+
   it('shows destructive warning and sends update payload when Update Original is selected', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 

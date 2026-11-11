@@ -11,6 +11,7 @@ import FinishLineBar from './FinishLineBar';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import { runStitchPreScreeningPipeline } from '../utils/screeningPipeline';
 import { getTrackCanonicalUrl } from '../utils/finishLine';
+import { emitTelemetryEvent } from '../utils/telemetry';
 
 function formatDuration(track) {
   if (typeof track?.duration === 'string' && track.duration.includes(':')) {
@@ -323,6 +324,13 @@ export default function StitchTab({
         return next;
       });
     }
+
+    emitTelemetryEvent('input_loaded', {
+      input_type: 'working_list_import',
+      track_count: workingList.length,
+      platform: activePlatform,
+      vip_mode: vipMode,
+    });
   };
 
   // Remove source
@@ -424,6 +432,14 @@ export default function StitchTab({
 
       const data = await res.json();
       setStitchedResult(data);
+
+      emitTelemetryEvent('stitch_completed', {
+        platform: activePlatform || 'ytmusic',
+        vip_mode: vipMode,
+        source_count: (preScreenResult.sources || playlistPool).length,
+        clean_rule: cleanMode,
+        output_count: data.tracks?.length || 0,
+      });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -464,6 +480,12 @@ export default function StitchTab({
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+
+      emitTelemetryEvent('finish_action_clicked', {
+        platform: activePlatform || 'ytmusic',
+        vip_mode: vipMode,
+        action: 'file_export',
+      });
     } catch (err) {
       setError(err.message);
     }
@@ -1046,6 +1068,7 @@ export default function StitchTab({
         <FinishLineBar
           tracks={stitchedResult.tracks}
           activePlatform={activePlatform}
+          vipMode={vipMode}
           playlistTitle={playlistTitle}
           primaryAction="play"
           onNotice={onNotice}
