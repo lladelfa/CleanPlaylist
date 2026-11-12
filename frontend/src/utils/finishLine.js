@@ -7,6 +7,8 @@
  * triggering file exports, and handling zero-login playback handoffs.
  */
 
+import { emitTelemetryEvent } from './telemetry';
+
 /**
  * Test whether a track is approved / ready for finish-line playback or export.
  * A track is ready if:
@@ -159,6 +161,7 @@ export function launchYouTubeCleanQueue({
   platform = 'spotify',
   onNotice,
   openWindow = true,
+  vipMode = false,
 }) {
   if (!Array.isArray(readyTracks) || readyTracks.length === 0) {
     return { success: false, reason: 'empty_ready_tracks' };
@@ -205,26 +208,12 @@ export function launchYouTubeCleanQueue({
     });
   }
 
-  // Fire-and-forget telemetry event
-  try {
-    if (typeof fetch === 'function') {
-      fetch('/api/telemetry/event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_name: 'finish_action_clicked',
-          properties: {
-            action: 'play_clean_queue',
-            platform,
-            video_ids_count: videoIds.length,
-            omitted_count: omittedCount,
-          },
-        }),
-      }).catch(() => {});
-    }
-  } catch {
-    // Fire-and-forget
-  }
+  // Fire-and-forget telemetry event conforming to AD-9 schema
+  emitTelemetryEvent('finish_action_clicked', {
+    platform,
+    vip_mode: vipMode,
+    action: 'play_clean_queue',
+  });
 
   return {
     success: true,
@@ -322,6 +311,7 @@ export async function copyCleanTrackLinks({
   platform = 'spotify',
   onNotice,
   clipboard = globalThis.navigator?.clipboard,
+  vipMode = false,
 }) {
   if (!Array.isArray(readyTracks) || readyTracks.length === 0) {
     if (typeof onNotice === 'function') {
@@ -358,25 +348,12 @@ export async function copyCleanTrackLinks({
       });
     }
 
-    // Fire-and-forget telemetry event
-    try {
-      if (typeof fetch === 'function') {
-        fetch('/api/telemetry/event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            event_name: 'finish_action_clicked',
-            properties: {
-              action: 'copy_clean_links',
-              platform,
-              count,
-            },
-          }),
-        }).catch(() => {});
-      }
-    } catch {
-      // Fire-and-forget
-    }
+    // Fire-and-forget telemetry event conforming to AD-9 schema
+    emitTelemetryEvent('finish_action_clicked', {
+      platform,
+      vip_mode: vipMode,
+      action: 'copy_clean_links',
+    });
 
     return {
       success: true,
@@ -417,6 +394,7 @@ export async function exportCleanPlaylistFile({
   platform = 'spotify',
   onNotice,
   fetchFn = globalThis.fetch,
+  vipMode = false,
 }) {
   if (!Array.isArray(readyTracks) || readyTracks.length === 0) {
     if (typeof onNotice === 'function') {
@@ -472,26 +450,12 @@ export async function exportCleanPlaylistFile({
       });
     }
 
-    // Fire-and-forget telemetry event
-    try {
-      if (typeof fetchFn === 'function') {
-        fetchFn('/api/telemetry/event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            event_name: 'finish_action_clicked',
-            properties: {
-              action: 'file_export',
-              platform,
-              format,
-              count: readyTracks.length,
-            },
-          }),
-        }).catch(() => {});
-      }
-    } catch {
-      // Fire-and-forget
-    }
+    // Fire-and-forget telemetry event conforming to AD-9 schema
+    emitTelemetryEvent('finish_action_clicked', {
+      platform,
+      vip_mode: vipMode,
+      action: 'file_export',
+    });
 
     return {
       success: true,

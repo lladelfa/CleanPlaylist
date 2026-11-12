@@ -92,6 +92,9 @@ describe('Story 3.3: One-Click Bulk Clean Replacement in Scan & Clean', () => {
       return { ok: true, json: async () => ({}) };
     });
 
+    const hookSpy = vi.fn();
+    window.__CP_ANALYTICS_HOOK__ = hookSpy;
+
     render(
       <ScanTab
         workingList={workingListState}
@@ -138,6 +141,16 @@ describe('Story 3.3: One-Click Bulk Clean Replacement in Scan & Clean', () => {
 
     // Clean lyrics should be stored in lyricsByTrackId
     expect(lyricsState['clean_trk_0']).toBe('Clean lyrics for trk_0');
+
+    expect(hookSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'clean_swap_applied',
+        mode: 'bulk',
+        swapped_count: 11,
+        unfound_count: 1,
+      })
+    );
+    delete window.__CP_ANALYTICS_HOOK__;
   });
 
   it('halts on HTTP 429, preserves earlier swapped tracks, shows retryable pause banner, and allows retrying remaining tracks', async () => {
