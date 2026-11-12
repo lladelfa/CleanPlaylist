@@ -79,6 +79,17 @@ context: []
 - **verification-gap — low — patch:** The same missing clean-swap confirmation assertion was independently identified; the test now verifies `bg-status-clean-bg`, `border-status-clean-border`, and `text-status-clean`.
 - **blind-hunter — low — patch:** `NoticeBanner`'s type comment omitted supported values; it now documents the clean, flagged, and rate-limit variants.
 - Edge-case hunter reported no findings.
+- **blind-hunter — false:** The `FinishLineBar.test.jsx` copied-label assertion passed in the focused run; the current rendering exposes a unique `Copied!` label to that query.
+- **blind-hunter — false:** The clean-swap matrix row was exercised by `CleanReplacementControl.test.jsx` in the focused 9-suite, 103-test run, so the required coverage ran and passed.
+- **blind-hunter — false:** `ScanTab.test.jsx` renders the `SmartInputBar` Browse Library control and asserts its exact violet classes, covering the changed button through its owning view.
+- **blind-hunter — carried — low — patch:** The prior connection-indicator finding remains as logged: the test requires `bg-brand-primary` and rejects `emerald`/`status-clean`, but still would not reject an additional `bg-green-*` class.
+- **blind-hunter — false:** A scoped ripgrep audit found no production `slate-*`, `brand-hover`, `status-danger`, `emerald-*`, or `green-*` utilities; only the existing test guard references `bg-slate-900`.
+- **blind-hunter — false:** The frozen boundaries explicitly reserve emerald for clean-candidate previews, and `CleanReplacementControl` uses semantic `status-clean` tokens with a focused assertion.
+- **blind-hunter — false:** Exact zone layout requirements remain in `planning-artifacts/epics.md` and the completed Story 6.2 spec; the refreshed epic context intentionally summarizes them, and Story 6.3 does not alter zone layout.
+- **blind-hunter — false:** The workflow does not require console output to be persisted in the spec; the focused tests, lint, and build were run and their results are reported in-session.
+- **verification-gap — false:** The clean-swap matrix row was covered by `CleanReplacementControl.test.jsx` in the focused 9-suite, 103-test run despite that test file not appearing in the spec's command list.
+- **verification-gap — low — patch:** `StitchTab.test.jsx` now asserts the semantic violet hover tokens on Add Playlist, Search, Add Album, Stitch, and Export M3U8 controls.
+- **verification-gap — low — patch:** `ScreeningControlsBar.test.jsx` now asserts Run Scan uses `hover:bg-brand-primary-hover`.
 
 ## Design Notes
 

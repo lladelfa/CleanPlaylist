@@ -17,6 +17,10 @@ describe('ScreeningControlsBar', () => {
     expect(screen.getByRole('button', { name: /moderate/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /slurs only/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /custom/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /scan lyrics/i })).toHaveClass(
+      'bg-brand-primary',
+      'hover:bg-brand-primary-hover'
+    );
   });
 
   it('indicates active preset and invokes callback when switching presets', () => {

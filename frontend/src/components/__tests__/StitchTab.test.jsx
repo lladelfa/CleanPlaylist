@@ -195,7 +195,9 @@ describe('Story 4.1: StitchTab Multi-Source Input Pool & 50-Track Quota Bar', ()
 
     // 1. YouTube playlist URL input and button
     expect(screen.getByPlaceholderText(/youtube music playlist url/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /add playlist/i })).toBeInTheDocument();
+    const addPlaylistButton = screen.getByRole('button', { name: /add playlist/i });
+    expect(addPlaylistButton).toBeInTheDocument();
+    expect(addPlaylistButton).toHaveClass('bg-brand-primary', 'hover:bg-brand-primary-hover');
 
     // 2. Searched album trigger
     expect(screen.getByRole('button', { name: /search album/i })).toBeInTheDocument();
@@ -314,7 +316,9 @@ describe('Story 4.1: StitchTab Multi-Source Input Pool & 50-Track Quota Bar', ()
     // Search input appears
     const searchInput = screen.getByPlaceholderText(/search album name/i);
     fireEvent.change(searchInput, { target: { value: 'Greatest Hits' } });
-    fireEvent.click(screen.getByRole('button', { name: /^search$/i }));
+    const searchButton = screen.getByRole('button', { name: /^search$/i });
+    expect(searchButton).toHaveClass('bg-brand-primary', 'hover:bg-brand-primary-hover');
+    fireEvent.click(searchButton);
 
     await waitFor(() => {
       expect(screen.getByText('Greatest Hits')).toBeInTheDocument();
@@ -335,6 +339,7 @@ describe('Story 4.1: StitchTab Multi-Source Input Pool & 50-Track Quota Bar', ()
 
     // Click to add album
     const addAlbumItemBtn = screen.getByRole('button', { name: /add album greatest hits/i });
+    expect(addAlbumItemBtn).toHaveClass('bg-brand-primary', 'hover:bg-brand-primary-hover');
     fireEvent.click(addAlbumItemBtn);
 
     await waitFor(() => {
@@ -883,11 +888,17 @@ describe('Story 4.1: StitchTab Multi-Source Input Pool & 50-Track Quota Bar', ()
         />
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /stitch playlists & clean/i }));
+      const stitchButton = screen.getByRole('button', { name: /stitch playlists & clean/i });
+      expect(stitchButton).toHaveClass('bg-brand-primary', 'hover:bg-brand-primary-hover');
+      fireEvent.click(stitchButton);
 
       await waitFor(() => {
         expect(screen.getByRole('region', { name: /stitched clean queue/i })).toBeInTheDocument();
       });
+      expect(screen.getByRole('button', { name: /export m3u8/i })).toHaveClass(
+        'bg-brand-primary',
+        'hover:bg-brand-primary-hover'
+      );
 
       const outputRegion = screen.getByRole('region', { name: /stitched clean queue/i });
 
