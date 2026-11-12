@@ -66,3 +66,8 @@ backend/backend.log
 
 # BMAD
 .bmad-viewer/
+.bmad-loop/runs/
+.bmad-loop/cache/
+.bmad-loop/policy.toml
+_bmad/render/
+.claude/settings.json
