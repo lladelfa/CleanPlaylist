@@ -591,7 +591,7 @@ export default function StitchTab({
                 onClick={handleAddPlaylist}
                 disabled={loadingNew || !newUrl.trim()}
                 aria-label="Add Playlist"
-                className="px-4 py-2.5 bg-brand-primary hover:bg-brand-hover text-white font-medium text-xs rounded-xl flex items-center space-x-1.5 transition disabled:opacity-50 shrink-0"
+                className="px-4 py-2.5 bg-brand-primary hover:bg-brand-primary-hover text-white font-medium text-xs rounded-xl flex items-center space-x-1.5 transition disabled:opacity-50 shrink-0"
               >
                 {loadingNew ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
@@ -609,9 +609,9 @@ export default function StitchTab({
                   type="button"
                   onClick={() => setIsLibraryPickerOpen(true)}
                   aria-label="Browse Library"
-                  className="px-3 py-2.5 bg-surface-elevated hover:bg-surface-card text-text-primary border border-border-subtle font-medium text-xs rounded-xl flex items-center space-x-1.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
+                  className="px-3 py-2.5 bg-surface-card hover:bg-surface-elevated text-brand-tint border border-border-subtle font-medium text-xs rounded-xl flex items-center space-x-1.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
                 >
-                  <Library className="w-3.5 h-3.5 text-brand-primary" aria-hidden="true" />
+                  <Library className="w-3.5 h-3.5 text-brand-tint" aria-hidden="true" />
                   <span>Browse Library</span>
                 </button>
               )}
@@ -660,7 +660,7 @@ export default function StitchTab({
                   type="submit"
                   disabled={isSearchingAlbums || !albumQuery.trim()}
                   aria-label="Search"
-                  className="px-3 py-2 bg-brand-primary hover:bg-brand-hover text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition disabled:opacity-50"
+                  className="px-3 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition disabled:opacity-50"
                 >
                   {isSearchingAlbums ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
@@ -708,7 +708,7 @@ export default function StitchTab({
                         onClick={() => handleSelectAlbum(album)}
                         disabled={loadingAlbumId === album.id}
                         aria-label={`Add album ${album.title}`}
-                        className="px-2.5 py-1.5 bg-brand-primary hover:bg-brand-hover text-white text-[11px] font-medium rounded-md flex items-center space-x-1 transition disabled:opacity-50 shrink-0"
+                        className="px-2.5 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-[11px] font-medium rounded-md flex items-center space-x-1 transition disabled:opacity-50 shrink-0"
                       >
                         {loadingAlbumId === album.id ? (
                           <RefreshCw className="w-3 h-3 animate-spin" aria-hidden="true" />
@@ -779,7 +779,7 @@ export default function StitchTab({
                   type="button"
                   onClick={() => handleRemoveSource(idx)}
                   aria-label={`Remove source ${source.title}`}
-                  className="text-text-muted hover:text-status-danger p-1.5 rounded-lg hover:bg-surface-inset transition shrink-0"
+                  className="text-text-muted hover:text-status-flagged p-1.5 rounded-lg hover:bg-surface-inset transition shrink-0"
                 >
                   <Trash2 className="w-4 h-4" aria-hidden="true" />
                 </button>
@@ -804,7 +804,7 @@ export default function StitchTab({
         )}
 
         {error && (
-          <p className="text-xs text-status-danger bg-status-danger-bg p-2.5 rounded-lg border border-status-danger-border">
+          <p className="text-xs text-status-flagged bg-status-flagged-bg p-2.5 rounded-lg border border-status-flagged-border">
             {error}
           </p>
         )}
@@ -908,7 +908,7 @@ export default function StitchTab({
             aria-label={stitching ? (screeningProgressText || 'Stitching in progress') : 'Stitch Playlists & Clean'}
             onClick={handleStitch}
             disabled={stitching || playlistPool.length === 0}
-            className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-brand-primary hover:bg-brand-hover text-white font-semibold text-xs rounded-xl shadow-lg transition disabled:opacity-50"
+            className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-brand-primary hover:bg-brand-primary-hover text-white font-semibold text-xs rounded-xl shadow-lg transition disabled:opacity-50"
           >
             {stitching ? <RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Sparkles className="w-4 h-4" aria-hidden="true" />}
             <span>{stitching ? (screeningProgressText || 'Stitching...') : 'Stitch Playlists & Clean'}</span>
@@ -936,7 +936,7 @@ export default function StitchTab({
               <button
                 type="button"
                 onClick={() => handleExport('m3u')}
-                className="px-3 py-1.5 bg-brand-primary hover:bg-brand-hover text-white text-xs font-medium rounded-xl flex items-center space-x-1.5 shadow"
+                className="px-3 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-xs font-medium rounded-xl flex items-center space-x-1.5 shadow"
                 title="Download M3U8 Playlist File"
               >
                 <Download className="w-3.5 h-3.5" aria-hidden="true" />
@@ -948,7 +948,7 @@ export default function StitchTab({
                 className="px-3 py-1.5 bg-surface-elevated hover:bg-surface-card text-text-primary text-xs font-medium rounded-xl flex items-center space-x-1.5 border border-border-subtle"
                 title="Download CSV Spreadsheet"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-status-clean" aria-hidden="true" />
+                <FileSpreadsheet className="w-3.5 h-3.5 text-text-muted" aria-hidden="true" />
                 <span>CSV</span>
               </button>
             </div>
@@ -977,7 +977,7 @@ export default function StitchTab({
               </div>
               <div className="bg-surface-elevated border border-border-subtle p-3 rounded-xl text-center">
                 <p className="text-[11px] text-text-muted">Dropped Flagged</p>
-                <p className="text-lg font-bold text-status-danger">
+                <p className="text-lg font-bold text-status-flagged">
                   {stitchedResult.stats.tracks_dropped ?? 0}
                 </p>
               </div>

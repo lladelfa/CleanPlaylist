@@ -90,6 +90,7 @@ describe('Story 3.2: CleanReplacementControl & Per-Track / In-Modal Swap Workflo
       const swapBtn = screen.getByRole('button', { name: /Swap to Clean/i });
       expect(swapBtn).toBeInTheDocument();
       expect(swapBtn).toHaveTextContent('Swap to Clean');
+      expect(swapBtn).toHaveClass('bg-status-clean-bg', 'text-status-clean', 'border-status-clean-border');
       // desktop title in title attribute
       expect(swapBtn).toHaveTextContent('-2s');
 
@@ -351,6 +352,15 @@ describe('Story 3.2: CleanReplacementControl & Per-Track / In-Modal Swap Workflo
       // Verify aria-live polite announcement
       const liveRegion = screen.getByRole('status');
       expect(liveRegion).toHaveTextContent(/Swapped.*Explicit Hit Song.*to clean version/i);
+      const cleanSwapConfirmation = screen
+        .getAllByText(/Swapped.*Explicit Hit Song.*to clean version/i)
+        .find((message) => message.parentElement.className.includes('bg-status-clean-bg'));
+      expect(cleanSwapConfirmation).toBeDefined();
+      expect(cleanSwapConfirmation.parentElement).toHaveClass(
+        'bg-status-clean-bg',
+        'border-status-clean-border',
+        'text-status-clean'
+      );
     });
 
     it('displays "No clean version found" in ScanTab when /api/replacements/find returns found: false', async () => {

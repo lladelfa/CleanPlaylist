@@ -861,7 +861,7 @@ export default function ScanTab({
     const swapMsg = `Swapped "${originalTrack.title}" to clean version "${cleanTrack.title || originalTrack.title}".`;
     setScanProgressAnnouncement(swapMsg);
     setStatusMessage({
-      type: "success",
+      type: "clean",
       text: swapMsg,
     });
 
@@ -1026,7 +1026,9 @@ export default function ScanTab({
           className={`p-3.5 rounded-xl border text-sm flex items-center space-x-2 ${
             statusMessage.type === "error"
               ? "bg-status-flagged-bg border-status-flagged-border text-status-flagged"
-              : "bg-status-clean-bg border-status-clean-border text-status-clean"
+              : statusMessage.type === "clean"
+                ? "bg-status-clean-bg border-status-clean-border text-status-clean"
+                : "bg-surface-elevated border-border-subtle text-text-primary"
           }`}
         >
           {statusMessage.type === "error" ? (
@@ -1157,7 +1159,7 @@ export default function ScanTab({
                   onClick={() => setFilterMode("clean")}
                   className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-lg transition ${
                     filterMode === "clean"
-                      ? "bg-status-clean-border text-white"
+                      ? "bg-brand-primary text-white"
                       : "text-text-muted hover:text-text-primary"
                   }`}
                 >

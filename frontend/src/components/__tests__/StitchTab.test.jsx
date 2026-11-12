@@ -23,7 +23,9 @@ describe('Story 4.1: StitchTab Multi-Source Input Pool & 50-Track Quota Bar', ()
     const { rerender } = render(
       <StitchTab activePlatform="spotify" vipMode workingList={[]} />
     );
-    expect(screen.getByRole('button', { name: /browse library/i })).toBeInTheDocument();
+    const browseButton = screen.getByRole('button', { name: /browse library/i });
+    expect(browseButton).toBeInTheDocument();
+    expect(browseButton).toHaveClass('text-brand-tint', 'hover:bg-surface-elevated');
 
     rerender(<StitchTab activePlatform="spotify" vipMode={false} workingList={[]} />);
     expect(screen.queryByRole('button', { name: /browse library/i })).not.toBeInTheDocument();

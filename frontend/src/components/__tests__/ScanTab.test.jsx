@@ -144,6 +144,11 @@ describe("ScanTab - Remove Tracks UI", () => {
 
     // Open Save Playlist Modal and submit
     const saveToSpotifyBtn = screen.getByRole("button", { name: /save to spotify/i });
+    expect(saveToSpotifyBtn).toHaveClass(
+      "bg-brand-primary",
+      "hover:bg-brand-primary-hover",
+      "text-white"
+    );
     await user.click(saveToSpotifyBtn);
 
     const confirmSaveBtn = screen.getByRole("button", { name: /^save playlist$/i });
@@ -186,6 +191,10 @@ describe("ScanTab - Spotify Playlist Picker Integration", () => {
     );
 
     expect(screen.getByRole("button", { name: /browse library/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /browse library/i })).toHaveClass(
+      "text-brand-tint",
+      "hover:bg-surface-elevated"
+    );
 
     // Unauthenticated Spotify -> hidden
     rerender(
@@ -224,6 +233,16 @@ describe("ScanTab - Spotify Playlist Picker Integration", () => {
       />
     );
     expect(screen.queryByRole("button", { name: /browse library/i })).not.toBeInTheDocument();
+  });
+
+  it("uses the same violet selected styling for the clean filter as other filters", async () => {
+    const user = userEvent.setup();
+    render(<StatefulScanTabWrapper />);
+
+    const cleanFilter = screen.getByRole("button", { name: /clean \(2\)/i });
+    await user.click(cleanFilter);
+    expect(cleanFilter).toHaveClass("bg-brand-primary");
+    expect(cleanFilter.className).not.toContain("status-clean");
   });
 
   it("populates the URL input, closes the modal, and automatically fetches the playlist when selected from the modal", async () => {
@@ -286,7 +305,10 @@ describe("ScanTab - Spotify Playlist Picker Integration", () => {
         }),
       })
     );
-    expect(await screen.findByText(/Loaded "My Picked Spotify Playlist" with 3 tracks/i)).toBeInTheDocument();
+    const loadedMessage = await screen.findByText(/Loaded "My Picked Spotify Playlist" with 3 tracks/i);
+    expect(loadedMessage).toBeInTheDocument();
+    expect(loadedMessage.parentElement).toHaveClass('bg-surface-elevated', 'border-border-subtle');
+    expect(loadedMessage.parentElement.className).not.toContain('status-clean');
     expect(screen.getByText("Clean Song One")).toBeInTheDocument();
   });
 
@@ -445,6 +467,12 @@ describe("ScanTab - Progressive Lyric Scan Integration", () => {
     // Verify accessible role="status" live region receives completion announcement
     const liveRegion = screen.getByRole("status");
     expect(liveRegion).toHaveTextContent("Scan complete: 0 flagged tracks found out of 1 tracks.");
+    const completionMessage = screen
+      .getAllByText("Scan complete: 0 flagged tracks found out of 1 tracks.")
+      .find((message) => message.parentElement.className.includes("bg-surface-elevated"));
+    expect(completionMessage).toBeDefined();
+    expect(completionMessage.parentElement).toHaveClass("bg-surface-elevated", "border-border-subtle");
+    expect(completionMessage.parentElement.className).not.toContain("status-clean");
   });
 
   it("surfaces error notice and updates live region when all tracks end with scan_error", async () => {

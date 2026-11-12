@@ -288,6 +288,8 @@ describe('ScreeningControlsBar', () => {
 
       const bulkBtn = screen.getByRole('button', { name: /find & swap all clean versions/i });
       expect(bulkBtn).toBeEnabled();
+      expect(bulkBtn).toHaveClass('bg-brand-primary', 'hover:bg-brand-primary-hover');
+      expect(bulkBtn.className).not.toContain('status-clean');
 
       fireEvent.click(bulkBtn);
       expect(handleBulkClean).toHaveBeenCalledTimes(1);

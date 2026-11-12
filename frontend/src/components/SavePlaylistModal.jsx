@@ -144,10 +144,10 @@ export default function SavePlaylistModal({
 
         {success ? (
           <div className="flex flex-col items-center justify-center py-8 space-y-4">
-            <div className="w-16 h-16 bg-status-clean-bg border border-status-clean-border/40 rounded-full flex items-center justify-center">
-              <CheckCircle2 className="w-8 h-8 text-status-clean" />
+            <div className="w-16 h-16 bg-surface-elevated border border-border-subtle rounded-full flex items-center justify-center">
+              <CheckCircle2 className="w-8 h-8 text-text-secondary" />
             </div>
-            <p className="text-status-clean font-semibold text-lg">Saved Successfully!</p>
+            <p className="text-text-primary font-semibold text-lg">Saved Successfully!</p>
           </div>
         ) : (
           <div className="space-y-5">

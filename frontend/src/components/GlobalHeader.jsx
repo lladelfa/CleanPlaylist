@@ -80,7 +80,7 @@ export default function GlobalHeader({
               </span>
               {isAuthenticated ? (
                 <div className="bg-surface-elevated text-text-secondary border border-border-subtle text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 min-h-[44px] sm:min-h-0">
-                  <span className="w-2 h-2 rounded-full bg-status-clean inline-block" aria-hidden="true" />
+                  <span className="w-2 h-2 rounded-full bg-brand-primary inline-block" aria-hidden="true" />
                   <span>Spotify Connected</span>
                 </div>
               ) : (

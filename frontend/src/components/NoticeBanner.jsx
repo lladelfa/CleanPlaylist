@@ -2,7 +2,7 @@ import React from 'react';
 import { AlertTriangle, AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 
 export default function NoticeBanner({
-  type = 'caution', // 'caution' | 'warning' | 'error' | 'success' | 'info'
+  type = 'caution', // 'caution' | 'warning' | 'error' | 'flagged' | 'rate_limit' | 'success' | 'clean' | 'info'
   message,
   chips = [],
   actionLabel,
@@ -11,7 +11,7 @@ export default function NoticeBanner({
   className = '',
 }) {
   const isError = type === 'error' || type === 'flagged';
-  const isClean = type === 'success' || type === 'clean';
+  const isClean = type === 'clean';
   const isCaution = type === 'caution' || type === 'warning' || type === 'rate_limit';
 
   let bannerStyles = 'bg-status-caution-bg border-status-caution-border text-status-caution';

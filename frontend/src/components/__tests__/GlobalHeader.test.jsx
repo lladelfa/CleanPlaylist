@@ -112,7 +112,11 @@ describe('GlobalHeader', () => {
     );
 
     expect(screen.getByText('VIP')).toBeInTheDocument();
-    expect(screen.getByText(/spotify connected/i)).toBeInTheDocument();
+    const connectedLabel = screen.getByText(/spotify connected/i);
+    expect(connectedLabel).toBeInTheDocument();
+    const connectionIndicator = connectedLabel.parentElement.querySelector('[aria-hidden="true"]');
+    expect(connectionIndicator).toHaveClass('bg-brand-primary');
+    expect(connectionIndicator.className).not.toMatch(/emerald|status-clean/);
     expect(screen.queryByRole('button', { name: /connect spotify/i })).not.toBeInTheDocument();
     const exitBtn = screen.getByRole('button', { name: /exit vip mode/i });
     expect(exitBtn).toBeInTheDocument();

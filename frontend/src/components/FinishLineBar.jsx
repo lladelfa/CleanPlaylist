@@ -235,8 +235,8 @@ export default function FinishLineBar({
           >
             {isCopied ? (
               <>
-                <Check className="w-4 h-4 text-status-clean shrink-0" aria-hidden="true" />
-                <span className="text-status-clean font-semibold">Copied!</span>
+                <Check className="w-4 h-4 text-text-secondary shrink-0" aria-hidden="true" />
+                <span className="text-text-primary font-semibold">Copied!</span>
               </>
             ) : (
               <>
@@ -350,8 +350,8 @@ export default function FinishLineBar({
               >
                 {isCopied ? (
                   <>
-                    <Check className="w-4 h-4 text-status-clean shrink-0" aria-hidden="true" />
-                    <span className="text-status-clean font-semibold">Copied!</span>
+                    <Check className="w-4 h-4 text-text-secondary shrink-0" aria-hidden="true" />
+                    <span className="text-text-primary font-semibold">Copied!</span>
                   </>
                 ) : (
                   <>

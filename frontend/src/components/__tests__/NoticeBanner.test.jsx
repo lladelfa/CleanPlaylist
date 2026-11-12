@@ -55,4 +55,14 @@ describe('NoticeBanner', () => {
     expect(banner).toBeInTheDocument();
     expect(banner).toHaveTextContent(/Failed to load album tracks/i);
   });
+
+  it('keeps generic success feedback neutral and reserves clean tokens for clean notices', () => {
+    const { rerender } = render(<NoticeBanner type="success" message="Playlist loaded" />);
+    const successBanner = screen.getByRole('status');
+    expect(successBanner).toHaveClass('bg-surface-elevated', 'border-border-subtle');
+    expect(successBanner.className).not.toContain('status-clean');
+
+    rerender(<NoticeBanner type="clean" message="Tracks swapped to clean versions" />);
+    expect(screen.getByRole('status')).toHaveClass('bg-status-clean-bg', 'border-status-clean-border', 'text-status-clean');
+  });
 });

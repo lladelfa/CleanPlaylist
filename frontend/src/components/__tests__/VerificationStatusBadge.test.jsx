@@ -15,17 +15,19 @@ describe('VerificationStatusBadge component', () => {
     expect(screen.getByText('Unscanned')).toBeInTheDocument();
   });
 
-  it('renders "Verified Clean" in emerald style when status="verified_clean" or "clean"', () => {
+  it('renders verified-clean status with semantic clean tokens', () => {
     const { rerender } = render(<VerificationStatusBadge status="verified_clean" />);
-    expect(screen.getByText('Verified Clean')).toBeInTheDocument();
+    const verifiedBadge = screen.getByText('Verified Clean').parentElement;
+    expect(verifiedBadge).toHaveClass('bg-status-clean-bg', 'border-status-clean-border', 'text-status-clean');
 
     rerender(<VerificationStatusBadge status="clean" />);
     expect(screen.getByText('Verified Clean')).toBeInTheDocument();
   });
 
-  it('renders "Clean Swapped" in emerald style when status="clean_swapped" or "swapped"', () => {
+  it('renders clean-swapped status with semantic clean tokens', () => {
     const { rerender } = render(<VerificationStatusBadge status="clean_swapped" />);
-    expect(screen.getByText('Clean Swapped')).toBeInTheDocument();
+    const swappedBadge = screen.getByText('Clean Swapped').parentElement;
+    expect(swappedBadge).toHaveClass('bg-status-clean-bg', 'border-status-clean-border', 'text-status-clean');
 
     rerender(<VerificationStatusBadge status="swapped" />);
     expect(screen.getByText('Clean Swapped')).toBeInTheDocument();
