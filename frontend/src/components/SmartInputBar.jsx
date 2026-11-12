@@ -394,7 +394,7 @@ export default function SmartInputBar({
             type="button"
             onClick={onOpenLibraryPicker}
             aria-label="Browse Library"
-            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-surface-elevated hover:bg-surface-highest border border-border-subtle rounded-lg text-sm font-medium text-brand-tint hover:text-brand-primary transition-all whitespace-nowrap active:scale-[0.98]"
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-surface-card hover:bg-surface-elevated border border-border-subtle rounded-lg text-sm font-medium text-brand-tint transition-all whitespace-nowrap active:scale-[0.98]"
           >
             <Library className="w-4 h-4 text-brand-primary" aria-hidden="true" />
             <span>Browse Library</span>

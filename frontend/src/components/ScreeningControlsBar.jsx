@@ -173,7 +173,7 @@ export default function ScreeningControlsBar({
             onClick={onBulkClean}
             disabled={isBulkDisabled}
             aria-label={bulkCleanLabel}
-            className="flex items-center justify-center space-x-2 px-5 py-2.5 bg-status-clean hover:bg-status-clean/90 text-status-clean-ink font-semibold text-xs sm:text-sm rounded-xl transition shadow-lg shadow-status-clean/20 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed min-h-[44px]"
+            className="flex items-center justify-center space-x-2 px-5 py-2.5 bg-brand-primary hover:bg-brand-primary-hover text-white font-semibold text-xs sm:text-sm rounded-xl transition shadow-lg shadow-brand-primary/20 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed min-h-[44px]"
           >
             {bulkCleaning ? (
               <RefreshCw className="w-4 h-4 animate-spin shrink-0" aria-hidden="true" />
@@ -189,7 +189,7 @@ export default function ScreeningControlsBar({
             onClick={onRunScan}
             disabled={scanning || bulkCleaning || disabled}
             aria-label={scanButtonLabel}
-            className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-brand-primary/20 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed min-h-[44px]"
+            className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-brand-primary hover:bg-brand-primary-hover text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-brand-primary/20 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed min-h-[44px]"
           >
             {scanning ? (
               <RefreshCw className="w-4 h-4 animate-spin shrink-0" aria-hidden="true" />

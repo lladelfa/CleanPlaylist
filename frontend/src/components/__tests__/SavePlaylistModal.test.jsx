@@ -145,7 +145,13 @@ describe('SavePlaylistModal', () => {
 
     // Shows success message
     await waitFor(() => {
-      expect(screen.getByText(/saved successfully/i)).toBeInTheDocument();
+      const successMessage = screen.getByText(/saved successfully/i);
+      expect(successMessage).toBeInTheDocument();
+      expect(successMessage).toHaveClass('text-text-primary');
+      expect(successMessage.className).not.toContain('status-clean');
+      const successIconSurface = successMessage.parentElement.querySelector('div');
+      expect(successIconSurface).toHaveClass('bg-surface-elevated', 'border-border-subtle');
+      expect(successIconSurface.querySelector('svg')).toHaveClass('text-text-secondary');
     });
 
     // Advance timer for redirect/close callback

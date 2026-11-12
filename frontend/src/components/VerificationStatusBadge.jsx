@@ -56,9 +56,9 @@ export default function VerificationStatusBadge({
   if (resolvedStatus === 'verified_clean') {
     return (
       <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-950/40 border border-emerald-900/50 text-emerald-400 shrink-0 ${className}`}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-status-clean-bg border border-status-clean-border text-status-clean shrink-0 ${className}`}
       >
-        <CheckCircle2 className="w-3 h-3 text-emerald-400" aria-hidden="true" />
+        <CheckCircle2 className="w-3 h-3 text-status-clean" aria-hidden="true" />
         <span>Verified Clean</span>
       </span>
     );
@@ -67,9 +67,9 @@ export default function VerificationStatusBadge({
   if (resolvedStatus === 'clean_swapped') {
     return (
       <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-950/50 border border-emerald-800/60 text-emerald-300 shrink-0 ${className}`}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-status-clean-bg border border-status-clean-border text-status-clean shrink-0 ${className}`}
       >
-        <RefreshCw className="w-3 h-3 text-emerald-300" aria-hidden="true" />
+        <RefreshCw className="w-3 h-3 text-status-clean" aria-hidden="true" />
         <span>Clean Swapped</span>
       </span>
     );

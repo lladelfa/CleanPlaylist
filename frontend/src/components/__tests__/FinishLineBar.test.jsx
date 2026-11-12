@@ -164,6 +164,10 @@ describe('FinishLineBar Component', () => {
           type: 'success',
           message: 'Copied 2 Clean Track Links',
         });
+        const copiedLabel = screen.getByText('Copied!');
+        expect(copiedLabel).toHaveClass('text-text-primary');
+        expect(copiedLabel.className).not.toContain('status-clean');
+        expect(copiedLabel.parentElement.querySelector('svg')).toHaveClass('text-text-secondary');
       });
     });
 
