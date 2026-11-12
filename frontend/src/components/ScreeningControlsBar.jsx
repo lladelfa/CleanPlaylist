@@ -1,13 +1,39 @@
-import React, { useState } from 'react';
-import { Sparkles, RefreshCw, Plus, X, SlidersHorizontal, Eye, EyeOff } from 'lucide-react';
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { Sparkles, RefreshCw, Plus, X, SlidersHorizontal, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { maskWord } from '../utils/masking';
 
 const PRESETS = [
-  { id: 'kid_safe', label: 'Kid Safe' },
-  { id: 'moderate', label: 'Moderate' },
-  { id: 'slurs_only', label: 'Slurs Only' },
-  { id: 'custom', label: 'Custom' },
+  {
+    id: 'kid_safe',
+    label: 'Kid Safe',
+    summary:
+      'Strictest: flags slurs, all profanity, sexual terms, and drug references, plus tracks tagged explicit.',
+  },
+  {
+    id: 'moderate',
+    label: 'Moderate',
+    summary:
+      'Radio-edit rules: flags slurs, strong profanity, and sexual terms, plus tracks tagged explicit; allows mild words like damn/hell.',
+  },
+  {
+    id: 'slurs_only',
+    label: 'Slurs Only',
+    summary:
+      'Flags only slurs and hate speech; allows other explicit lyrics and ignores explicit tags.',
+  },
+  {
+    id: 'custom',
+    label: 'Custom',
+    summary: 'Slurs and strong profanity, plus tracks tagged explicit.',
+  },
 ];
+
+const FALLBACK_PRESET_ID = 'moderate';
+const BLOCKLIST_NOTE = 'Your blocklist words are flagged under every preset.';
+
+// Unknown ids resolve to Moderate, matching the lyricEvaluator.js fallback.
+const resolvePreset = (presetId) =>
+  PRESETS.find((p) => p.id === presetId) || PRESETS.find((p) => p.id === FALLBACK_PRESET_ID);
 
 export default function ScreeningControlsBar({
   preset = 'moderate',
@@ -29,6 +55,16 @@ export default function ScreeningControlsBar({
   flaggedCount = 0,
 }) {
   const [inputValue, setInputValue] = useState('');
+  const [policyAnnouncement, setPolicyAnnouncement] = useState('');
+  const descriptionIdBase = useId();
+  const activePreset = resolvePreset(preset);
+  const lastSeenPresetRef = useRef(activePreset.id);
+
+  useEffect(() => {
+    if (lastSeenPresetRef.current === activePreset.id) return;
+    lastSeenPresetRef.current = activePreset.id;
+    setPolicyAnnouncement(`Active threshold: ${activePreset.label} — ${activePreset.summary}`);
+  }, [activePreset]);
 
   const handlePresetClick = (presetId) => {
     if (onSelectPreset) {
@@ -135,15 +171,17 @@ export default function ScreeningControlsBar({
           </span>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Sensitivity Presets">
             {PRESETS.map((p) => {
-              const isActive = preset === p.id;
+              const isActive = activePreset.id === p.id;
               return (
                 <button
                   key={p.id}
                   type="button"
                   aria-pressed={isActive}
+                  aria-describedby={`${descriptionIdBase}-${p.id}`}
+                  title={p.summary}
                   disabled={scanning || bulkCleaning || disabled}
                   onClick={() => handlePresetClick(p.id)}
-                  className={`px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`px-4 py-2 min-h-[44px] rounded-full text-xs sm:text-sm font-medium transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     isActive
                       ? 'bg-brand-primary text-white shadow-md shadow-brand-primary/25'
                       : 'bg-surface-elevated text-text-muted hover:text-text-primary hover:bg-surface-elevated/80'
@@ -153,6 +191,31 @@ export default function ScreeningControlsBar({
                 </button>
               );
             })}
+          </div>
+          <div className="sr-only">
+            {PRESETS.map((p) => (
+              <span key={p.id} id={`${descriptionIdBase}-${p.id}`}>
+                {p.summary}
+              </span>
+            ))}
+          </div>
+          <div
+            data-testid="active-policy-indicator"
+            className="flex items-start gap-2 min-w-0 max-w-full rounded-xl border border-border-subtle bg-surface-elevated px-3 py-2 text-xs text-text-muted"
+          >
+            <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0 text-brand-primary" aria-hidden="true" />
+            <div className="min-w-0 break-words space-y-0.5">
+              <p>
+                <span className="font-semibold text-text-primary">
+                  Active policy: {activePreset.label}
+                </span>
+                <span> — {activePreset.summary}</span>
+              </p>
+              <p className="text-text-muted">{BLOCKLIST_NOTE}</p>
+            </div>
+          </div>
+          <div data-testid="policy-announcement" aria-live="polite" aria-atomic="true" className="sr-only">
+            {policyAnnouncement}
           </div>
         </div>
 
