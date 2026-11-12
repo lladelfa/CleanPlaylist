@@ -11,8 +11,10 @@ from typing import Any, Dict, List, Optional, Tuple
 logger = logging.getLogger(__name__)
 from fastapi import FastAPI, HTTPException, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, ConfigDict
+from starlette.requests import ClientDisconnect
+from pydantic import BaseModel, Field, ConfigDict, TypeAdapter, ValidationError
 from dotenv import load_dotenv
 
 from app.config import PRESET_PROFILES, WORD_CATEGORIES
@@ -22,6 +24,7 @@ from app.services.stitcher_service import stitcher_service
 from app.services.ytmusic_service import ytmusic_service
 from app.services.spotify_service import spotify_service
 from app.services.telemetry_service import telemetry_service, TelemetryEvent
+from app.services.rate_limiter import telemetry_rate_limiter, get_telemetry_limits, client_key
 
 load_dotenv()
 
@@ -718,8 +721,53 @@ def export_playlist_file(req: ExportRequest):
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported export format '{fmt}'")
 
+_telemetry_event_adapter = TypeAdapter(TelemetryEvent)
+
+
+async def _read_body_capped(request: Request, max_bytes: int) -> Optional[bytes]:
+    """Read the request body, returning None as soon as it exceeds ``max_bytes``."""
+    declared = request.headers.get("content-length")
+    if declared is not None:
+        try:
+            if int(declared.strip()) > max_bytes:
+                return None
+        except ValueError:
+            pass  # unparseable header: rely on the streaming cap below
+    received = bytearray()
+    async for chunk in request.stream():
+        received.extend(chunk)
+        if len(received) > max_bytes:
+            return None
+    return bytes(received)
+
+
 @app.post("/api/telemetry/event", status_code=204)
-def post_telemetry_event(event: TelemetryEvent):
+async def post_telemetry_event(request: Request):
+    # Order: size cap -> rate limit -> validation -> emission. Rejected requests
+    # (413/429/422) never reach telemetry_service.record_event.
+    limit, window_seconds, max_bytes = get_telemetry_limits()
+
+    try:
+        body = await _read_body_capped(request, max_bytes)
+    except ClientDisconnect:
+        return Response(status_code=400)
+    if body is None:
+        return Response(status_code=413)
+
+    allowed, retry_after = telemetry_rate_limiter.check(client_key(request), limit, window_seconds)
+    if not allowed:
+        return Response(status_code=429, headers={"Retry-After": str(retry_after)})
+
+    try:
+        event = _telemetry_event_adapter.validate_json(body)
+    except ValidationError as e:
+        errors = [
+            # Drop "input": it can echo raw non-UTF-8 bytes that crash the 422 handler.
+            {**{k: v for k, v in err.items() if k != "input"}, "loc": ("body", *err.get("loc", ()))}
+            for err in e.errors(include_url=False)
+        ]
+        raise RequestValidationError(errors)
+
     telemetry_service.record_event(event)
     return Response(status_code=204)
 
