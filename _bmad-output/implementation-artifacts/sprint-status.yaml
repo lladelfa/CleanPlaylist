@@ -83,3 +83,10 @@ development_status:
   6-3-obsidian-design-token-hygiene-safety-emerald-guard: done
   6-4-screening-preset-micro-explainers-policy-badging: done
   epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-telemetry-rate-limiting-payload-bounds: backlog
+  7-2-preset-micro-copy-contract-test: backlog
+  7-3-custom-preset-copy-accuracy: backlog
+  7-4-mobile-header-safe-area-fix: backlog
+  epic-7-retrospective: optional

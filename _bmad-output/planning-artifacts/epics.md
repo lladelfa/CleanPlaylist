@@ -919,3 +919,110 @@ So that I understand exactly what criteria are being applied without guesswork.
 **Then** a compact active policy indicator reflects the selected preset with its criteria summary,
 **And** if tracks are currently staged, a brief announcement or notice confirms the active threshold.
 
+
+## Epic 7: Screening Trust & Hardening
+
+Users can rely on what CleanPlaylist tells them: screening presets describe their real rules, the Custom preset is labeled accurately, the public telemetry endpoint is protected against abuse, and the mobile header stays clear of the phone's status bar. This epic closes the open deferred-work items from Epics 1–6 before any post-MVP feature work begins.
+
+**FRs / NFRs covered:** FR-15 (telemetry hardening), FR-5 / UX-DR6 (preset honesty), NFR-4 (mobile accessibility parity), NFR-5 (no new paid dependencies).
+
+**Deferred items closed:** `deferred-work.md` items 2, 3, and 4. Items 1 and 5 are verified already fixed; they are closed as housekeeping, with no story.
+
+**Decision (confirmed by Zo):** The Custom preset **keeps its current screening behavior** (fixed slur and strong-profanity rules plus the custom blocklist under every preset). Story 7.3 corrects only its copy. Making Custom blocklist-only would be a separate behavior story and is not in this epic.
+
+### Story 7.1: Telemetry Rate Limiting & Payload Bounds
+
+As the operator of a public, zero-login app,
+I want `POST /api/telemetry/event` to reject abusive traffic and oversized payloads,
+So that the anonymous telemetry sink cannot be flooded or used to store large blobs, without adding paid infrastructure.
+
+**Acceptance Criteria:**
+
+**Given** a client sending more than the configured number of telemetry events within a fixed window (default `60` per minute per client IP-derived key),
+**When** the next request arrives,
+**Then** the endpoint responds `429` with a `Retry-After` header and does not emit a `cp_telemetry` log line,
+**And** the limit values are read from environment-configurable settings with safe defaults documented in `backend/.env.example` (placeholder values only).
+
+**Given** a request body larger than the configured maximum (default `2048` bytes),
+**When** the endpoint receives it,
+**Then** it responds `413` and emits no log line.
+
+**Given** unit tests for the limiter and endpoint,
+**When** the suite runs,
+**Then** no live network calls are made and no real auth state is touched (AGENTS.md policy), and the limiter's clock is injected so window expiry is tested deterministically.
+
+**Notes:** Serverless instances do not share memory, so the limiter is per-instance best effort. This is an accepted limit for a $0 app; the story must document it in the story's Dev Notes. The platform host constraint remains the outer defense.
+
+### Story 7.2: Preset Micro-Copy Contract Test
+
+As a maintainer changing screening rules,
+I want the preset descriptions shown in `ScreeningControlsBar` to be tested against the real preset definitions,
+So that the copy can never silently drift from what the screening engine actually does.
+
+**Acceptance Criteria:**
+
+**Given** `DEFAULT_PRESET_PROFILES` in `lyricEvaluator.js` and the backend `PRESET_PROFILES` in `config.py`,
+**When** the frontend test suite runs,
+**Then** a Vitest contract test asserts that each preset's displayed micro-copy is derived from (or checked against) its profile's categories and `include_metadata_explicit` flag,
+**And** the test fails if a preset's category set or metadata flag changes without a matching copy change.
+
+**Given** the same preset data,
+**When** the backend test suite runs,
+**Then** a pytest test asserts the preset IDs and categories served by `GET /api/presets` match the frontend contract fixture, so the two sides cannot drift apart.
+
+**Given** this story is complete,
+**Then** the tests are written first (red), then the minimal copy-derivation code makes them pass (green), per TDD policy.
+
+### Story 7.3: Custom Preset Copy Accuracy
+
+As a parent building a custom blocklist,
+I want the Custom preset's description to match what it actually filters,
+So that I am not misled into thinking Custom is blocklist-only when fixed rules also apply.
+
+**Acceptance Criteria:**
+
+**Given** the Custom preset pill in `ScreeningControlsBar`,
+**When** the user hovers or reads its micro-copy,
+**Then** the copy states that Custom applies the fixed slur and strong-profanity rules **and** the custom blocklist terms, and that the blocklist applies under every preset,
+**And** the Story 6.4 wording "Filters using custom blocklist terms only" is removed.
+
+**Given** the backend `custom` profile name `Custom Filter` and its description in `config.py`,
+**When** the description is updated,
+**Then** the frontend and backend descriptions are identical strings, enforced by the Story 7.2 contract test.
+
+**Given** the screening results,
+**When** this story is complete,
+**Then** no verdict changes: the regex evaluation, preset categories, and API payloads are unchanged, and existing `lyricEvaluator.js` and scanner tests still pass unmodified.
+
+**Dev note:** If Zo chooses blocklist-only Custom instead, this story is replaced by a behavior story with its own evaluator and scanner tests, and the change is re-approved before work starts.
+
+### Story 7.4: Mobile Header Safe-Area Fix
+
+As a phone user,
+I want the CleanPlaylist header and catalog selector to sit fully below my device's status bar,
+So that the app title and controls are never cut off.
+
+**Acceptance Criteria:**
+
+**Given** `frontend/index.html`,
+**When** the page loads on a notched or status-bar device,
+**Then** the viewport meta includes `viewport-fit=cover`,
+**And** the sticky `GlobalHeader` applies top padding of `env(safe-area-inset-top)` on top of its normal padding, so the title and `CatalogSelector` clear the status bar.
+
+**Given** a 360px-wide mobile viewport with the safe-area inset simulated at `24px`,
+**When** the header renders,
+**Then** the title, `CatalogSelector`, and icon buttons are fully visible with a 44px minimum touch target, and the page has zero horizontal overflow (NFR-4).
+
+**Given** desktop viewports,
+**When** the header renders,
+**Then** the inset is `0` and the layout is unchanged.
+
+**Given** the test suite,
+**When** `npm --prefix frontend test` runs,
+**Then** a React Testing Library test asserts the header carries the safe-area class, and a visual check is recorded in the story's Dev Notes (screenshot before and after).
+
+---
+
+**Sequencing:** 7.2 → 7.3 (the contract test guards the copy change), with 7.1 and 7.4 independent of each other and of 7.2/7.3.
+**Branch convention:** `feature/epic-7-...` or `fix/...` per AGENTS.md; never commit to `master`.
+**Epic retrospective:** optional, per sprint-status convention.
