@@ -364,4 +364,126 @@ describe('ScreeningControlsBar', () => {
       expect(bulkBtn).toBeDisabled();
     });
   });
+
+  describe('Story 6.4: Preset micro-explainers & policy badging', () => {
+    const SUMMARIES = {
+      kid_safe:
+        'Strictest: flags slurs, all profanity, sexual terms, and drug references, plus tracks tagged explicit.',
+      moderate:
+        'Radio-edit rules: flags slurs, strong profanity, and sexual terms, plus tracks tagged explicit; allows mild words like damn/hell.',
+      slurs_only:
+        'Flags only slurs and hate speech; allows other explicit lyrics and ignores explicit tags.',
+      custom: 'Slurs and strong profanity, plus tracks tagged explicit.',
+    };
+    const BLOCKLIST_NOTE = 'Your blocklist words are flagged under every preset.';
+
+    const getIndicator = () => screen.getByTestId('active-policy-indicator');
+    const getPolicyLiveRegion = () => screen.getByTestId('policy-announcement');
+
+    it('gives each preset pill an accessible description equal to its micro-copy, keeping the label as name', () => {
+      render(<ScreeningControlsBar preset="moderate" customBlocklist={[]} />);
+
+      const kid = screen.getByRole('button', { name: 'Kid Safe' });
+      const mod = screen.getByRole('button', { name: 'Moderate' });
+      const slurs = screen.getByRole('button', { name: 'Slurs Only' });
+      const custom = screen.getByRole('button', { name: 'Custom' });
+
+      expect(kid).toHaveAccessibleDescription(SUMMARIES.kid_safe);
+      expect(mod).toHaveAccessibleDescription(SUMMARIES.moderate);
+      expect(slurs).toHaveAccessibleDescription(SUMMARIES.slurs_only);
+      expect(custom).toHaveAccessibleDescription(SUMMARIES.custom);
+      expect(kid).toHaveAttribute('title', SUMMARIES.kid_safe);
+      expect(kid.className).toContain('min-h-[44px]');
+    });
+
+    it('renders the active policy indicator for the initial preset with an empty live region', () => {
+      render(<ScreeningControlsBar preset="moderate" customBlocklist={[]} />);
+
+      const indicator = getIndicator();
+      expect(indicator).toHaveTextContent('Active policy: Moderate');
+      expect(indicator).toHaveTextContent(SUMMARIES.moderate);
+      expect(getPolicyLiveRegion()).toHaveTextContent('');
+      expect(getPolicyLiveRegion()).toHaveAttribute('aria-live', 'polite');
+      expect(getPolicyLiveRegion()).toHaveAttribute('aria-atomic', 'true');
+      expect(getPolicyLiveRegion()).not.toHaveAttribute('role');
+    });
+
+    it('updates the indicator and announces the new threshold after a preset change', () => {
+      const handleSelectPreset = vi.fn();
+      const { rerender } = render(
+        <ScreeningControlsBar
+          preset="moderate"
+          onSelectPreset={handleSelectPreset}
+          customBlocklist={[]}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Kid Safe' }));
+      expect(handleSelectPreset).toHaveBeenCalledWith('kid_safe');
+
+      rerender(
+        <ScreeningControlsBar
+          preset="kid_safe"
+          onSelectPreset={handleSelectPreset}
+          customBlocklist={[]}
+        />
+      );
+
+      expect(getIndicator()).toHaveTextContent('Active policy: Kid Safe');
+      expect(getIndicator()).toHaveTextContent(SUMMARIES.kid_safe);
+      expect(getPolicyLiveRegion()).toHaveTextContent(
+        `Active threshold: Kid Safe — ${SUMMARIES.kid_safe}`
+      );
+      expect(screen.getByRole('button', { name: 'Kid Safe' })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
+    });
+
+    it('does not announce on rerender when the preset is unchanged', () => {
+      const { rerender } = render(
+        <ScreeningControlsBar preset="moderate" customBlocklist={[]} />
+      );
+      rerender(<ScreeningControlsBar preset="moderate" customBlocklist={['beer']} />);
+      expect(getPolicyLiveRegion()).toHaveTextContent('');
+    });
+
+    it('falls back to Moderate for an unknown preset id and marks the Moderate pill pressed', () => {
+      render(<ScreeningControlsBar preset="legacy_x" customBlocklist={[]} />);
+
+      expect(getIndicator()).toHaveTextContent('Active policy: Moderate');
+      expect(getIndicator()).toHaveTextContent(SUMMARIES.moderate);
+      expect(screen.getByRole('button', { name: 'Moderate' })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
+      expect(screen.getByRole('button', { name: 'Custom' })).toHaveAttribute(
+        'aria-pressed',
+        'false'
+      );
+    });
+
+    it.each(['kid_safe', 'moderate', 'slurs_only', 'custom'])(
+      'includes the blocklist note under preset %s',
+      (presetId) => {
+        render(<ScreeningControlsBar preset={presetId} customBlocklist={[]} />);
+        expect(getIndicator()).toHaveTextContent(BLOCKLIST_NOTE);
+      }
+    );
+
+    it('keeps the indicator visible and off clean-state emerald styling', () => {
+      render(<ScreeningControlsBar preset="slurs_only" customBlocklist={[]} />);
+
+      const indicator = getIndicator();
+      const nodes = [indicator, ...indicator.querySelectorAll('*')];
+      nodes.forEach((node) => {
+        const cls = node.getAttribute('class') || '';
+        expect(cls).not.toMatch(/status-clean|emerald|#4EDEA3|#10B981/i);
+        expect(cls.split(/\s+/)).not.toContain('sr-only');
+        expect(cls.split(/\s+/)).not.toContain('hidden');
+        expect(cls.split(/\s+/)).not.toContain('invisible');
+      });
+      expect(indicator).toBeVisible();
+    });
+  });
 });
