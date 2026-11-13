@@ -2,6 +2,8 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import GlobalHeader from '../GlobalHeader';
 
 describe('GlobalHeader', () => {
@@ -141,5 +143,60 @@ describe('GlobalHeader', () => {
     expect(screen.queryByRole('button', { name: /connect spotify/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/spotify connected/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /exit vip mode/i })).not.toBeInTheDocument();
+  });
+
+  it('applies the safe-area top inset to the sticky header', () => {
+    render(
+      <GlobalHeader
+        activeTab="scan"
+        setActiveTab={() => {}}
+        activePlatform="spotify"
+        onSelectPlatform={() => {}}
+      />
+    );
+
+    const header = screen.getByRole('banner');
+    expect(header).toHaveClass('pt-[env(safe-area-inset-top)]');
+    expect(header).toHaveClass('sticky');
+  });
+
+  it('lets the header row grow to fit the stacked title and CatalogSelector on mobile', () => {
+    render(
+      <GlobalHeader
+        activeTab="scan"
+        setActiveTab={() => {}}
+        activePlatform="spotify"
+        onSelectPlatform={() => {}}
+      />
+    );
+
+    const row = screen.getByRole('banner').firstElementChild;
+    expect(row).toHaveClass('min-h-14');
+    expect(row).toHaveClass('sm:h-14');
+    expect(row).not.toHaveClass('h-14');
+  });
+
+  it('gives tab buttons a 44px minimum touch target on mobile and 40px from sm up', () => {
+    render(
+      <GlobalHeader
+        activeTab="scan"
+        setActiveTab={() => {}}
+        activePlatform="spotify"
+        onSelectPlatform={() => {}}
+      />
+    );
+
+    const tab = screen.getByRole('button', { name: /scan & clean/i });
+    expect(tab).toHaveClass('min-h-[44px]');
+    expect(tab).toHaveClass('sm:min-h-[40px]');
+  });
+});
+
+describe('index.html viewport', () => {
+  it('includes viewport-fit=cover so env(safe-area-inset-*) resolves on notched devices', () => {
+    const html = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
+    const viewport = html.match(/<meta\s+name="viewport"\s+content="([^"]*)"/);
+    expect(viewport).not.toBeNull();
+    expect(viewport[1]).toMatch(/viewport-fit=cover/);
   });
 });
