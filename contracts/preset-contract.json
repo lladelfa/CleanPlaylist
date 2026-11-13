@@ -1,0 +1,37 @@
+{
+  "$comment": "Shared preset contract read by frontend/src/utils/__tests__/presetContract.test.js and backend/app/tests/test_preset_contract.py. A change to a preset's categories, include_metadata_explicit flag, or description must update this file and its summary in the same diff.",
+  "presets": [
+    {
+      "id": "kid_safe",
+      "name": "Kid-Safe / Strict",
+      "description": "Filters all profanity, vulgar language, crude humor, substance references, and slurs.",
+      "include_metadata_explicit": true,
+      "categories": ["slurs", "strong_profanity", "mild_profanity", "sexual", "substances"],
+      "summary": "Strictest: flags slurs, all profanity, sexual terms, and drug references, plus tracks tagged explicit."
+    },
+    {
+      "id": "moderate",
+      "name": "Moderate (Recommended)",
+      "description": "Filters standard explicit language, F-bombs, vulgar sexual references, and slurs (allows mild words like damn/hell).",
+      "include_metadata_explicit": true,
+      "categories": ["slurs", "strong_profanity", "sexual"],
+      "summary": "Radio-edit rules: flags slurs, strong profanity, and sexual terms, plus tracks tagged explicit; allows mild words like damn/hell."
+    },
+    {
+      "id": "slurs_only",
+      "name": "Slurs & Hate Speech Only",
+      "description": "Flags only discriminatory slurs and severely offensive derogatory terms.",
+      "include_metadata_explicit": false,
+      "categories": ["slurs"],
+      "summary": "Flags only slurs and hate speech; allows other explicit lyrics and ignores explicit tags."
+    },
+    {
+      "id": "custom",
+      "name": "Custom Filter",
+      "description": "User-defined keyword blocklist with customizable preset rules.",
+      "include_metadata_explicit": true,
+      "categories": ["slurs", "strong_profanity"],
+      "summary": "Slurs and strong profanity, plus tracks tagged explicit."
+    }
+  ]
+}
