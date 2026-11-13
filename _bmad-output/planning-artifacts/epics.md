@@ -924,7 +924,9 @@ So that I understand exactly what criteria are being applied without guesswork.
 
 Users can rely on what CleanPlaylist tells them: screening presets describe their real rules, the Custom preset is labeled accurately, the public telemetry endpoint is protected against abuse, and the mobile header stays clear of the phone's status bar. This epic closes the open deferred-work items from Epics 1–6 before any post-MVP feature work begins.
 
-**FRs / NFRs covered:** FR-15 (telemetry hardening), FR-5 / UX-DR6 (preset honesty), NFR-4 (mobile accessibility parity), NFR-5 (no new paid dependencies).
+**Scope extension (2026-11-13, friends-and-family launch readiness):** Stories 7.5–7.10 were added after a product, architecture, and UX assessment. They add an automated CI quality gate, an honest signal and message when the lyrics service fails (instead of a wall of "Lyrics Unavailable"), a clearer name for the Custom preset, a "Verified Clean" caveat, and an accessibility and mobile pass.
+
+**FRs / NFRs covered:** FR-15 (telemetry hardening), FR-5 / UX-DR6 (preset honesty), NFR-4 (mobile accessibility parity), NFR-5 (no new paid dependencies). Stories 7.5–7.10 add reliability, trust, and accessibility work and introduce no new FRs.
 
 **Deferred items closed:** `deferred-work.md` items 2, 3, and 4. Items 1 and 5 are verified already fixed; they are closed as housekeeping, with no story.
 
@@ -1021,8 +1023,180 @@ So that the app title and controls are never cut off.
 **When** `npm --prefix frontend test` runs,
 **Then** a React Testing Library test asserts the header carries the safe-area class, and a visual check is recorded in the story's Dev Notes (screenshot before and after).
 
+### Story 7.5: CI Quality Gate Workflow
+
+As the maintainer of a TDD-policy repo,
+I want every pull request to run the backend tests, frontend tests, and lint automatically,
+So that the Red-Green-Refactor policy in AGENTS.md is enforced by the repository instead of by memory.
+
+**Acceptance Criteria:**
+
+**Given** a pull request or a push to `master`,
+**When** the workflow `.github/workflows/ci.yml` runs,
+**Then** a backend job installs `backend/requirements.txt` on Python 3.10+, sets `PYTHONPATH=backend`, and runs `pytest backend/app/tests/`,
+**And** a frontend job runs `npm --prefix frontend ci`, `npm --prefix frontend run lint` (`oxlint`), `npm --prefix frontend test`, and `npm --prefix frontend run build`.
+
+**Given** the CI environment,
+**When** any job runs,
+**Then** no secrets are required or referenced, no live network calls to Spotify or YouTube Music are made (all tests mock `spotipy.Spotify` and `ytmusicapi.YTMusic` per AGENTS.md), and `backend/.env` is never read or created with real values.
+
+**Given** either job fails,
+**When** the pull request is viewed,
+**Then** the failing check is visible on the PR, and the README documents how to run the same commands locally.
+
+**Notes:** If a currently passing local suite depends on machine state (for example a populated `backend/.env` or `.venv`), the failure surfaces here first. Fixing it is in scope. Making the check *required* via branch protection is a GitHub repository setting that Zo applies manually and is not part of the code change. Dependency caching (pip, npm) is optional.
+
+### Story 7.6: Lyric Lookup Outcome Signal (Backend)
+
+As a parent relying on a scan,
+I want the backend to distinguish "no lyrics exist for this song" from "the lyrics service failed",
+So that a service outage is never presented as a property of the song.
+
+**Acceptance Criteria:**
+
+**Given** `LyricXRefService.resolve_lyrics_and_yt_id` and the scan endpoints in `main.py`,
+**When** the YouTube Music search or lyrics fetch raises an exception (the cases currently swallowed at `lyric_xref_service.py` lines 210, 220, 257, 291, and 300),
+**Then** the lookup outcome is recorded as `upstream_error`,
+**And** a genuine miss (no candidate matched, or the matched track has no lyrics) is recorded as `not_found`, and a successful fetch as `found`.
+
+**Given** a scanned track in the `/api/scan` and `/api/scan/lyrics` style responses,
+**When** the response is built,
+**Then** each track carries a `lyrics_lookup` field with one of `found`, `not_found`, `upstream_error`,
+**And** `TrackScanItem` / `ScannedTrackItem` in `backend/app/main.py` are updated together so Pydantic does not strip the field.
+
+**Given** the existing Zero False-Clean state machine,
+**When** the lookup outcome is `upstream_error` or `not_found`,
+**Then** `verification_status` is unchanged from today (`lyrics_unavailable`, or `flagged` when explicit metadata applies), a track is never `verified_clean` without lyrics, and all existing scanner and scan-pipeline tests pass unmodified.
+
+**Given** a scan where more than half of the tracks resolve as `upstream_error`,
+**When** the response is built,
+**Then** the response summary exposes a boolean such as `lyrics_service_degraded: true`, so the frontend can show a single message instead of repeating it per row.
+
+**Given** the unit tests for this story,
+**When** the suite runs,
+**Then** they are written first (red) with mocked `ytmusicapi.YTMusic` raising exceptions, cover the three outcomes for both `spotify` and `ytmusic` platforms, and make no live network calls.
+
+**Notes:** `resolve_lyrics_and_yt_id` returns a two-element tuple today and has a module-level wrapper plus callers in `main.py`. Dev should add the outcome without breaking existing tuple callers, for example through a new method that returns a small result object with the old method delegating to it. The `lyrics_unavailable_count` telemetry field keeps its current meaning. Adding an upstream-error count to telemetry is optional and must stay anonymous and zero-PII. Single-track lyrics retrieval (`get_track_lyrics`) is out of scope.
+
+### Story 7.7: Honest Degraded-State Messaging (Frontend)
+
+As Jill on her phone,
+I want a clear message when the lyrics service is having trouble,
+So that I know to retry instead of assuming every song is unscannable.
+
+**Acceptance Criteria:**
+
+**Given** a scan response with `lyrics_service_degraded: true`,
+**When** results render in `ScanTab` (and the stitch pre-screen results in `StitchTab`),
+**Then** a single `NoticeBanner` appears, in plain language (for example "Our lyrics source is having trouble right now. These results may be incomplete. Try again in a few minutes."), with a visible **Retry Scan** button,
+**And** it uses neutral or warning styling, never the safety emerald reserved for verified clean and swapped states.
+
+**Given** an individual track with `lyrics_lookup: "upstream_error"`,
+**When** its row or mobile card renders,
+**Then** the `VerificationStatusBadge` and its explanation distinguish "Couldn't check (service error)" from "No lyrics found", with `aria-label` text so React Testing Library can query both,
+**And** the track is still never shown as `Verified Clean`.
+
+**Given** the client-side re-evaluation in `lyricEvaluator.js` after a preset or blocklist change,
+**When** tracks are re-scored,
+**Then** each track's `lyrics_lookup` value is preserved and not reset.
+
+**Given** **Retry Scan**,
+**When** the user clicks it,
+**Then** only tracks whose `lyrics_lookup` is `upstream_error` are re-requested, and the rest keep their results.
+
+**Given** the frontend test suite,
+**When** `npm --prefix frontend test` runs,
+**Then** tests written first (red) cover the banner, the per-track badge variants, and retry-only-failed behavior, with `global.fetch` mocked.
+
+**Dependency:** Story 7.6.
+
+### Story 7.8: Rename the Custom Preset Label
+
+As a parent or teacher choosing a sensitivity preset,
+I want the preset formerly called "Custom" to have a name that says what it filters,
+So that I don't pick it expecting a "just my words" mode.
+
+**Acceptance Criteria:**
+
+**Given** the preset pill in `ScreeningControlsBar`, the backend `PRESET_PROFILES["custom"]["name"]` in `config.py`, and any other place the label "Custom" or "Custom Filter" names this preset (active policy indicator, notices, telemetry labels, stitch controls, docs),
+**When** the rename is applied,
+**Then** the user-visible label becomes a descriptive name (working label: **"Slurs + Strong Language"**, final wording confirmed by Zo before merge),
+**And** the preset **ID stays `custom`**, so API requests, persisted state, telemetry, and the PRD glossary key remain compatible.
+
+**Given** the Story 7.2 preset micro-copy contract test,
+**When** the label and description change,
+**Then** the frontend and backend strings stay identical and the contract test is updated first (red) and then passes (green).
+
+**Given** the **Custom Keyword Blocklist** input,
+**When** the screen renders,
+**Then** its label is unchanged and its helper text still states that the blocklist applies under every preset, so the two "custom" ideas are no longer conflated.
+
+**Given** screening results,
+**When** this story is complete,
+**Then** no verdict changes: evaluator regexes, preset categories, `include_metadata_explicit`, and API payload shapes are unchanged, and existing `lyricEvaluator.js` and scanner tests pass unmodified.
+
+**Notes:** This implements option A from the Epic 7 planning discussion. A true blocklist-only preset remains out of scope and is only to be built if friends-and-family feedback asks for it. If so, it needs a new preset ID and its own evaluator and scanner tests.
+
+### Story 7.9: "Verified Clean" Caveat Copy
+
+As a parent trusting a verdict,
+I want the app to be honest that "Verified Clean" is based on the lyrics it found,
+So that I stay the final decision-maker and an imperfect lyric source does not become a false promise.
+
+**Acceptance Criteria:**
+
+**Given** a track with `verification_status: "verified_clean"`,
+**When** its status badge is hovered, focused, or expanded (desktop and mobile), or the lyrics modal is open,
+**Then** a short caveat is available as visible text or `aria-describedby` content, for example "Based on the lyrics we could find and your selected preset. You make the final call.",
+**And** the badge's main label remains "Verified Clean" with no layout shift or added row height in the working list.
+
+**Given** the first scan results shown in a session,
+**When** at least one track is `Verified Clean`,
+**Then** the same caveat appears once as a dismissible, non-blocking inline note near the results summary,
+**And** dismissal persists for the session only and no personal data is stored.
+
+**Given** the finish-line surfaces (Copy Clean Track Links, Play Clean Queue, exports),
+**When** this story is complete,
+**Then** their behavior and copy are unchanged.
+
+**Given** the frontend test suite,
+**When** it runs,
+**Then** tests written first (red) assert the caveat text on the badge, the one-time results note and its dismissal, and the unchanged "Verified Clean" label (existing `VerificationStatusBadge` tests still pass), and the safety emerald remains reserved for verified clean states only.
+
+### Story 7.10: Accessibility & Mobile Pass
+
+As a friend or family member on a phone or using a keyboard,
+I want every core screen to be readable, reachable, and operable,
+So that nobody gets stuck during the parent test.
+
+**Acceptance Criteria:**
+
+**Given** the Obsidian Audio Core tokens on `bg-surface-canvas` and `bg-surface-card`,
+**When** text and meaningful icons in the omnibar, working list, status badges, screening controls, notices, and modals are checked,
+**Then** body and label text meets WCAG 2.1 AA contrast (4.5:1, or 3:1 for large text and UI components), and any failing token pairing is corrected through the existing tokens rather than one-off colors.
+
+**Given** the `LyricsModal`, `PlaylistPickerModal`, `SavePlaylistModal`, and `PlatformSwitchModal`,
+**When** operated by keyboard only,
+**Then** focus moves into the modal on open, is trapped inside while it is open, `Escape` closes it, and focus returns to the control that opened it,
+**And** each modal has an accessible name (`aria-labelledby` or `aria-label`) and `role="dialog"` with `aria-modal`.
+
+**Given** a 360px and a 390px wide viewport,
+**When** the core journeys run (add tracks, scan, open lyrics, swap, copy clean links),
+**Then** there is zero horizontal overflow (NFR-4), all interactive targets are at least 44px, and nothing is clipped by the safe area (builds on Story 7.4).
+
+**Given** icon-only buttons and inputs,
+**When** the audit completes,
+**Then** each has visible text or an `aria-label` (AGENTS.md convention), and the audit list of fixes is recorded in the story's Dev Notes.
+
+**Given** the test suite,
+**When** `npm --prefix frontend test` runs,
+**Then** React Testing Library tests written first (red) cover modal focus trap, `Escape` close, focus return, and accessible names, with no `jest-axe` style dependency added unless Zo approves it.
+
+**Notes:** This is an audit-and-fix story. Findings that need a design decision (for example changing a brand token) are listed and brought to Zo instead of being decided silently. Manual screen-reader testing is out of scope for automated tests but is noted as a follow-up.
+
 ---
 
-**Sequencing:** 7.2 → 7.3 (the contract test guards the copy change), with 7.1 and 7.4 independent of each other and of 7.2/7.3.
+**Sequencing:** 7.2 → 7.3 (the contract test guards the copy change), with 7.1 and 7.4 independent of each other and of 7.2/7.3. New stories: 7.5 (CI) first, so every later story is checked automatically; 7.6 → 7.7 (backend signal before UI); 7.8 after 7.5 and independent of 7.6/7.7, with 7.9 sharing badge copy with 7.7 so do them after 7.7 to avoid merge conflicts in `VerificationStatusBadge.jsx`; 7.10 last, so the audit covers the final UI.
+**Out of scope for Epic 7:** a true blocklist-only preset, a shared rate-limit store (7.1 limit is documented as per-instance best effort), the `main.py` router split, and repo root cleanup. These are deferred, not rejected.
 **Branch convention:** `feature/epic-7-...` or `fix/...` per AGENTS.md; never commit to `master`.
 **Epic retrospective:** optional, per sprint-status convention.
