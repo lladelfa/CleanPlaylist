@@ -55,3 +55,40 @@ describe('preset micro-copy contract (Story 7.2)', () => {
     }
   });
 });
+
+describe('custom preset description copy (Story 7.3)', () => {
+  const CUSTOM_DESCRIPTION =
+    'Applies the fixed slur and strong-profanity rules plus your custom blocklist terms. Your blocklist applies under every preset.';
+  const OLD_WORDING = [
+    'custom blocklist terms only',
+    'User-defined keyword blocklist with customizable preset rules.',
+  ];
+
+  it('frontend custom description states fixed rules, custom blocklist, and every-preset scope', () => {
+    expect(DEFAULT_PRESET_PROFILES.custom.description).toBe(CUSTOM_DESCRIPTION);
+  });
+
+  it('contract custom description matches the frontend copy', () => {
+    const custom = contract.presets.find((p) => p.id === 'custom');
+    expect(custom.description).toBe(CUSTOM_DESCRIPTION);
+  });
+
+  it('custom summary states the fixed rules, blocklist under every preset, and explicit tags', () => {
+    const summary = PRESET_COPY.find((p) => p.id === 'custom').summary;
+    expect(summary).toBe(
+      'Applies the fixed slur and strong-profanity rules plus your custom blocklist terms, which apply under every preset. Also flags tracks tagged explicit.',
+    );
+  });
+
+  it('removes the old Custom wording from every preset description', () => {
+    const descriptions = [
+      ...Object.values(DEFAULT_PRESET_PROFILES).map((p) => p.description),
+      ...contract.presets.map((p) => p.description),
+    ];
+    for (const text of descriptions) {
+      for (const old of OLD_WORDING) {
+        expect(text.toLowerCase()).not.toContain(old.toLowerCase());
+      }
+    }
+  });
+});

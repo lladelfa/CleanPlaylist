@@ -87,6 +87,6 @@ development_status:
   epic-7: in-progress
   7-1-telemetry-rate-limiting-payload-bounds: done
   7-2-preset-micro-copy-contract-test: done
-  7-3-custom-preset-copy-accuracy: backlog
+  7-3-custom-preset-copy-accuracy: done
   7-4-mobile-header-safe-area-fix: backlog
   epic-7-retrospective: optional
