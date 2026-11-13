@@ -160,6 +160,22 @@ describe('GlobalHeader', () => {
     expect(header).toHaveClass('sticky');
   });
 
+  it('lets the header row grow to fit the stacked title and CatalogSelector on mobile', () => {
+    render(
+      <GlobalHeader
+        activeTab="scan"
+        setActiveTab={() => {}}
+        activePlatform="spotify"
+        onSelectPlatform={() => {}}
+      />
+    );
+
+    const row = screen.getByRole('banner').firstElementChild;
+    expect(row).toHaveClass('min-h-14');
+    expect(row).toHaveClass('sm:h-14');
+    expect(row).not.toHaveClass('h-14');
+  });
+
   it('gives tab buttons a 44px minimum touch target on mobile and 40px from sm up', () => {
     render(
       <GlobalHeader

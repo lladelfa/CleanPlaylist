@@ -26,7 +26,7 @@ export default function GlobalHeader({
 
   return (
     <header className="sticky top-0 z-40 h-auto pt-[env(safe-area-inset-top)] bg-surface-low/95 backdrop-blur border-b border-border-subtle">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-14 py-2 sm:h-14 sm:py-0 flex items-center justify-between gap-4">
         {/* Brand & Catalog Context */}
         <div className="flex items-center gap-3 sm:gap-4 shrink-0">
           <div className="h-9 w-9 rounded-xl bg-brand-primary/20 border border-brand-primary/40 flex items-center justify-center shadow-md shadow-brand-primary/10">
