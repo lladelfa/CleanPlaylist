@@ -373,7 +373,8 @@ describe('ScreeningControlsBar', () => {
         'Radio-edit rules: flags slurs, strong profanity, and sexual terms, plus tracks tagged explicit; allows mild words like damn/hell.',
       slurs_only:
         'Flags only slurs and hate speech; allows other explicit lyrics and ignores explicit tags.',
-      custom: 'Slurs and strong profanity, plus tracks tagged explicit.',
+      custom:
+        'Applies the fixed slur and strong-profanity rules plus your custom blocklist terms, which apply under every preset. Also flags tracks tagged explicit.',
     };
     const BLOCKLIST_NOTE = 'Your blocklist words are flagged under every preset.';
 
