@@ -80,6 +80,34 @@ describe('custom preset description copy (Story 7.3)', () => {
     );
   });
 
+  describe('custom preset label (Story 7.8)', () => {
+    const NEW_LABEL = 'Slurs + Strong Language';
+
+    it('keeps the preset id custom while the visible label is descriptive', () => {
+      const copy = PRESET_COPY.find((p) => p.id === 'custom');
+      expect(copy.label).toBe(NEW_LABEL);
+      expect(DEFAULT_PRESET_PROFILES.custom.id).toBe('custom');
+      expect(DEFAULT_PRESET_PROFILES.custom.name).toBe(NEW_LABEL);
+    });
+
+    it('contract name matches the frontend label', () => {
+      const custom = contract.presets.find((p) => p.id === 'custom');
+      expect(custom.id).toBe('custom');
+      expect(custom.name).toBe(NEW_LABEL);
+    });
+
+    it('no preset still uses the old Custom label', () => {
+      const names = [
+        ...Object.values(DEFAULT_PRESET_PROFILES).map((p) => p.name),
+        ...PRESET_COPY.map((p) => p.label),
+        ...contract.presets.map((p) => p.name),
+      ];
+      for (const name of names) {
+        expect(name).not.toMatch(/^custom/i);
+      }
+    });
+  });
+
   it('removes the old Custom wording from every preset description', () => {
     const descriptions = [
       ...Object.values(DEFAULT_PRESET_PROFILES).map((p) => p.description),

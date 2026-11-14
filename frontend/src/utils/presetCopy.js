@@ -21,7 +21,7 @@ export const PRESET_COPY = [
   },
   {
     id: 'custom',
-    label: 'Custom',
+    label: 'Slurs + Strong Language',
     summary:
       'Applies the fixed slur and strong-profanity rules plus your custom blocklist terms, which apply under every preset. Also flags tracks tagged explicit.',
   },

@@ -16,7 +16,7 @@ describe('ScreeningControlsBar', () => {
     expect(screen.getByRole('button', { name: /kid safe/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /moderate/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /slurs only/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /custom/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /slurs \+ strong language/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /scan lyrics/i })).toHaveClass(
       'bg-brand-primary',
       'hover:bg-brand-primary-hover'
@@ -387,7 +387,7 @@ describe('ScreeningControlsBar', () => {
       const kid = screen.getByRole('button', { name: 'Kid Safe' });
       const mod = screen.getByRole('button', { name: 'Moderate' });
       const slurs = screen.getByRole('button', { name: 'Slurs Only' });
-      const custom = screen.getByRole('button', { name: 'Custom' });
+      const custom = screen.getByRole('button', { name: 'Slurs + Strong Language' });
 
       expect(kid).toHaveAccessibleDescription(SUMMARIES.kid_safe);
       expect(mod).toHaveAccessibleDescription(SUMMARIES.moderate);
@@ -458,10 +458,16 @@ describe('ScreeningControlsBar', () => {
         'aria-pressed',
         'true'
       );
-      expect(screen.getByRole('button', { name: 'Custom' })).toHaveAttribute(
+      expect(screen.getByRole('button', { name: 'Slurs + Strong Language' })).toHaveAttribute(
         'aria-pressed',
         'false'
       );
+    });
+
+    it('shows the descriptive label in the active policy line for the custom preset id', () => {
+      render(<ScreeningControlsBar preset="custom" customBlocklist={[]} />);
+      expect(getIndicator()).toHaveTextContent('Active policy: Slurs + Strong Language');
+      expect(screen.queryByRole('button', { name: 'Custom' })).not.toBeInTheDocument();
     });
 
     it.each(['kid_safe', 'moderate', 'slurs_only', 'custom'])(
