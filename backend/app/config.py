@@ -26,7 +26,7 @@ PRESET_PROFILES: Dict[str, Dict] = {
     },
     "custom": {
         "id": "custom",
-        "name": "Custom Filter",
+        "name": "Slurs + Strong Language",
         "description": "Applies the fixed slur and strong-profanity rules plus your custom blocklist terms. Your blocklist applies under every preset.",
         "include_metadata_explicit": True,
         "categories": ["slurs", "strong_profanity"],

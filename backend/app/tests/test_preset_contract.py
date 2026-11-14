@@ -50,6 +50,23 @@ def test_contract_custom_description_matches_backend_copy():
     assert custom["description"] == CUSTOM_DESCRIPTION
 
 
+CUSTOM_LABEL = "Slurs + Strong Language"
+
+
+def test_custom_preset_label_renamed_but_id_unchanged():
+    from app.config import PRESET_PROFILES
+
+    assert PRESET_PROFILES["custom"]["id"] == "custom"
+    assert PRESET_PROFILES["custom"]["name"] == CUSTOM_LABEL
+    served = {p["id"]: p for p in get_presets()["presets"]}
+    assert served["custom"]["name"] == CUSTOM_LABEL
+
+
+def test_contract_custom_name_matches_backend_label():
+    custom = next(p for p in _load_contract()["presets"] if p["id"] == "custom")
+    assert custom["name"] == CUSTOM_LABEL
+
+
 def test_old_custom_wording_absent_from_every_preset_description():
     from app.config import PRESET_PROFILES
 
