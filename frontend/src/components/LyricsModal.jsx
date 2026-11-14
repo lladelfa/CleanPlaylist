@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { X, AlertTriangle, CheckCircle, Music2, ExternalLink, RefreshCw, ChevronUp, ChevronDown, ArrowLeftRight } from 'lucide-react';
 import { evaluateLyrics } from '../utils/lyricEvaluator';
 import { maskWord, maskText } from '../utils/masking';
+import { VERIFIED_CLEAN_CAVEAT, isVerifiedCleanTrack } from '../utils/verifiedCleanCaveat';
 function formatDurationDelta(originalTrack, candidateTrack) {
   const origSec = Number(originalTrack?.duration_seconds) || 0;
   const candSec = Number(candidateTrack?.duration_seconds) || 0;
@@ -496,6 +497,13 @@ export default function LyricsModal({
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
+
+        {/* Story 7.9: Verified Clean caveat */}
+        {isVerifiedCleanTrack(track) && (
+          <p className="px-4 sm:px-5 py-2 text-xs text-text-muted border-b border-border-subtle shrink-0">
+            {VERIFIED_CLEAN_CAVEAT}
+          </p>
+        )}
 
         {/* Emerald Clean Replacement Top Banner */}
         {resolvedCleanCandidate && typeof resolvedCleanCandidate === 'object' && (

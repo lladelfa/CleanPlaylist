@@ -70,6 +70,27 @@ describe('LyricsModal component', () => {
     expect(document.getElementById(labelId)).toHaveTextContent('Flagged Track Title');
   });
 
+  it('Story 7.9: shows the Verified Clean caveat only for verified-clean tracks', () => {
+    const { rerender } = render(
+      <LyricsModal
+        track={{ ...sampleTrack, is_explicit: false, verification_status: 'verified_clean' }}
+        onClose={() => {}}
+        lyricsByTrackId={{ [sampleTrack.id]: sampleLyricsText }}
+      />
+    );
+    expect(
+      screen.getByText('Based on the lyrics we could find and your selected preset. You make the final call.')
+    ).toBeInTheDocument();
+    rerender(
+      <LyricsModal
+        track={{ ...sampleTrack, verification_status: 'flagged', is_flagged: true }}
+        onClose={() => {}}
+        lyricsByTrackId={{ [sampleTrack.id]: sampleLyricsText }}
+      />
+    );
+    expect(screen.queryByText(/You make the final call/)).not.toBeInTheDocument();
+  });
+
   it('formats line numbers right-aligned in monospace with L01-Lnn format', () => {
     render(
       <LyricsModal

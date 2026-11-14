@@ -8,6 +8,7 @@ export default function NoticeBanner({
   actionLabel,
   onAction,
   onDismiss,
+  dismissLabel = 'Dismiss notice',
   className = '',
 }) {
   const isError = type === 'error' || type === 'flagged';
@@ -71,7 +72,7 @@ export default function NoticeBanner({
           <button
             type="button"
             onClick={onDismiss}
-            aria-label="Dismiss notice"
+            aria-label={dismissLabel}
             className="p-1 rounded hover:bg-surface-card/40 transition-colors opacity-80 hover:opacity-100"
           >
             <X className="w-4 h-4" aria-hidden="true" />
