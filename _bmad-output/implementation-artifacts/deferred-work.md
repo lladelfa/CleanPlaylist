@@ -19,3 +19,13 @@
 - source_spec: `C:\Users\llade\Documents\GitHub\CleanPlaylist/_bmad-output/implementation-artifacts/spec-6-4-screening-preset-micro-explainers-policy-badging.md`
   summary: sprint-status.yaml still lists 6-3-obsidian-design-token-hygiene-safety-emerald-guard as review although its spec is done and PR #70 is merged.
   evidence: Spec frontmatter status 'done'; merge commit 1a486b0 on master.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-10-accessibility-and-mobile-pass.md`
+  summary: Decide brand-token contrast fixes (`border-subtle` ~1.4:1, `text-muted` on `surface-highest` 3.89:1) and re-audit all `surface-highest` text.
+  evidence: Brand-token changes need a human decision per the story notes.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-10-accessibility-and-mobile-pass.md`
+  summary: Manual 360/390px overflow, safe-area and screen-reader pass; check negative-margin chip remove buttons and taller 44px rows.
+  evidence: jsdom cannot verify layout; the app was not run during this story.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-10-accessibility-and-mobile-pass.md`
+  summary: Modal robustness follow-ups: ref-counted body scroll lock and topmost-only Escape/Tab for stacked modals, shared focus helper, KeywordsTab thumbnail div onClick, aria-live/aria-pressed gaps.
+  evidence: Raised by edge-case and blind reviewers; none reachable in current flows or required by the story ACs.

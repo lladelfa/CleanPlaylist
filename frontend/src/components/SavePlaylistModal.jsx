@@ -2,6 +2,47 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, AlertTriangle, FilePlus, Loader2, CheckCircle2, ShieldCheck, Lock, Globe } from 'lucide-react';
 import { emitTelemetryEvent } from '../utils/telemetry';
 
+const FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  'a[href]',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ');
+
+function trapTab(e, dialog) {
+  if (!dialog) return;
+  const focusables = Array.from(dialog.querySelectorAll(FOCUSABLE_SELECTOR));
+  if (focusables.length === 0) {
+    e.preventDefault();
+    dialog.focus();
+    return;
+  }
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const active = document.activeElement;
+  if (!dialog.contains(active) || active === dialog) {
+    e.preventDefault();
+    (e.shiftKey ? last : first).focus();
+  } else if (e.shiftKey && active === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
+function restoreFocus(el) {
+  try {
+    if (el && el.isConnected && typeof el.focus === 'function') el.focus();
+    else if (document.body) document.body.focus?.();
+  } catch {
+    // Opener may be gone; fall back silently.
+  }
+}
+
 export default function SavePlaylistModal({
   isOpen,
   onClose,
@@ -18,6 +59,7 @@ export default function SavePlaylistModal({
   const [isPrivate, setIsPrivate] = useState(true);
 
   const prevIsOpenRef = useRef(isOpen);
+  const dialogRef = useRef(null);
 
   useEffect(() => {
     if (isOpen && !prevIsOpenRef.current) {
@@ -37,12 +79,33 @@ export default function SavePlaylistModal({
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && !loading && !success) {
         onClose();
+        return;
+      }
+      if (e.key === 'Tab') {
+        trapTab(e, dialogRef.current);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, loading, success, onClose]);
+
+  // Focus in on open, lock body scroll, return focus to the opener on close.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const opener = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const dialog = dialogRef.current;
+    if (dialog) {
+      const target = dialog.querySelector('#playlist-title-input') || dialog;
+      target.focus();
+    }
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      restoreFocus(opener);
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -113,11 +176,13 @@ export default function SavePlaylistModal({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-labelledby="save-playlist-modal-title"
       onClick={handleBackdropClick}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-backdrop/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-backdrop/80 backdrop-blur-sm focus:outline-none"
     >
       <div className="bg-surface-card border border-border-subtle rounded-2xl p-6 max-w-md w-full shadow-2xl relative text-text-primary">
         <button
@@ -125,17 +190,17 @@ export default function SavePlaylistModal({
           onClick={onClose}
           disabled={loading || success}
           aria-label="Close save dialog"
-          className="absolute top-4 right-4 text-text-muted hover:text-text-primary transition disabled:opacity-50"
+          className="absolute top-2 right-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-text-muted hover:text-text-primary transition disabled:opacity-50 rounded-lg"
         >
-          <X className="w-5 h-5" />
+          <X className="w-5 h-5" aria-hidden="true" />
         </button>
 
-        <div className="flex items-center justify-between mb-4 pr-6">
+        <div className="flex items-center justify-between mb-4 pr-10">
           <h2 id="save-playlist-modal-title" className="text-xl font-bold text-text-primary">
             Save Playlist
           </h2>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-status-clean-bg text-status-clean border border-status-clean-border/40">
-            <ShieldCheck className="w-3.5 h-3.5 text-status-clean" />
+            <ShieldCheck className="w-3.5 h-3.5 text-status-clean" aria-hidden="true" />
             <span>
               {totalTracks} tracks ({cleanTracksCount} clean)
             </span>
@@ -145,7 +210,7 @@ export default function SavePlaylistModal({
         {success ? (
           <div className="flex flex-col items-center justify-center py-8 space-y-4">
             <div className="w-16 h-16 bg-surface-elevated border border-border-subtle rounded-full flex items-center justify-center">
-              <CheckCircle2 className="w-8 h-8 text-text-secondary" />
+              <CheckCircle2 className="w-8 h-8 text-text-secondary" aria-hidden="true" />
             </div>
             <p className="text-text-primary font-semibold text-lg">Saved Successfully!</p>
           </div>
@@ -159,18 +224,16 @@ export default function SavePlaylistModal({
               {/* Option 1: Create New */}
               <button
                 type="button"
-                role="button"
-                aria-label="Create New Clean Playlist"
                 aria-pressed={saveMode === 'new'}
                 onClick={() => setSaveMode('new')}
-                className={`w-full flex items-start gap-3 p-3.5 rounded-xl border transition text-left ${
+                className={`w-full min-h-[44px] flex items-start gap-3 p-3.5 rounded-xl border transition text-left ${
                   saveMode === 'new'
                     ? 'bg-brand-primary/10 border-brand-primary text-text-primary'
                     : 'bg-surface-canvas/60 border-border-subtle hover:border-border-strong text-text-secondary'
                 }`}
               >
                 <div className={`mt-0.5 ${saveMode === 'new' ? 'text-brand-tint' : 'text-text-muted'}`}>
-                  <FilePlus className="w-5 h-5" />
+                  <FilePlus className="w-5 h-5" aria-hidden="true" />
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-text-primary">Create New Clean Playlist</h3>
@@ -192,18 +255,17 @@ export default function SavePlaylistModal({
                       type="text"
                       value={playlistTitle}
                       onChange={(e) => setPlaylistTitle(e.target.value)}
-                      aria-label="Playlist title"
                       placeholder="Playlist title"
-                      className="w-full bg-surface-canvas border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-ring-focus transition"
+                      className="w-full min-h-[44px] bg-surface-canvas border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-ring-focus transition"
                     />
                     {!isTitleValid && (
                       <p className="text-xs text-status-flagged mt-1">Playlist name is required.</p>
                     )}
                   </div>
 
-                  <label className="flex items-center justify-between p-2.5 rounded-lg bg-surface-canvas/80 border border-border-subtle cursor-pointer select-none">
+                  <label className="flex items-center justify-between min-h-[44px] p-2.5 rounded-lg bg-surface-canvas/80 border border-border-subtle cursor-pointer select-none">
                     <div className="flex items-center gap-2">
-                      {isPrivate ? <Lock className="w-4 h-4 text-text-muted" /> : <Globe className="w-4 h-4 text-text-muted" />}
+                      {isPrivate ? <Lock className="w-4 h-4 text-text-muted" aria-hidden="true" /> : <Globe className="w-4 h-4 text-text-muted" aria-hidden="true" />}
                       <div>
                         <span className="text-xs font-medium text-text-primary block">Private Playlist</span>
                         <span className="text-[11px] text-text-muted">Keep this playlist private in your library</span>
@@ -214,7 +276,7 @@ export default function SavePlaylistModal({
                       checked={isPrivate}
                       onChange={(e) => setIsPrivate(e.target.checked)}
                       aria-label="Private playlist"
-                      className="w-4 h-4 rounded border-border-subtle bg-surface-canvas text-brand-primary focus:ring-ring-focus accent-brand-primary"
+                      className="w-5 h-5 shrink-0 rounded border-border-subtle bg-surface-canvas text-brand-primary focus:ring-ring-focus accent-brand-primary"
                     />
                   </label>
                 </div>
@@ -223,12 +285,10 @@ export default function SavePlaylistModal({
               {/* Option 2: Update Original */}
               <button
                 type="button"
-                role="button"
-                aria-label="Update Original Playlist"
                 aria-pressed={saveMode === 'update'}
                 disabled={!canOverwrite || loading || success}
                 onClick={() => canOverwrite && setSaveMode('update')}
-                className={`w-full flex items-start gap-3 p-3.5 rounded-xl border transition text-left ${
+                className={`w-full min-h-[44px] flex items-start gap-3 p-3.5 rounded-xl border transition text-left ${
                   !canOverwrite
                     ? 'opacity-50 cursor-not-allowed bg-surface-canvas/20 border-border-subtle'
                     : saveMode === 'update'
@@ -237,7 +297,7 @@ export default function SavePlaylistModal({
                 }`}
               >
                 <div className={`mt-0.5 ${saveMode === 'update' ? 'text-brand-tint' : 'text-text-muted'}`}>
-                  <Save className="w-5 h-5" />
+                  <Save className="w-5 h-5" aria-hidden="true" />
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-text-primary">Update Original Playlist</h3>
@@ -251,7 +311,7 @@ export default function SavePlaylistModal({
               {/* Destructive warning for Update Original */}
               {saveMode === 'update' && (
                 <div className="bg-status-caution-bg border border-status-caution-border/40 p-3 rounded-lg flex items-start gap-2 text-status-caution text-xs">
-                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-status-caution" />
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-status-caution" aria-hidden="true" />
                   <p>Warning: This will overwrite tracks in your existing playlist. This action cannot be undone.</p>
                 </div>
               )}
@@ -259,7 +319,7 @@ export default function SavePlaylistModal({
 
             {error && (
               <div role="alert" className="bg-status-flagged-bg border border-status-flagged-border/40 p-3 rounded-lg flex items-start gap-2 text-status-flagged text-xs">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
                 <p>{error}</p>
               </div>
             )}
@@ -269,8 +329,7 @@ export default function SavePlaylistModal({
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                aria-label="Cancel"
-                className="px-4 py-2 text-sm font-medium text-text-muted hover:text-text-primary transition disabled:opacity-50 rounded-lg"
+                className="min-h-[44px] px-4 py-2 text-sm font-medium text-text-muted hover:text-text-primary transition disabled:opacity-50 rounded-lg"
               >
                 Cancel
               </button>
@@ -278,8 +337,7 @@ export default function SavePlaylistModal({
                 type="button"
                 onClick={handleSave}
                 disabled={loading || !isTitleValid}
-                aria-label="Save Playlist"
-                className="px-4 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white text-sm font-medium rounded-lg flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                className="min-h-[44px] px-4 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white text-sm font-medium rounded-lg flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
                 {loading ? (
                   <>
@@ -288,7 +346,7 @@ export default function SavePlaylistModal({
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4" />
+                    <Save className="w-4 h-4" aria-hidden="true" />
                     <span>Save Playlist</span>
                   </>
                 )}

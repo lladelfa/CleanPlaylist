@@ -73,7 +73,7 @@ export default function PasteTrackListPanel({
             onClick={onClose}
             disabled={isLoading}
             aria-label="Close paste panel"
-            className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors disabled:opacity-50 disabled:pointer-events-none"
+            className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors disabled:opacity-50 disabled:pointer-events-none"
           >
             <X className="w-4 h-4" aria-hidden="true" />
           </button>
@@ -98,7 +98,7 @@ export default function PasteTrackListPanel({
         {/* Line Numbers Gutter */}
         <div
           aria-hidden="true"
-          className="select-none py-3 px-2 bg-surface-elevated/50 border-r border-border-subtle text-right font-mono text-xs text-text-muted/60 leading-6 min-w-[2.5rem]"
+          className="select-none py-3 px-2 bg-surface-elevated/50 border-r border-border-subtle text-right font-mono text-xs text-text-muted leading-6 min-w-[2.5rem]"
         >
           {Array.from({ length: rawLinesCount }).map((_, idx) => (
             <div key={idx}>{idx + 1}</div>
@@ -114,7 +114,7 @@ export default function PasteTrackListPanel({
           aria-label="Pasted track list input"
           wrap="off"
           disabled={isLoading}
-          className="flex-1 p-3 bg-transparent text-sm text-text-primary font-mono placeholder:text-text-muted/50 focus:outline-none resize-y leading-6 whitespace-pre overflow-x-auto disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 p-3 bg-transparent text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none resize-y leading-6 whitespace-pre overflow-x-auto disabled:opacity-50 disabled:cursor-not-allowed"
         />
       </div>
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   X,
   Search,
@@ -9,6 +9,47 @@ import {
   AlertCircle,
   Library,
 } from "lucide-react";
+
+const FOCUSABLE_SELECTOR = [
+  "button:not([disabled])",
+  "a[href]",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(", ");
+
+function trapTab(e, dialog) {
+  if (!dialog) return;
+  const focusables = Array.from(dialog.querySelectorAll(FOCUSABLE_SELECTOR));
+  if (focusables.length === 0) {
+    e.preventDefault();
+    dialog.focus();
+    return;
+  }
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const active = document.activeElement;
+  if (!dialog.contains(active) || active === dialog) {
+    e.preventDefault();
+    (e.shiftKey ? last : first).focus();
+  } else if (e.shiftKey && active === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
+function restoreFocus(el) {
+  try {
+    if (el && el.isConnected && typeof el.focus === "function") el.focus();
+    else if (document.body) document.body.focus?.();
+  } catch {
+    // Opener may be gone; fall back silently.
+  }
+}
 
 const PAGE_LIMIT = 20;
 
@@ -25,6 +66,8 @@ export default function PlaylistPickerModal({
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
   const [searchFilter, setSearchFilter] = useState("");
+
+  const dialogRef = useRef(null);
 
   const closeAndReset = useCallback(() => {
     setOffset(0);
@@ -45,12 +88,32 @@ export default function PlaylistPickerModal({
       if (event.key === "Escape") {
         event.preventDefault();
         closeAndReset();
+        return;
+      }
+      if (event.key === "Tab") {
+        trapTab(event, dialogRef.current);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, closeAndReset]);
+
+  // Focus in on open, lock body scroll, return focus to the opener on close.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const opener = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const dialog = dialogRef.current;
+    if (dialog) {
+      (dialog.querySelector("input") || dialog).focus();
+    }
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      restoreFocus(opener);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -138,22 +201,24 @@ export default function PlaylistPickerModal({
       }}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="playlist-picker-modal-title"
-        className="bg-surface-card border border-border-subtle rounded-2xl p-6 max-w-xl w-full shadow-2xl relative flex flex-col max-h-[85vh]"
+        className="bg-surface-card border border-border-subtle rounded-2xl p-6 max-w-xl w-full shadow-2xl relative flex flex-col max-h-[85vh] focus:outline-none"
       >
         <button
           type="button"
           onClick={closeAndReset}
           aria-label="Close playlist picker"
-          className="absolute top-4 right-4 p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-elevated transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
+          className="absolute top-2 right-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-elevated transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
         >
           <X className="w-5 h-5" aria-hidden="true" />
         </button>
 
-        <div className="flex items-center space-x-2.5 mb-4 pr-8">
-          <div className="p-2 bg-surface-elevated border border-border-subtle rounded-xl text-brand-primary">
+        <div className="flex items-center space-x-2.5 mb-4 pr-12">
+          <div className="p-2 bg-surface-elevated border border-border-subtle rounded-xl text-brand-tint">
             <Library className="w-5 h-5" aria-hidden="true" />
           </div>
           <div>
@@ -201,7 +266,7 @@ export default function PlaylistPickerModal({
                 <button
                   type="button"
                   onClick={() => setRetryCount((count) => count + 1)}
-                  className="px-3 py-1.5 rounded-lg bg-surface-card border border-border-subtle text-text-primary hover:bg-surface-elevated font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
+                  className="min-h-[44px] px-3 py-1.5 rounded-lg bg-surface-card border border-border-subtle text-text-primary hover:bg-surface-elevated font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
                 >
                   Retry
                 </button>
@@ -234,7 +299,7 @@ export default function PlaylistPickerModal({
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-text-primary group-hover:text-brand-primary transition truncate">
+                    <p className="text-sm font-semibold text-text-primary group-hover:text-brand-tint transition truncate">
                       {playlist.name}
                     </p>
                     <p className="text-xs text-text-secondary truncate">
@@ -247,7 +312,7 @@ export default function PlaylistPickerModal({
           )}
         </div>
 
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-border-subtle">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-4 mt-4 border-t border-border-subtle">
           <span className="text-xs text-text-secondary" aria-live="polite">
             {total > 0
               ? `Showing ${startIdx}–${endIdx} of ${total}`
@@ -258,7 +323,7 @@ export default function PlaylistPickerModal({
               type="button"
               onClick={handlePrev}
               disabled={offset === 0 || loading}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-surface-elevated hover:bg-surface-inset text-text-primary text-xs font-medium rounded-lg border border-border-subtle transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
+              className="flex items-center justify-center space-x-1 min-h-[44px] px-3 py-1.5 bg-surface-elevated hover:bg-surface-inset text-text-primary text-xs font-medium rounded-lg border border-border-subtle transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
             >
               <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Prev</span>
@@ -267,7 +332,7 @@ export default function PlaylistPickerModal({
               type="button"
               onClick={handleNext}
               disabled={!hasNext || loading}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-surface-elevated hover:bg-surface-inset text-text-primary text-xs font-medium rounded-lg border border-border-subtle transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
+              className="flex items-center justify-center space-x-1 min-h-[44px] px-3 py-1.5 bg-surface-elevated hover:bg-surface-inset text-text-primary text-xs font-medium rounded-lg border border-border-subtle transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-card"
             >
               <span>Next</span>
               <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />

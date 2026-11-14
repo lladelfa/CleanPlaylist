@@ -287,3 +287,103 @@ describe('SavePlaylistModal', () => {
     expect(onSaveSuccess).not.toHaveBeenCalled();
   });
 });
+
+// Story 7.10: focus management (focus-in, trap, Escape, focus return)
+describe('SavePlaylistModal focus management', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function Harness() {
+    const [open, setOpen] = React.useState(false);
+    return (
+      <div>
+        <button type="button" onClick={() => setOpen(true)}>Open save</button>
+        <SavePlaylistModal
+          isOpen={open}
+          onClose={() => setOpen(false)}
+          playlist={{ id: 'pl_1', title: 'Mix', canOverwrite: true }}
+          displayedTracks={[]}
+          activePlatform="spotify"
+        />
+      </div>
+    );
+  }
+
+  async function openModal() {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const opener = screen.getByRole('button', { name: 'Open save' });
+    await user.click(opener);
+    return { user, opener };
+  }
+
+  it('exposes dialog semantics and an accessible name', async () => {
+    await openModal();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveAccessibleName();
+  });
+
+  it('moves focus into the dialog on open', async () => {
+    await openModal();
+    expect(screen.getByPlaceholderText('Playlist title')).toHaveFocus();
+  });
+
+  it('locks body scroll while open and restores it on close', async () => {
+    const { user } = await openModal();
+    expect(document.body.style.overflow).toBe('hidden');
+    await user.keyboard('{Escape}');
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('wraps Tab from the last focusable to the first and Shift+Tab back', async () => {
+    const { user } = await openModal();
+    const dialog = screen.getByRole('dialog');
+    const focusables = Array.from(
+      dialog.querySelectorAll('button:not([disabled]), input:not([disabled])')
+    );
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    last.focus();
+    await user.tab();
+    expect(document.activeElement).toBe(first);
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(last);
+  });
+
+  it('closes on Escape and returns focus to the opener', async () => {
+    const { user, opener } = await openModal();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+  });
+
+  it('does not throw when the opener is unmounted before close', async () => {
+    const { user, opener } = await openModal();
+    opener.remove();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('SavePlaylistModal Escape guard', () => {
+  it('ignores Escape while on the success state', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <SavePlaylistModal
+        isOpen={true}
+        onClose={onClose}
+        playlist={{ id: 'pl_1', title: 'Mix', canOverwrite: true }}
+        displayedTracks={[]}
+        activePlatform="spotify"
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /^save playlist$/i }));
+    await screen.findByText(/saved successfully/i);
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});

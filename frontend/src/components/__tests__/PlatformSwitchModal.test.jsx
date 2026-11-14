@@ -114,3 +114,70 @@ describe('PlatformSwitchModal', () => {
     expect(document.body.style.overflow).toBe('');
   });
 });
+
+// Story 7.10: focus management (focus-in, trap, Escape, focus return)
+describe('PlatformSwitchModal focus management', () => {
+  function Harness() {
+    const [open, setOpen] = React.useState(false);
+    return (
+      <div>
+        <button type="button" onClick={() => setOpen(true)}>Switch platform</button>
+        <PlatformSwitchModal
+          isOpen={open}
+          targetPlatform="ytmusic"
+          onConfirm={() => setOpen(false)}
+          onCancel={() => setOpen(false)}
+        />
+      </div>
+    );
+  }
+
+  async function openModal() {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const opener = screen.getByRole('button', { name: 'Switch platform' });
+    await user.click(opener);
+    return { user, opener };
+  }
+
+  it('exposes dialog semantics and an accessible name', async () => {
+    await openModal();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveAccessibleName();
+  });
+
+  it('moves focus into the dialog on open', async () => {
+    await openModal();
+    expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true);
+  });
+
+  it('wraps Tab from the last focusable to the first and Shift+Tab back', async () => {
+    const { user } = await openModal();
+    const dialog = screen.getByRole('dialog');
+    const focusables = Array.from(
+      dialog.querySelectorAll('button:not([disabled]), input:not([disabled])')
+    );
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    last.focus();
+    await user.tab();
+    expect(document.activeElement).toBe(first);
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(last);
+  });
+
+  it('closes on Escape and returns focus to the opener', async () => {
+    const { user, opener } = await openModal();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+  });
+
+  it('does not throw when the opener is unmounted before close', async () => {
+    const { user, opener } = await openModal();
+    opener.remove();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});

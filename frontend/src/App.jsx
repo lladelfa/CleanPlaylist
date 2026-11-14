@@ -434,7 +434,7 @@ export default function App() {
       <footer className="border-t border-border-subtle bg-surface-low py-6 text-center text-xs text-text-muted">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p>© CleanPlaylist • Designed for Spotify & YouTube Music</p>
-          <p className="text-text-muted/80">
+          <p className="text-text-muted">
             Standalone Local & Cloud Ready • Fast Async Language Engine
           </p>
         </div>

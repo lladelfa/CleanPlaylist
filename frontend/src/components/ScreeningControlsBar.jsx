@@ -257,15 +257,15 @@ export default function ScreeningControlsBar({
             onKeyDown={handleKeyDown}
             disabled={scanning || bulkCleaning || disabled}
             aria-label="Add custom blocklist term"
-            className="flex-1 bg-surface-elevated border border-border-subtle rounded-xl px-3.5 py-2 text-xs text-text-primary placeholder-text-muted/60 focus:outline-none focus:ring-2 focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 min-h-[44px] bg-surface-elevated border border-border-subtle rounded-xl px-3.5 py-2 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             type="submit"
             disabled={scanning || bulkCleaning || disabled}
             aria-label="Add blocklist term"
-            className="px-4 py-2 bg-surface-elevated hover:bg-surface-elevated/80 text-text-primary text-xs font-medium rounded-xl border border-border-subtle flex items-center space-x-1.5 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="min-h-[44px] px-4 py-2 bg-surface-elevated hover:bg-surface-elevated/80 text-text-primary text-xs font-medium rounded-xl border border-border-subtle flex items-center space-x-1.5 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Add Word</span>
           </button>
         </form>
@@ -284,9 +284,9 @@ export default function ScreeningControlsBar({
                   onClick={() => handleRemoveTerm(term)}
                   disabled={scanning || bulkCleaning || disabled}
                   aria-label={`Remove blocklist term ${term}`}
-                  className="text-text-muted hover:text-text-primary transition p-0.5 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="text-text-muted hover:text-text-primary transition min-h-[44px] min-w-[44px] -my-2 -mr-2 inline-flex items-center justify-center rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </span>
             ))}

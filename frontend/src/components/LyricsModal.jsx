@@ -492,7 +492,7 @@ export default function LyricsModal({
             type="button"
             onClick={handleClose}
             aria-label="Close modal"
-            className="text-text-muted hover:text-text-primary p-1.5 rounded-lg hover:bg-surface-elevated transition-colors ml-2"
+            className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-text-muted hover:text-text-primary rounded-lg hover:bg-surface-elevated transition-colors ml-2"
           >
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
@@ -524,7 +524,7 @@ export default function LyricsModal({
             <button
               type="button"
               onClick={handleModalSwap}
-              className="px-3.5 py-1.5 rounded-lg bg-status-clean hover:bg-status-clean/90 text-status-clean-ink border border-status-clean-border text-xs font-semibold shadow transition-colors inline-flex items-center gap-1.5 shrink-0"
+              className="min-h-[44px] px-3.5 py-1.5 rounded-lg bg-status-clean hover:bg-status-clean/90 text-status-clean-ink border border-status-clean-border text-xs font-semibold shadow transition-colors inline-flex items-center gap-1.5 shrink-0"
             >
               <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
               <span>Swap to Clean</span>
@@ -557,7 +557,7 @@ export default function LyricsModal({
               disabled={totalFlaggedLines === 0}
               aria-label="Previous flagged line"
               title="Previous flagged line"
-              className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-surface-highest disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-surface-highest disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronUp className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -567,7 +567,7 @@ export default function LyricsModal({
               disabled={totalFlaggedLines === 0}
               aria-label="Next flagged line"
               title="Next flagged line"
-              className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-surface-highest disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-surface-highest disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronDown className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -652,14 +652,14 @@ export default function LyricsModal({
             <button
               type="button"
               onClick={handleKeepAction}
-              className="text-text-muted hover:text-text-primary hover:bg-surface-elevated px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              className="min-h-[44px] text-text-muted hover:text-text-primary hover:bg-surface-elevated px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
             >
               {isKept ? 'Kept Flagged Track' : 'Keep Flagged Track'}
             </button>
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-1.5 bg-surface-elevated hover:bg-surface-highest text-text-primary text-sm font-medium rounded-lg transition-colors border border-border-subtle"
+              className="min-h-[44px] px-4 py-1.5 bg-surface-elevated hover:bg-surface-highest text-text-primary text-sm font-medium rounded-lg transition-colors border border-border-subtle"
             >
               Close
             </button>

@@ -80,7 +80,7 @@ export default function MobileTrackCard({
               {track.artist || 'Unknown Artist'}
             </p>
             {track.album && (
-              <p className="text-[11px] text-text-muted/80 truncate">
+              <p className="text-[11px] text-text-muted truncate">
                 {track.album}
               </p>
             )}
@@ -89,7 +89,7 @@ export default function MobileTrackCard({
                 type="button"
                 onClick={(e) => onOpenLyrics && onOpenLyrics(track, e.currentTarget)}
                 aria-label="Inspect lyric snippet"
-                className="text-[11px] text-status-flagged mt-0.5 truncate text-left hover:underline cursor-pointer flex items-center gap-1 max-w-full"
+                className="text-[11px] text-status-flagged mt-0.5 truncate text-left hover:underline cursor-pointer flex items-center gap-1 max-w-full min-h-[44px]"
                 title="Inspect lyric snippet"
               >
                 {typeof track.snippets[0].line_number === 'number' && (
