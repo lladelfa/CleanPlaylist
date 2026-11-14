@@ -22,7 +22,7 @@ import EmptyStateHero from "./EmptyStateHero";
 import FinishLineBar from "./FinishLineBar";
 import { exportCleanPlaylistFile, getReadyTracks } from "../utils/finishLine";
 import { reevaluateTracks } from "../utils/lyricEvaluator";
-import { runScreeningPipeline, runBulkCleanPipeline } from "../utils/screeningPipeline";
+import { runScreeningPipeline, runBulkCleanPipeline, isLyricsServiceDegraded } from "../utils/screeningPipeline";
 import { isYouTubePlaylist, isSpotifyPlaylistUrl } from "../utils/inputParser";
 import { emitTelemetryEvent, getTrackCountBucket } from "../utils/telemetry";
 
@@ -67,6 +67,7 @@ export default function ScanTab({
   const [statusMessage, setStatusMessage] = useState(null);
   const [activeNotice, setActiveNotice] = useState(null);
   const [scanProgressAnnouncement, setScanProgressAnnouncement] = useState("");
+  const [lyricsDegradedFlag, setLyricsDegradedFlag] = useState(false);
 
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isPickerModalOpen, setIsPickerModalOpen] = useState(false);
@@ -491,12 +492,21 @@ export default function ScanTab({
     }
   };
 
-  const handleRunScan = async () => {
+  const handleRunScan = () => runScan(false);
+
+  // Re-requests only tracks whose lyric lookup failed upstream; other results are kept.
+  const handleRetryScan = () => runScan(true);
+
+  const runScan = async (onlyUpstreamErrors) => {
     if (scanning) return;
-    const targetTracks = workingList && workingList.length > 0 ? workingList : scannedTracks;
+    const allTracks = workingList && workingList.length > 0 ? workingList : scannedTracks;
+    const targetTracks = onlyUpstreamErrors
+      ? (allTracks || []).filter((t) => t && t.lyrics_lookup === "upstream_error")
+      : allTracks;
     if (!targetTracks || !targetTracks.length) return;
 
     setScanning(true);
+    setLyricsDegradedFlag(false);
     setStatusMessage(null);
     setScanProgressAnnouncement(`Scanned 0 of ${targetTracks.length} tracks`);
 
@@ -541,6 +551,8 @@ export default function ScanTab({
         } : prev));
       }
 
+      setLyricsDegradedFlag(Boolean(result.lyricsServiceDegraded));
+
       const totalScanned = result.tracks?.length || 0;
       const allErrors = totalScanned > 0 && result.tracks.every((t) => t.verification_status === "scan_error");
 
@@ -562,6 +574,8 @@ export default function ScanTab({
           text: summaryText,
         });
         setScanProgressAnnouncement(summaryText);
+
+        if (onlyUpstreamErrors) return; // retries are not a new scan for telemetry
 
         const presetId = ["kid_safe", "moderate", "slurs_only"].includes(preset) ? preset : "custom";
         emitTelemetryEvent("scan_completed", {
@@ -996,6 +1010,16 @@ export default function ScanTab({
           actionLabel={activeNotice.actionLabel}
           onAction={activeNotice.onAction}
           onDismiss={() => setActiveNotice(null)}
+        />
+      )}
+
+      {/* 0.1 Degraded lyrics service banner (single message instead of per-row repeats) */}
+      {!scanning && (lyricsDegradedFlag || isLyricsServiceDegraded(currentTracks)) && (
+        <NoticeBanner
+          type="warning"
+          message="Our lyrics source is having trouble right now. These results may be incomplete. Try again in a few minutes."
+          actionLabel="Retry Scan"
+          onAction={handleRetryScan}
         />
       )}
 

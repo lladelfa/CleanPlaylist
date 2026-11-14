@@ -62,6 +62,7 @@ export default function StitchTab({
   const [screeningProgressText, setScreeningProgressText] = useState(null);
   const [unresolvedLinesNotice, setUnresolvedLinesNotice] = useState([]);
   const [rateLimitError, setRateLimitError] = useState(null);
+  const [lyricsDegraded, setLyricsDegraded] = useState(false);
   const [newUrl, setNewUrl] = useState('');
   const [loadingNew, setLoadingNew] = useState(false);
   const [isLibraryPickerOpen, setIsLibraryPickerOpen] = useState(false);
@@ -354,6 +355,7 @@ export default function StitchTab({
     setStitching(true);
     setError(null);
     setRateLimitError(null);
+    setLyricsDegraded(false);
     setScreeningProgressText('Starting pre-screening…');
 
     try {
@@ -373,6 +375,8 @@ export default function StitchTab({
           console.warn('[StitchTab] Pre-screening warning:', err);
         },
       });
+
+      setLyricsDegraded(Boolean(preScreenResult.lyricsServiceDegraded));
 
       // 2. Surface any unresolved lines without blocking valid tracks
       if (preScreenResult.unresolvedLines && preScreenResult.unresolvedLines.length > 0) {
@@ -814,6 +818,17 @@ export default function StitchTab({
             type="caution"
             message={`${unresolvedLinesNotice.length} pasted song request(s) could not be resolved and were omitted: ${unresolvedLinesNotice.map((u) => u.line).join(', ')}`}
             onDismiss={() => setUnresolvedLinesNotice([])}
+            className="mt-2"
+          />
+        )}
+
+        {lyricsDegraded && !stitching && (
+          <NoticeBanner
+            type="warning"
+            message="Our lyrics source is having trouble right now. These results may be incomplete. Try again in a few minutes."
+            actionLabel="Retry Scan"
+            onAction={handleRetryPreScreening}
+            onDismiss={() => setLyricsDegraded(false)}
             className="mt-2"
           />
         )}
