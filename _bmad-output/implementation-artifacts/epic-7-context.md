@@ -12,6 +12,14 @@ Make what CleanPlaylist tells users trustworthy, and harden its one public write
 - Story 7.2: Preset Micro-Copy Contract Test
 - Story 7.3: Custom Preset Copy Accuracy
 - Story 7.4: Mobile Header Safe-Area Fix
+- Story 7.5: CI Quality Gate Workflow
+- Story 7.6: Lyric Lookup Outcome Signal (Backend)
+- Story 7.7: Honest Degraded-State Messaging (Frontend)
+- Story 7.8: Rename the Custom Preset Label
+- Story 7.9: "Verified Clean" Caveat Copy
+- Story 7.10: Accessibility & Mobile Pass
+
+Stories 7.5–7.10 were added 2026-11-13 for friends-and-family launch readiness (CI gate, honest lyrics-failure signal and messaging, clearer Custom preset name, Verified Clean caveat, accessibility/mobile pass). They add no new FRs.
 
 ## Requirements & Constraints
 

@@ -89,7 +89,7 @@ development_status:
   7-2-preset-micro-copy-contract-test: done
   7-3-custom-preset-copy-accuracy: done
   7-4-mobile-header-safe-area-fix: done
-  7-5-ci-quality-gate-workflow: backlog
+  7-5-ci-quality-gate-workflow: done
   7-6-lyric-lookup-outcome-signal-backend: backlog
   7-7-honest-degraded-state-messaging-frontend: backlog
   7-8-rename-the-custom-preset-label: backlog

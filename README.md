@@ -53,6 +53,22 @@ Clone or open the project folder in your terminal:
 
 Open your browser to: **[http://localhost:8000](http://localhost:8000)**
 
+### 3. Run the Checks (same as CI)
+Every pull request and every push to `master` runs `.github/workflows/ci.yml`. Run the same commands locally from the repo root:
+
+```powershell
+# Backend tests (PYTHONPATH is required; bare `pytest` cannot import `app.*`)
+$env:PYTHONPATH="backend"; .\.venv\Scripts\pytest.exe backend/app/tests/
+
+# Frontend lint, tests, and production build
+npm --prefix frontend ci
+npm --prefix frontend run lint
+npm --prefix frontend test
+npm --prefix frontend run build
+```
+
+On macOS/Linux, use `PYTHONPATH=backend python -m pytest backend/app/tests/`. CI needs no secrets, and tests mock Spotify and YouTube Music, so no network or `backend/.env` is involved.
+
 ---
 
 ## 🌐 Deploying Online for Others to Use
