@@ -1,10 +1,10 @@
 import React from 'react';
-import { Disc3, Search, Shuffle } from 'lucide-react';
+import { BookOpen, Disc3, Search, Shuffle } from 'lucide-react';
 import CatalogSelector from './CatalogSelector';
 
 /**
  * GlobalHeader
- * Unified studio header with strictly 3 tabs (Scan & Clean, Keyword Search, Stitch Studio),
+ * Unified studio header with 4 tabs (Scan & Clean, Keyword Search, Stitch Studio, About),
  * electric violet branding across both platforms, and integrated CatalogSelector.
  * Public login / Read-Only badges are intentionally removed per zero-login architecture.
  */
@@ -22,6 +22,7 @@ export default function GlobalHeader({
     { id: 'scan', label: 'Scan & Clean', icon: Disc3 },
     { id: 'keywords', label: 'Keyword Search', icon: Search },
     { id: 'stitch', label: 'Stitch Studio', icon: Shuffle },
+    { id: 'about', label: 'About', icon: BookOpen },
   ];
 
   return (

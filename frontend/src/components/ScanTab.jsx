@@ -54,6 +54,7 @@ export default function ScanTab({
   onToggleMasking,
   cleanCandidates: externalCleanCandidates,
   setCleanCandidates: externalSetCleanCandidates,
+  onNavigateToAbout,
 }) {
   const vipMode = propVipMode ?? Boolean(isAuthenticated);
   const [scanning, setScanning] = useState(false);
@@ -1094,7 +1095,7 @@ export default function ScanTab({
 
       {/* 3-Step Empty State Hero (shown when working list is empty) */}
       {currentTracks.length === 0 && (
-        <EmptyStateHero />
+        <EmptyStateHero onOpenAbout={onNavigateToAbout} />
       )}
 
       {/* 2. Screening Controls Bar (shown when playlist loaded) */}

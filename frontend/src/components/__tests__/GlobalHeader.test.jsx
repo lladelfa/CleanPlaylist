@@ -7,7 +7,7 @@ import { resolve } from 'node:path';
 import GlobalHeader from '../GlobalHeader';
 
 describe('GlobalHeader', () => {
-  it('renders strictly 3 navigation tabs with Stitch Studio', () => {
+  it('renders the 4 studio navigation tabs including Stitch Studio and About', () => {
     render(
       <GlobalHeader
         activeTab="scan"
@@ -20,6 +20,7 @@ describe('GlobalHeader', () => {
     expect(screen.getByRole('button', { name: /scan & clean/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /keyword search/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /stitch studio/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^about$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /stitch playlists/i })).not.toBeInTheDocument();
   });
 
@@ -63,6 +64,9 @@ describe('GlobalHeader', () => {
 
     await user.click(screen.getByRole('button', { name: /stitch studio/i }));
     expect(setActiveTab).toHaveBeenCalledWith('stitch');
+
+    await user.click(screen.getByRole('button', { name: /^about$/i }));
+    expect(setActiveTab).toHaveBeenCalledWith('about');
   });
 
   it('renders VIP badge, Connect Spotify button, and Exit VIP Mode button when vipMode={true} and unauthenticated', async () => {
