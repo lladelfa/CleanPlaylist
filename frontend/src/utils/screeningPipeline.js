@@ -15,6 +15,16 @@
  * @param {number} subsequentSize Default 15
  * @returns {Array<Array>} Array of track chunks
  */
+/**
+ * True when more than half of the tracks failed their lyric lookup upstream
+ * (mirrors the backend `lyrics_service_degraded` rule).
+ */
+export function isLyricsServiceDegraded(tracks) {
+  if (!Array.isArray(tracks) || tracks.length === 0) return false;
+  const failed = tracks.filter((t) => t && t.lyrics_lookup === 'upstream_error').length;
+  return failed * 2 > tracks.length;
+}
+
 export function chunkTracks(tracks, initialSize = 10, subsequentSize = 15) {
   if (!tracks || !Array.isArray(tracks) || tracks.length === 0) {
     return [];
@@ -70,6 +80,7 @@ export async function runScreeningPipeline({
   const allTracks = [];
   const allLyricsById = {};
   let totalScanned = 0;
+  let summaryDegraded = false;
 
   for (const chunk of chunks) {
     if (onBatchStart) {
@@ -106,6 +117,9 @@ export async function runScreeningPipeline({
         batchTracks = data.tracks || [];
         batchLyrics = data.lyrics_by_id || {};
         batchSummary = data.summary;
+        if (batchSummary && batchSummary.lyrics_service_degraded === true) {
+          summaryDegraded = true;
+        }
       }
     } catch (networkErr) {
       batchError = networkErr;
@@ -189,6 +203,7 @@ export async function runScreeningPipeline({
   return {
     tracks: allTracks,
     lyricsById: allLyricsById,
+    lyricsServiceDegraded: summaryDegraded || isLyricsServiceDegraded(allTracks),
   };
 }
 
@@ -502,8 +517,12 @@ export async function runStitchPreScreeningPipeline({
       // Skip unresolved temporary paste placeholder IDs
       if (typeof track.id === 'string' && track.id.startsWith('paste-')) continue;
 
-      if (track.verification_status && track.is_flagged !== undefined) {
-        // already screened
+      if (
+        track.verification_status &&
+        track.is_flagged !== undefined &&
+        track.lyrics_lookup !== 'upstream_error'
+      ) {
+        // already screened (lookups that failed upstream are retried)
       } else if (!seenTrackIds.has(track.id)) {
         seenTrackIds.add(track.id);
         tracksToScan.push(track);
@@ -512,6 +531,7 @@ export async function runStitchPreScreeningPipeline({
   }
 
   const screenedTracks = [];
+  let summaryDegraded = false;
   if (tracksToScan.length > 0) {
     if (onProgress) {
       try {
@@ -616,6 +636,9 @@ export async function runStitchPreScreeningPipeline({
         const data = await batchRes.json();
         const batchScanned = data.tracks || [];
         screenedTracks.push(...batchScanned);
+        if (data.summary && data.summary.lyrics_service_degraded === true) {
+          summaryDegraded = true;
+        }
         if (data.lyrics_by_id) {
           Object.assign(allLyricsById, data.lyrics_by_id);
         }
@@ -727,5 +750,6 @@ export async function runStitchPreScreeningPipeline({
     manualReplacements,
     unresolvedLines,
     error: null,
+    lyricsServiceDegraded: summaryDegraded || isLyricsServiceDegraded(screenedTracks),
   };
 }

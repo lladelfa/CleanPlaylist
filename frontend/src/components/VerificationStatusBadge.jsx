@@ -87,6 +87,38 @@ export default function VerificationStatusBadge({
   }
 
   if (resolvedStatus === 'lyrics_unavailable') {
+    const lookup = track?.lyrics_lookup;
+
+    if (lookup === 'upstream_error') {
+      const label = "Couldn't check lyrics: lyrics service error. Try scanning again.";
+      return (
+        <span
+          role="img"
+          aria-label={label}
+          title={label}
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-rose-950/40 border border-rose-900/50 text-rose-400 shrink-0 ${className}`}
+        >
+          <AlertCircle className="w-3 h-3 text-rose-400" aria-hidden="true" />
+          <span>Couldn't check (service error)</span>
+        </span>
+      );
+    }
+
+    if (lookup === 'not_found') {
+      const label = 'No lyrics found for this song, so it could not be verified.';
+      return (
+        <span
+          role="img"
+          aria-label={label}
+          title={label}
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-950/40 border border-amber-900/50 text-amber-400 shrink-0 ${className}`}
+        >
+          <FileQuestion className="w-3 h-3 text-amber-400" aria-hidden="true" />
+          <span>No lyrics found</span>
+        </span>
+      );
+    }
+
     return (
       <span
         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-950/40 border border-amber-900/50 text-amber-400 shrink-0 ${className}`}

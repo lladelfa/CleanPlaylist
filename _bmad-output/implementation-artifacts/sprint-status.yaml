@@ -91,7 +91,7 @@ development_status:
   7-4-mobile-header-safe-area-fix: done
   7-5-ci-quality-gate-workflow: done
   7-6-lyric-lookup-outcome-signal-backend: done
-  7-7-honest-degraded-state-messaging-frontend: backlog
+  7-7-honest-degraded-state-messaging-frontend: done
   7-8-rename-the-custom-preset-label: backlog
   7-9-verified-clean-caveat-copy: backlog
   7-10-accessibility-and-mobile-pass: backlog
