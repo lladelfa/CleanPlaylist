@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useId } from 'react';
+import { VERIFIED_CLEAN_CAVEAT } from '../utils/verifiedCleanCaveat';
 import {
   CheckCircle2,
   ShieldAlert,
@@ -13,6 +14,7 @@ export default function VerificationStatusBadge({
   track,
   className = '',
 }) {
+  const caveatId = `verified-clean-caveat-${useId()}`;
   let resolvedStatus = 'unscanned';
   const s = status ? String(status).toLowerCase() : null;
 
@@ -56,10 +58,14 @@ export default function VerificationStatusBadge({
   if (resolvedStatus === 'verified_clean') {
     return (
       <span
+        tabIndex={0}
+        title={VERIFIED_CLEAN_CAVEAT}
+        aria-describedby={caveatId}
         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-status-clean-bg border border-status-clean-border text-status-clean shrink-0 ${className}`}
       >
         <CheckCircle2 className="w-3 h-3 text-status-clean" aria-hidden="true" />
         <span>Verified Clean</span>
+        <span id={caveatId} className="sr-only">{VERIFIED_CLEAN_CAVEAT}</span>
       </span>
     );
   }

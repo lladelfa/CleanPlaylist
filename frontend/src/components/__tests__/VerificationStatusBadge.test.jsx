@@ -24,6 +24,25 @@ describe('VerificationStatusBadge component', () => {
     expect(screen.getByText('Verified Clean')).toBeInTheDocument();
   });
 
+  it('Story 7.9: exposes the caveat via aria-describedby/title while the label stays "Verified Clean"', () => {
+    const CAVEAT = 'Based on the lyrics we could find and your selected preset. You make the final call.';
+    render(<VerificationStatusBadge status="verified_clean" />);
+    const label = screen.getByText('Verified Clean');
+    const badge = label.parentElement;
+    expect(badge).toHaveAttribute('title', CAVEAT);
+    expect(badge).toHaveAttribute('tabindex', '0');
+    const describedBy = badge.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy)).toHaveTextContent(CAVEAT);
+    expect(label).toHaveTextContent(/^Verified Clean$/);
+  });
+
+  it('Story 7.9: other statuses carry no caveat', () => {
+    const { container } = render(<VerificationStatusBadge status="clean_swapped" />);
+    expect(container.textContent).not.toContain('final call');
+    expect(container.querySelector('[aria-describedby]')).toBeNull();
+  });
+
   it('renders clean-swapped status with semantic clean tokens', () => {
     const { rerender } = render(<VerificationStatusBadge status="clean_swapped" />);
     const swappedBadge = screen.getByText('Clean Swapped').parentElement;

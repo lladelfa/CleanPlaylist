@@ -22,6 +22,7 @@ import EmptyStateHero from "./EmptyStateHero";
 import FinishLineBar from "./FinishLineBar";
 import { exportCleanPlaylistFile, getReadyTracks } from "../utils/finishLine";
 import { reevaluateTracks } from "../utils/lyricEvaluator";
+import { VERIFIED_CLEAN_CAVEAT, CAVEAT_DISMISSED_KEY, isVerifiedCleanTrack } from "../utils/verifiedCleanCaveat";
 import { runScreeningPipeline, runBulkCleanPipeline, isLyricsServiceDegraded } from "../utils/screeningPipeline";
 import { isYouTubePlaylist, isSpotifyPlaylistUrl } from "../utils/inputParser";
 import { emitTelemetryEvent, getTrackCountBucket } from "../utils/telemetry";
@@ -68,6 +69,21 @@ export default function ScanTab({
   const [activeNotice, setActiveNotice] = useState(null);
   const [scanProgressAnnouncement, setScanProgressAnnouncement] = useState("");
   const [lyricsDegradedFlag, setLyricsDegradedFlag] = useState(false);
+  const [caveatDismissed, setCaveatDismissed] = useState(() => {
+    try {
+      return sessionStorage.getItem(CAVEAT_DISMISSED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const dismissCaveat = () => {
+    setCaveatDismissed(true);
+    try {
+      sessionStorage.setItem(CAVEAT_DISMISSED_KEY, '1');
+    } catch {
+      /* session-only convenience; ignore storage failures */
+    }
+  };
 
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isPickerModalOpen, setIsPickerModalOpen] = useState(false);
@@ -1021,6 +1037,18 @@ export default function ScanTab({
           actionLabel="Retry Scan"
           onAction={handleRetryScan}
         />
+      )}
+
+      {/* 0.2 One-time Verified Clean caveat (Story 7.9) */}
+      {!scanning && !caveatDismissed && currentTracks.some((t) => isVerifiedCleanTrack(t)) && (
+        <div data-testid="verified-clean-note">
+          <NoticeBanner
+            type="info"
+            message={VERIFIED_CLEAN_CAVEAT}
+            onDismiss={dismissCaveat}
+            dismissLabel="Dismiss Verified Clean note"
+          />
+        </div>
       )}
 
       {/* 1. Smart Input Bar */}
