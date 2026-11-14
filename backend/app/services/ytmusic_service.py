@@ -52,6 +52,9 @@ class YTMusicService:
         # YTM is now strictly a read-only unauthenticated utility.
         self.yt = YTMusic()
         self._lyrics_cache: BoundedLyricsCache = BoundedLyricsCache(maxsize=512)
+        # Video IDs whose most recent lyrics fetch raised (an upstream failure, not
+        # a genuine "no lyrics" answer). Failures are never cached as misses.
+        self._lyrics_failed_ids: set = set()
 
     @staticmethod
     def extract_track_id(url_or_id: str) -> str:
@@ -182,6 +185,7 @@ class YTMusicService:
 
     def get_track_lyrics(self, video_id: str) -> Optional[str]:
         if video_id in self._lyrics_cache:
+            self._lyrics_failed_ids.discard(video_id)
             return self._lyrics_cache[video_id]
 
         try:
@@ -189,16 +193,24 @@ class YTMusicService:
             lyrics_browse_id = watch_playlist.get("lyrics")
             if not lyrics_browse_id:
                 self._lyrics_cache[video_id] = None
+                self._lyrics_failed_ids.discard(video_id)
                 return None
 
             lyrics_obj = self.yt.get_lyrics(lyrics_browse_id)
             lyrics_text = lyrics_obj.get("lyrics") if lyrics_obj else None
             self._lyrics_cache[video_id] = lyrics_text
+            self._lyrics_failed_ids.discard(video_id)
             return lyrics_text
         except Exception as e:
             print(f"[YTMusicService] Lyrics fetch error for {video_id}: {e}")
-            self._lyrics_cache[video_id] = None
+            if len(self._lyrics_failed_ids) >= 512:
+                self._lyrics_failed_ids.clear()
+            self._lyrics_failed_ids.add(video_id)
             return None
+
+    def lyrics_fetch_failed(self, video_id: str) -> bool:
+        """True when the latest get_track_lyrics call for this ID hit an upstream error."""
+        return video_id in self._lyrics_failed_ids
 
     def search_clean_replacement(
         self,

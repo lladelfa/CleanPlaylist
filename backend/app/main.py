@@ -60,6 +60,7 @@ class TrackScanItem(BaseModel):
     source_platform: Optional[str] = None
     ytmusic_video_id: Optional[str] = None
     confidence_score: Optional[int] = None
+    lyrics_lookup: Optional[str] = None  # found | not_found | upstream_error; server-set, never trusted from clients
 
 class AlbumSummary(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -124,6 +125,7 @@ class PlaylistScanSummary(BaseModel):
     flagged_tracks: int
     clean_tracks: int
     deep_scanned_tracks: Optional[int] = 0
+    lyrics_service_degraded: bool = False
 
 class PlaylistScanResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -352,8 +354,15 @@ def fetch_playlist(req: PlaylistFetchRequest, request: Request, response: Respon
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
+def _is_lyrics_service_degraded(upstream_error_count: int, total: int) -> bool:
+    """True when more than half of the looked-up tracks failed upstream."""
+    return total > 0 and upstream_error_count * 2 > total
+
+
 @app.post("/api/scan/playlist", response_model=PlaylistScanResponse)
 def scan_playlist(req: PlaylistScanRequest):
+    for t in req.tracks:
+        t.lyrics_lookup = None  # outcome is computed server-side only
     results = []
     deep_scanned_count = 0
     platform = (req.platform or "ytmusic").strip().lower()
@@ -388,6 +397,7 @@ def scan_playlist(req: PlaylistScanRequest):
         if err is not None:
             track_dict = track.model_dump()
             track_dict.update({
+                "lyrics_lookup": "upstream_error",
                 "is_flagged": False,
                 "reasons": [f"Scan error: {str(err)}"],
                 "detected_terms": [],
@@ -427,8 +437,14 @@ def scan_playlist(req: PlaylistScanRequest):
             else:
                 verification_status = "verified_clean"
 
+        if req.deep_scan_lyrics:
+            lyrics_lookup = track.lyrics_lookup or ("found" if has_lyrics else "not_found")
+        else:
+            lyrics_lookup = None
+
         track_dict = track.model_dump()
         track_dict.update({
+            "lyrics_lookup": lyrics_lookup,
             "is_flagged": scan_result["is_flagged"],
             "reasons": scan_result["reasons"],
             "detected_terms": scan_result["detected_terms"],
@@ -444,6 +460,7 @@ def scan_playlist(req: PlaylistScanRequest):
 
     flagged_count = sum(1 for t in results if t.is_flagged)
     clean_count = sum(1 for t in results if t.verification_status == "verified_clean")
+    upstream_error_count = sum(1 for t in results if t.lyrics_lookup == "upstream_error")
 
     return PlaylistScanResponse(
         tracks=results,
@@ -452,6 +469,7 @@ def scan_playlist(req: PlaylistScanRequest):
             flagged_tracks=flagged_count,
             clean_tracks=clean_count,
             deep_scanned_tracks=deep_scanned_count,
+            lyrics_service_degraded=_is_lyrics_service_degraded(upstream_error_count, len(results)),
         ),
         lyrics_by_id=lyrics_by_id,
     )
@@ -521,19 +539,26 @@ def search_keywords_in_playlist(req: KeywordSearchRequest):
 
     def _fetch_lyrics(track: TrackScanItem):
         try:
+            track.lyrics_lookup = None
             yt_id, lyrics_text = lyric_xref_service.resolve_lyrics_and_yt_id(track, platform)
-            return (track.id, yt_id, lyrics_text)
+            lookup = track.lyrics_lookup or ("found" if lyrics_text else "not_found")
+            return (track.id, yt_id, lyrics_text, lookup)
         except Exception:
-            return (track.id, getattr(track, "ytmusic_video_id", None), None)
+            return (track.id, getattr(track, "ytmusic_video_id", None), None, "upstream_error")
 
     workers = min(len(tracks_to_process), 8) or 1
     with ThreadPoolExecutor(max_workers=workers) as executor:
         resolved_list = list(executor.map(_fetch_lyrics, tracks_to_process))
 
-    lookup_map = {item[0]: (item[1], item[2]) for item in resolved_list}
+    lookup_map = {item[0]: (item[1], item[2], item[3]) for item in resolved_list}
+    upstream_error_count = 0
 
     for track in tracks_to_process:
-        yt_id, lyrics = lookup_map.get(track.id, (getattr(track, "ytmusic_video_id", None), None))
+        yt_id, lyrics, lyrics_lookup = lookup_map.get(
+            track.id, (getattr(track, "ytmusic_video_id", None), None, "not_found")
+        )
+        if lyrics_lookup == "upstream_error":
+            upstream_error_count += 1
         resolved_yt_id = yt_id or getattr(track, "ytmusic_video_id", None)
         lyrics_by_id[track.id] = lyrics or ""
 
@@ -546,6 +571,7 @@ def search_keywords_in_playlist(req: KeywordSearchRequest):
                 "thumbnail": track.thumbnail,
                 "ytmusic_video_id": resolved_yt_id,
                 "has_lyrics": False,
+                "lyrics_lookup": lyrics_lookup,
                 "matched": False,
                 "total_matches": 0,
                 "keywords_found": [],
@@ -565,6 +591,7 @@ def search_keywords_in_playlist(req: KeywordSearchRequest):
             "thumbnail": track.thumbnail,
             "ytmusic_video_id": resolved_yt_id,
             "has_lyrics": True,
+            "lyrics_lookup": lyrics_lookup,
             "matched": match_data["matched"],
             "total_matches": match_data["total_matches"],
             "keywords_found": match_data["keywords_found"],
@@ -578,6 +605,9 @@ def search_keywords_in_playlist(req: KeywordSearchRequest):
             "tracks_with_matches": tracks_with_matches,
             "total_keyword_occurrences": total_occurrences,
             "lyrics_unavailable_count": lyrics_unavailable_count,
+            "lyrics_service_degraded": _is_lyrics_service_degraded(
+                upstream_error_count, len(tracks_to_process)
+            ),
         },
         "results": per_track_results,
         "lyrics_by_id": lyrics_by_id,
