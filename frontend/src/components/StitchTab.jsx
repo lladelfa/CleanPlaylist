@@ -862,11 +862,12 @@ export default function StitchTab({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Order Mode */}
           <div>
-            <label className="block text-xs font-semibold text-text-secondary mb-1.5">Track Ordering</label>
+            <label htmlFor="stitch-order-mode" className="block text-xs font-semibold text-text-secondary mb-1.5">Track Ordering</label>
             <select
+              id="stitch-order-mode"
               value={orderMode}
               onChange={(e) => setOrderMode(e.target.value)}
-              className="w-full bg-surface-inset border border-border-subtle rounded-xl px-3 py-2 text-xs text-text-primary"
+              className="w-full bg-surface-inset border border-border-subtle rounded-xl px-3 py-2 text-xs text-text-primary min-h-[44px]"
             >
               <option value="sequential">Sequential (Playlist 1 then 2)</option>
               <option value="interleave">Interleaved (Alternating tracks)</option>
@@ -877,11 +878,12 @@ export default function StitchTab({
 
           {/* Deduplication Mode */}
           <div>
-            <label className="block text-xs font-semibold text-text-secondary mb-1.5">Deduplication</label>
+            <label htmlFor="stitch-dedup-mode" className="block text-xs font-semibold text-text-secondary mb-1.5">Deduplication</label>
             <select
+              id="stitch-dedup-mode"
               value={dedupMode}
               onChange={(e) => setDedupMode(e.target.value)}
-              className="w-full bg-surface-inset border border-border-subtle rounded-xl px-3 py-2 text-xs text-text-primary"
+              className="w-full bg-surface-inset border border-border-subtle rounded-xl px-3 py-2 text-xs text-text-primary min-h-[44px]"
             >
               <option value="exact_id">Remove Exact Duplicate Video IDs</option>
               <option value="title_artist">Fuzzy Deduplicate (Same Title & Artist)</option>
@@ -891,11 +893,12 @@ export default function StitchTab({
 
           {/* Clean Rules */}
           <div>
-            <label className="block text-xs font-semibold text-text-secondary mb-1.5">Offensive / Explicit Filter</label>
+            <label htmlFor="stitch-clean-mode" className="block text-xs font-semibold text-text-secondary mb-1.5">Offensive / Explicit Filter</label>
             <select
+              id="stitch-clean-mode"
               value={cleanMode}
               onChange={(e) => setCleanMode(e.target.value)}
-              className="w-full bg-surface-inset border border-border-subtle rounded-xl px-3 py-2 text-xs text-text-primary"
+              className="w-full bg-surface-inset border border-border-subtle rounded-xl px-3 py-2 text-xs text-text-primary min-h-[44px]"
             >
               <option value="replace_clean_or_drop">Swap with Clean Version, or Drop</option>
               <option value="replace_clean_or_keep">Swap with Clean Version, or Keep</option>
@@ -914,7 +917,7 @@ export default function StitchTab({
               placeholder="Unified Playlist Name..."
               value={playlistTitle}
               onChange={(e) => setPlaylistTitle(e.target.value)}
-              className="w-full bg-surface-inset border border-border-subtle rounded-xl px-3 py-2 text-xs text-text-primary"
+              className="w-full bg-surface-inset border border-border-subtle rounded-xl px-3 py-2 text-xs text-text-primary min-h-[44px]"
             />
           </div>
 
@@ -923,7 +926,7 @@ export default function StitchTab({
             aria-label={stitching ? (screeningProgressText || 'Stitching in progress') : 'Stitch Playlists & Clean'}
             onClick={handleStitch}
             disabled={stitching || playlistPool.length === 0}
-            className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-brand-primary hover:bg-brand-primary-hover text-white font-semibold text-xs rounded-xl shadow-lg transition disabled:opacity-50"
+            className="flex items-center justify-center space-x-2 min-h-[44px] px-6 py-2.5 bg-brand-primary hover:bg-brand-primary-hover text-white font-semibold text-xs rounded-xl shadow-lg transition disabled:opacity-50"
           >
             {stitching ? <RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Sparkles className="w-4 h-4" aria-hidden="true" />}
             <span>{stitching ? (screeningProgressText || 'Stitching...') : 'Stitch Playlists & Clean'}</span>

@@ -355,6 +355,19 @@ describe('LyricsModal component', () => {
     document.body.removeChild(triggerBtn);
   });
 
+  it('Story 7.10: moves focus into the dialog on open', async () => {
+    render(
+      <LyricsModal
+        track={sampleTrack}
+        onClose={() => {}}
+        lyricsByTrackId={{ [sampleTrack.id]: sampleLyricsText }}
+      />
+    );
+    await waitFor(() => {
+      expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true);
+    });
+  });
+
   it('traps focus inside the dialog when Tab / Shift+Tab is pressed', () => {
     render(
       <LyricsModal

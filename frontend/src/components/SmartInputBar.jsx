@@ -367,7 +367,7 @@ export default function SmartInputBar({
                 type="button"
                 onClick={handleClear}
                 aria-label="Clear search input"
-                className="p-1 rounded hover:bg-surface-elevated text-text-muted hover:text-text-primary transition-colors"
+                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded hover:bg-surface-elevated text-text-muted hover:text-text-primary transition-colors"
               >
                 <X className="w-4 h-4" aria-hidden="true" />
               </button>
@@ -381,7 +381,7 @@ export default function SmartInputBar({
             type="button"
             onClick={() => onOpenPastePanel && onOpenPastePanel('')}
             aria-label="Paste Track List"
-            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-surface-elevated hover:bg-surface-highest border border-border-subtle rounded-lg text-sm font-medium text-text-primary hover:text-brand-tint transition-all whitespace-nowrap active:scale-[0.98]"
+            className="flex items-center justify-center gap-1.5 min-h-[44px] px-4 py-2.5 bg-surface-elevated hover:bg-surface-highest border border-border-subtle rounded-lg text-sm font-medium text-text-primary hover:text-brand-tint transition-all whitespace-nowrap active:scale-[0.98]"
           >
             <Sparkles className="w-4 h-4 text-brand-tint" aria-hidden="true" />
             <span>Paste Track List</span>
@@ -394,7 +394,7 @@ export default function SmartInputBar({
             type="button"
             onClick={onOpenLibraryPicker}
             aria-label="Browse Library"
-            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-surface-card hover:bg-surface-elevated border border-border-subtle rounded-lg text-sm font-medium text-brand-tint transition-all whitespace-nowrap active:scale-[0.98]"
+            className="flex items-center justify-center gap-1.5 min-h-[44px] px-4 py-2.5 bg-surface-card hover:bg-surface-elevated border border-border-subtle rounded-lg text-sm font-medium text-brand-tint transition-all whitespace-nowrap active:scale-[0.98]"
           >
             <Library className="w-4 h-4 text-brand-primary" aria-hidden="true" />
             <span>Browse Library</span>

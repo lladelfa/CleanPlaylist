@@ -266,7 +266,7 @@ export default function KeywordsTab({
               aria-label="Add keyword"
               className="px-4 py-2 min-h-[44px] bg-surface-elevated hover:bg-surface-card text-text-primary text-xs font-medium rounded-xl border border-border-subtle flex items-center justify-center space-x-1.5 transition"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Add Keyword</span>
             </button>
           </form>
@@ -282,9 +282,9 @@ export default function KeywordsTab({
                   type="button"
                   aria-label={`Remove keyword ${kw}`}
                   onClick={() => handleRemoveKeyword(kw)}
-                  className="text-text-muted hover:text-text-primary transition"
+                  className="min-h-[44px] min-w-[44px] -my-2 -mr-2 inline-flex items-center justify-center text-text-muted hover:text-text-primary transition"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </span>
             ))}
@@ -310,9 +310,9 @@ export default function KeywordsTab({
             className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-xs rounded-xl shadow-lg transition disabled:opacity-50 min-h-[44px]"
           >
             {searching ? (
-              <Sparkles className="w-4 h-4 animate-spin text-white" />
+              <Sparkles className="w-4 h-4 animate-spin text-white" aria-hidden="true" />
             ) : (
-              <Search className="w-4 h-4 text-white" />
+              <Search className="w-4 h-4 text-white" aria-hidden="true" />
             )}
             <span>{searching ? 'Scanning Song Lyrics...' : 'Search Keywords Across Working List'}</span>
           </button>
@@ -320,7 +320,7 @@ export default function KeywordsTab({
 
         {error && (
           <div className="p-3 bg-red-950/40 border border-red-800 rounded-xl text-red-300 text-xs flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+            <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span>{error}</span>
           </div>
         )}
@@ -342,7 +342,7 @@ export default function KeywordsTab({
               {resultsData.summary.keywords_searched.map((kw) => (
                 <span
                   key={kw}
-                  className="bg-surface-elevated text-brand-primary text-xs px-2.5 py-1 rounded-lg border border-border-subtle font-mono"
+                  className="bg-surface-elevated text-brand-tint text-xs px-2.5 py-1 rounded-lg border border-border-subtle font-mono"
                 >
                   "{isMasked ? maskWord(kw) : kw}"
                 </span>
@@ -376,7 +376,7 @@ export default function KeywordsTab({
                             onClick={() => onOpenLyrics && onOpenLyrics(item)}
                             className={`w-10 h-10 rounded-lg bg-surface-elevated shrink-0 flex items-center justify-center ${onOpenLyrics ? 'cursor-pointer hover:opacity-80' : ''}`}
                           >
-                            <Music2 className="w-5 h-5 text-text-muted" />
+                            <Music2 className="w-5 h-5 text-text-muted" aria-hidden="true" />
                           </div>
                         )}
                         <button
@@ -384,7 +384,7 @@ export default function KeywordsTab({
                           onClick={() => onOpenLyrics && onOpenLyrics(item)}
                           disabled={!onOpenLyrics}
                           aria-label={`Open lyrics for ${item.title}`}
-                          className={`min-w-0 text-left ${onOpenLyrics ? 'hover:underline cursor-pointer' : 'cursor-default'}`}
+                          className={`min-h-[44px] min-w-0 text-left ${onOpenLyrics ? 'hover:underline cursor-pointer' : 'cursor-default'}`}
                         >
                           <p className="text-sm font-semibold text-text-primary truncate">{item.title}</p>
                           <p className="text-xs text-text-muted truncate">{item.artist}</p>
@@ -397,7 +397,7 @@ export default function KeywordsTab({
                           {item.keywords_found.map((kf, i) => (
                             <span
                               key={i}
-                              className="text-[11px] bg-brand-primary/10 text-brand-primary px-2.5 py-0.5 rounded-full border border-brand-primary/20 font-semibold"
+                              className="text-[11px] bg-brand-primary/10 text-brand-tint px-2.5 py-0.5 rounded-full border border-brand-primary/20 font-semibold"
                             >
                               {isMasked ? maskWord(kf.keyword) : kf.keyword}: {kf.count}x
                             </span>

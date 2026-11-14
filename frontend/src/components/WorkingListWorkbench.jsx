@@ -192,7 +192,7 @@ export default function WorkingListWorkbench({
                               </p>
                               {track.album ? (
                                 <p
-                                  className="block lg:hidden text-text-muted/80 truncate text-[10px]"
+                                  className="block lg:hidden text-text-muted truncate text-[10px]"
                                   title={track.album}
                                 >
                                   {track.album}
@@ -203,7 +203,7 @@ export default function WorkingListWorkbench({
                                   type="button"
                                   onClick={(e) => onOpenLyrics && onOpenLyrics(track, e.currentTarget)}
                                   aria-label="Inspect lyric snippet"
-                                  className="text-[11px] text-status-flagged mt-0.5 truncate text-left hover:underline cursor-pointer flex items-center gap-1 max-w-full"
+                                  className="text-[11px] text-status-flagged mt-0.5 truncate text-left hover:underline cursor-pointer flex items-center gap-1 max-w-full min-h-[44px] lg:min-h-0"
                                   title="Inspect lyric snippet"
                                 >
                                   {typeof track.snippets[0].line_number === 'number' && (

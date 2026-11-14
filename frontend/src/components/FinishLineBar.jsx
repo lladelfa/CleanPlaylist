@@ -166,7 +166,7 @@ export default function FinishLineBar({
             type="button"
             onClick={() => handleExportFormat('csv')}
             aria-label="Export as CSV"
-            className="w-full text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
+            className="w-full min-h-[44px] text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
           >
             <span>CSV</span>
             <span className="text-[10px] text-text-muted font-mono">.csv</span>
@@ -175,7 +175,7 @@ export default function FinishLineBar({
             type="button"
             onClick={() => handleExportFormat('m3u8')}
             aria-label="Export as M3U8"
-            className="w-full text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
+            className="w-full min-h-[44px] text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
           >
             <span>M3U8</span>
             <span className="text-[10px] text-text-muted font-mono">.m3u8</span>
@@ -184,7 +184,7 @@ export default function FinishLineBar({
             type="button"
             onClick={() => handleExportFormat('json')}
             aria-label="Export as JSON"
-            className="w-full text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
+            className="w-full min-h-[44px] text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
           >
             <span>JSON</span>
             <span className="text-[10px] text-text-muted font-mono">.json</span>
@@ -231,7 +231,7 @@ export default function FinishLineBar({
             onClick={handleCopyLinks}
             disabled={readyCount === 0}
             aria-label="Copy Clean Track Links"
-            className="flex-1 min-h-[42px] px-3 rounded-xl bg-surface-elevated hover:bg-surface-highest text-text-primary border border-border-subtle font-medium text-xs flex items-center justify-center gap-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+            className="flex-1 min-h-[44px] px-3 rounded-xl bg-surface-elevated hover:bg-surface-highest text-text-primary border border-border-subtle font-medium text-xs flex items-center justify-center gap-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
           >
             {isCopied ? (
               <>
@@ -255,7 +255,7 @@ export default function FinishLineBar({
               aria-label="Export options"
               aria-haspopup="true"
               aria-expanded={exportMenuOpen}
-              className="min-h-[42px] px-3 rounded-xl bg-surface-elevated hover:bg-surface-highest text-text-primary border border-border-subtle font-medium text-xs flex items-center justify-center gap-1 transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              className="min-h-[44px] px-3 rounded-xl bg-surface-elevated hover:bg-surface-highest text-text-primary border border-border-subtle font-medium text-xs flex items-center justify-center gap-1 transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
             >
               {isExporting ? (
                 <Loader2 className="w-4 h-4 text-text-muted animate-spin shrink-0" aria-hidden="true" />
@@ -275,7 +275,7 @@ export default function FinishLineBar({
                   type="button"
                   onClick={() => handleExportFormat('csv')}
                   aria-label="Export as CSV"
-                  className="w-full text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
+                  className="w-full min-h-[44px] text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
                 >
                   <span>CSV</span>
                   <span className="text-[10px] text-text-muted font-mono">.csv</span>
@@ -284,7 +284,7 @@ export default function FinishLineBar({
                   type="button"
                   onClick={() => handleExportFormat('m3u8')}
                   aria-label="Export as M3U8"
-                  className="w-full text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
+                  className="w-full min-h-[44px] text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
                 >
                   <span>M3U8</span>
                   <span className="text-[10px] text-text-muted font-mono">.m3u8</span>
@@ -293,7 +293,7 @@ export default function FinishLineBar({
                   type="button"
                   onClick={() => handleExportFormat('json')}
                   aria-label="Export as JSON"
-                  className="w-full text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
+                  className="w-full min-h-[44px] text-left px-3 py-2 text-xs text-text-primary hover:bg-surface-elevated rounded-lg transition-colors font-medium flex items-center justify-between"
                 >
                   <span>JSON</span>
                   <span className="text-[10px] text-text-muted font-mono">.json</span>

@@ -1149,7 +1149,7 @@ export default function ScanTab({
                 <span className="font-semibold">{cleanCount} Clean</span>
               </div>
               <div className="hidden sm:flex items-center space-x-1.5 bg-surface-elevated text-text-secondary text-xs px-3 py-1.5 rounded-xl border border-border-subtle">
-                <Trash2 className="w-4 h-4 text-text-muted" />
+                <Trash2 className="w-4 h-4 text-text-muted" aria-hidden="true" />
                 <span className="font-semibold">{removedCount} Removed</span>
               </div>
 
@@ -1158,17 +1158,17 @@ export default function ScanTab({
                   isAuthenticated ? (
                     <button
                       onClick={() => setIsSaveModalOpen(true)}
-                      className="px-4 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-sm font-medium rounded-xl flex items-center space-x-2 transition shadow"
+                      className="min-h-[44px] px-4 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-sm font-medium rounded-xl flex items-center space-x-2 transition shadow"
                     >
-                      <Save className="w-4 h-4" />
+                      <Save className="w-4 h-4" aria-hidden="true" />
                       <span>Save to Spotify...</span>
                     </button>
                   ) : (
                     <button
                       onClick={onOpenAuth}
-                      className="px-4 py-1.5 bg-surface-elevated hover:bg-surface-highest text-text-primary text-sm font-medium rounded-xl flex items-center space-x-2 border border-border-subtle transition"
+                      className="min-h-[44px] px-4 py-1.5 bg-surface-elevated hover:bg-surface-highest text-text-primary text-sm font-medium rounded-xl flex items-center space-x-2 border border-border-subtle transition"
                     >
-                      <Sparkles className="w-4 h-4 text-brand-tint" />
+                      <Sparkles className="w-4 h-4 text-brand-tint" aria-hidden="true" />
                       <span>Login to Save</span>
                     </button>
                   )
@@ -1176,9 +1176,9 @@ export default function ScanTab({
               ) : (
                 <button
                   onClick={() => handleExportCSV()}
-                  className="px-4 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-sm font-medium rounded-xl flex items-center space-x-2 transition shadow"
+                  className="min-h-[44px] px-4 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-sm font-medium rounded-xl flex items-center space-x-2 transition shadow"
                 >
-                  <FileText className="w-4 h-4" />
+                  <FileText className="w-4 h-4" aria-hidden="true" />
                   <span>Export to CSV</span>
                 </button>
               )}
@@ -1189,7 +1189,7 @@ export default function ScanTab({
               <div className="flex space-x-1 bg-surface-inset p-1 rounded-xl border border-border-subtle w-full sm:w-auto">
                 <button
                   onClick={() => setFilterMode("all")}
-                  className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-lg transition ${
+                  className={`flex-1 sm:flex-none min-h-[44px] px-3 py-1.5 text-xs font-medium rounded-lg transition ${
                     filterMode === "all"
                       ? "bg-brand-primary text-white"
                       : "text-text-muted hover:text-text-primary"
@@ -1199,7 +1199,7 @@ export default function ScanTab({
                 </button>
                 <button
                   onClick={() => setFilterMode("flagged")}
-                  className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-lg transition ${
+                  className={`flex-1 sm:flex-none min-h-[44px] px-3 py-1.5 text-xs font-medium rounded-lg transition ${
                     filterMode === "flagged"
                       ? "bg-status-flagged-border text-white"
                       : "text-text-muted hover:text-text-primary"
@@ -1209,7 +1209,7 @@ export default function ScanTab({
                 </button>
                 <button
                   onClick={() => setFilterMode("clean")}
-                  className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-lg transition ${
+                  className={`flex-1 sm:flex-none min-h-[44px] px-3 py-1.5 text-xs font-medium rounded-lg transition ${
                     filterMode === "clean"
                       ? "bg-brand-primary text-white"
                       : "text-text-muted hover:text-text-primary"

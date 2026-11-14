@@ -45,7 +45,7 @@ export default function CatalogSelector({ activePlatform, onSelectPlatform }) {
                 onSelectPlatform(option.id);
               }
             }}
-            className={`min-h-[36px] sm:min-h-[32px] px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-ring-focus ${
+            className={`min-h-[44px] px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-ring-focus ${
               isActive
                 ? 'bg-surface-elevated text-text-primary shadow-sm'
                 : 'text-text-muted hover:text-text-secondary'
