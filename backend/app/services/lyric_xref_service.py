@@ -7,7 +7,7 @@ duration matching tolerance (<= 10s), bounded LRU caching, and exception safety.
 
 import logging
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,19 @@ TRAILING_HYPHEN_METADATA = re.compile(
     r"\s*[-–—]\s*.*?(?:remaster|live|radio edit|deluxe|bonus|feat\b|ft\b|official|version|edit|anniversary).*$",
     flags=re.IGNORECASE,
 )
+
+
+LOOKUP_FOUND = "found"
+LOOKUP_NOT_FOUND = "not_found"
+LOOKUP_UPSTREAM_ERROR = "upstream_error"
+
+
+class LyricLookupResult(NamedTuple):
+    """Outcome of a lyrics lookup: matched YT ID, lyrics text, and why."""
+
+    yt_id: Optional[str]
+    lyrics: Optional[str]
+    outcome: str
 
 
 def _get_track_field(track: Any, field_name: str, default: Any = None) -> Any:
@@ -188,13 +201,27 @@ class LyricXRefService:
         # Fall back to top aligned candidate if duration is 0
         return True
 
-    def resolve_lyrics_and_yt_id(
-        self, track: Union[Dict[str, Any], Any], platform: str = "ytmusic"
-    ) -> Tuple[Optional[str], Optional[str]]:
-        """Resolves lyrics and ytmusic_video_id for a track on YouTube Music or Spotify.
+    def _fetch_lyrics(self, video_id: str) -> Tuple[Optional[str], str]:
+        """Fetches lyrics for a YouTube Music ID and classifies the outcome."""
+        try:
+            lyrics = self.ytmusic_service.get_track_lyrics(video_id)
+        except Exception as e:
+            logger.warning("[LyricXRefService] Lyrics fetch failed for %s: %s", video_id, e)
+            return None, LOOKUP_UPSTREAM_ERROR
+        if lyrics and isinstance(lyrics, str) and lyrics.strip():
+            return lyrics, LOOKUP_FOUND
+        # The service swallows its own errors and returns None; ask it whether this was one.
+        if self.ytmusic_service.lyrics_fetch_failed(video_id) is True:
+            return lyrics, LOOKUP_UPSTREAM_ERROR
+        return lyrics, LOOKUP_NOT_FOUND
 
-        Returns:
-            Tuple[Optional[str], Optional[str]]: (ytmusic_video_id, lyrics_text)
+    def resolve_lyrics_lookup(
+        self, track: Union[Dict[str, Any], Any], platform: str = "ytmusic"
+    ) -> LyricLookupResult:
+        """Resolves lyrics and ytmusic_video_id, reporting why lyrics are or are not present.
+
+        Outcome is ``found``, ``not_found`` (genuine miss), or ``upstream_error``
+        (YouTube Music search or lyrics fetch failed).
         """
         try:
             norm_platform = (platform or "ytmusic").strip().lower()
@@ -202,32 +229,20 @@ class LyricXRefService:
             if norm_platform == "ytmusic":
                 track_id = _get_track_field(track, "id")
                 if not track_id:
-                    return None, None
+                    return LyricLookupResult(None, None, LOOKUP_NOT_FOUND)
                 _set_track_field(track, "ytmusic_video_id", track_id)
-                lyrics = None
-                try:
-                    lyrics = self.ytmusic_service.get_track_lyrics(track_id)
-                except Exception as e:
-                    logger.warning("[LyricXRefService] Error fetching lyrics for %s: %s", track_id, e)
-                return track_id, lyrics
+                lyrics, outcome = self._fetch_lyrics(track_id)
+                return LyricLookupResult(track_id, lyrics, outcome)
 
             # Spotify or other platform needing cross-reference
             existing_yt_id = _get_track_field(track, "ytmusic_video_id")
             if existing_yt_id:
-                lyrics = None
-                try:
-                    lyrics = self.ytmusic_service.get_track_lyrics(existing_yt_id)
-                except Exception as e:
-                    logger.warning(
-                        "[LyricXRefService] Error fetching lyrics for cached ID %s: %s",
-                        existing_yt_id,
-                        e,
-                    )
-                return existing_yt_id, lyrics
+                lyrics, outcome = self._fetch_lyrics(existing_yt_id)
+                return LyricLookupResult(existing_yt_id, lyrics, outcome)
 
             title = _get_track_field(track, "title", "")
             if not title:
-                return None, None
+                return LyricLookupResult(None, None, LOOKUP_NOT_FOUND)
 
             primary_artist = self.extract_primary_artist(track)
             raw_duration = _get_track_field(track, "duration_seconds", 0)
@@ -246,7 +261,7 @@ class LyricXRefService:
             clean_title = self.clean_title_for_query(title)
             query = f"{clean_title} {primary_artist}".strip()
             if not query:
-                return None, None
+                return LyricLookupResult(None, None, LOOKUP_NOT_FOUND)
 
             norm_title = self.normalize_title(title)
 
@@ -256,7 +271,7 @@ class LyricXRefService:
                 candidates = self.ytmusic_service.search(query, filter="songs", limit=5) or []
             except Exception as e:
                 logger.warning("[LyricXRefService] Search failed for query '%s': %s", query, e)
-                return None, None
+                return LyricLookupResult(None, None, LOOKUP_UPSTREAM_ERROR)
 
             matched_candidate_id: Optional[str] = None
             for cand in candidates:
@@ -279,27 +294,33 @@ class LyricXRefService:
                     break
 
             if not matched_candidate_id:
-                return None, None
+                return LyricLookupResult(None, None, LOOKUP_NOT_FOUND)
 
             # Populate matched ID onto track
             _set_track_field(track, "ytmusic_video_id", matched_candidate_id)
 
-            # Fetch lyrics for matched candidate
-            lyrics = None
-            try:
-                lyrics = self.ytmusic_service.get_track_lyrics(matched_candidate_id)
-            except Exception as e:
-                logger.warning(
-                    "[LyricXRefService] Lyrics fetch failed for candidate %s: %s",
-                    matched_candidate_id,
-                    e,
-                )
-
-            return matched_candidate_id, lyrics
+            lyrics, outcome = self._fetch_lyrics(matched_candidate_id)
+            return LyricLookupResult(matched_candidate_id, lyrics, outcome)
 
         except Exception as e:
             logger.warning("[LyricXRefService] Unexpected error resolving lyrics: %s", e)
-            return None, None
+            return LyricLookupResult(None, None, LOOKUP_UPSTREAM_ERROR)
+
+    def resolve_lyrics_and_yt_id(
+        self, track: Union[Dict[str, Any], Any], platform: str = "ytmusic"
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Resolves lyrics and ytmusic_video_id for a track on YouTube Music or Spotify.
+
+        Delegates to ``resolve_lyrics_lookup``. For model objects (not dicts) the
+        lookup outcome is also stamped onto ``track.lyrics_lookup``.
+
+        Returns:
+            Tuple[Optional[str], Optional[str]]: (ytmusic_video_id, lyrics_text)
+        """
+        result = self.resolve_lyrics_lookup(track, platform)
+        if not isinstance(track, dict):
+            _set_track_field(track, "lyrics_lookup", result.outcome)
+        return result.yt_id, result.lyrics
 
 
 lyric_xref_service = LyricXRefService()
