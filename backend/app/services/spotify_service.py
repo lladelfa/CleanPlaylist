@@ -33,6 +33,8 @@ def extract_primary_artist(artist: Optional[str]) -> str:
 
 SPOTIFY_TOKEN_CACHE = Path(__file__).parent.parent.parent / ".spotify_caches"
 SPOTIFY_SESSION_COOKIE = "cp_spotify_session"
+OAUTH_STATE_COOKIE = "cp_oauth_state"
+OAUTH_STATE_MAX_AGE = 600  # seconds
 SPOTIFY_SCOPES = "playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative"
 
 
@@ -146,6 +148,32 @@ class SpotifyService:
             path="/",
         )
 
+    def set_oauth_state_cookie(self, response: Response, state: str, request: Optional[Request] = None) -> None:
+        is_https = False
+        if request is not None:
+            proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+            is_https = proto == "https"
+        response.set_cookie(
+            key=OAUTH_STATE_COOKIE,
+            value=state,
+            httponly=True,
+            secure=is_https,
+            samesite="lax",
+            max_age=OAUTH_STATE_MAX_AGE,
+            path="/",
+        )
+
+    def clear_oauth_state_cookie(self, response: Response) -> None:
+        response.delete_cookie(key=OAUTH_STATE_COOKIE, path="/")
+
+    @staticmethod
+    def verify_oauth_state(request: Request, state: Optional[str]) -> bool:
+        """Constant-time check that the callback `state` matches the one issued at login."""
+        expected = request.cookies.get(OAUTH_STATE_COOKIE)
+        if not state or not expected:
+            return False
+        return hmac.compare_digest(state.encode("utf-8"), expected.encode("utf-8"))
+
     def clear_session_cookie(self, response: Response) -> None:
         response.delete_cookie(key=SPOTIFY_SESSION_COOKIE, path="/")
 
@@ -190,13 +218,13 @@ class SpotifyService:
         token_info = self.sp_oauth.cache_handler.get_cached_token()
         return token_info is not None
 
-    def get_login_url(self, request: Optional[Request] = None) -> str:
+    def get_login_url(self, request: Optional[Request] = None, state: Optional[str] = None) -> str:
         redirect_uri = self.resolve_redirect_uri(request)
         oauth = self._create_oauth(redirect_uri=redirect_uri)
         if not oauth:
             raise ValueError("MISSING_CREDENTIALS")
         self.sp_oauth = oauth
-        return oauth.get_authorize_url()
+        return oauth.get_authorize_url(state=state)
 
     def exchange_code(self, code: str, request: Optional[Request] = None) -> Dict:
         redirect_uri = self.resolve_redirect_uri(request)
