@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
-from fastapi import FastAPI, HTTPException, Response, Request
+from fastapi import Depends, FastAPI, HTTPException, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
@@ -24,7 +24,7 @@ from app.services.stitcher_service import stitcher_service
 from app.services.ytmusic_service import ytmusic_service
 from app.services.spotify_service import spotify_service
 from app.services.telemetry_service import telemetry_service, TelemetryEvent
-from app.services.rate_limiter import telemetry_rate_limiter, get_telemetry_limits, client_key
+from app.services.rate_limiter import telemetry_rate_limiter, get_telemetry_limits, client_key, enforce_api_rate_limit
 
 load_dotenv()
 
@@ -34,13 +34,30 @@ app = FastAPI(
     version="1.0.0"
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def build_cors_origins() -> List[str]:
+    """Explicit allowlist from CORS_ALLOWED_ORIGINS (comma-separated). Wildcards are ignored.
+
+    The frontend is same-origin (Vite proxy locally, Vercel rewrites in prod), so the default
+    is no CORS at all. A wildcard with credentials would trust every site with the session cookie.
+    """
+    raw = os.environ.get("CORS_ALLOWED_ORIGINS", "")
+    return [o.strip() for o in raw.split(",") if o.strip() and o.strip() != "*"]
+
+
+_cors_origins = build_cors_origins()
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+    )
+
+MAX_TRACKS_PER_REQUEST = 300
+MAX_BLOCKLIST_TERMS = 200
+MAX_KEYWORDS = 50
+MAX_PLAYLIST_FETCH_LIMIT = 200
 
 class TrackScanItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -73,7 +90,7 @@ class AlbumSummary(BaseModel):
     source_platform: Optional[str] = None
 
 class CatalogSearchRequest(BaseModel):
-    query: str
+    query: str = Field(max_length=200)
     platform: Optional[str] = "ytmusic"
     limit: Optional[int] = 10
 
@@ -134,9 +151,9 @@ class PlaylistScanResponse(BaseModel):
     lyrics_by_id: Dict[str, str] = Field(default_factory=dict)
 
 class PlaylistScanRequest(BaseModel):
-    tracks: List[TrackScanItem]
+    tracks: List[TrackScanItem] = Field(max_length=MAX_TRACKS_PER_REQUEST)
     preset: Optional[str] = "moderate"
-    custom_blocklist: Optional[List[str]] = Field(default_factory=list)
+    custom_blocklist: Optional[List[str]] = Field(default_factory=list, max_length=MAX_BLOCKLIST_TERMS)
     deep_scan_lyrics: Optional[bool] = True
     max_deep_scan: Optional[int] = 20
     platform: Optional[str] = "ytmusic" 
@@ -149,13 +166,13 @@ class SingleTrackScanRequest(BaseModel):
     duration_seconds: Optional[int] = 0
     ytmusic_video_id: Optional[str] = None
     preset: Optional[str] = "moderate"
-    custom_blocklist: Optional[List[str]] = Field(default_factory=list)
+    custom_blocklist: Optional[List[str]] = Field(default_factory=list, max_length=MAX_BLOCKLIST_TERMS)
     is_explicit: Optional[bool] = False
     platform: Optional[str] = "ytmusic"
 
 class KeywordSearchRequest(BaseModel):
-    tracks: List[TrackScanItem]
-    target_keywords: List[str]
+    tracks: List[TrackScanItem] = Field(max_length=MAX_TRACKS_PER_REQUEST)
+    target_keywords: List[str] = Field(max_length=MAX_KEYWORDS)
     max_tracks: Optional[int] = 30
     platform: Optional[str] = "ytmusic"
 
@@ -168,11 +185,11 @@ class FindCleanReplacementRequest(BaseModel):
     exclude_track_id: Optional[str] = None
 
 class FindBatchCleanReplacementRequest(BaseModel):
-    tracks: List[TrackScanItem]
+    tracks: List[TrackScanItem] = Field(max_length=MAX_TRACKS_PER_REQUEST)
     platform: Optional[str] = "ytmusic"
 
 class StitchRequest(BaseModel):
-    playlists: List[Dict[str, Any]]
+    playlists: List[Dict[str, Any]] = Field(max_length=20)
     order_mode: Optional[str] = "sequential"
     deduplication_mode: Optional[str] = "exact_id"
     clean_mode: Optional[str] = "keep_all"
@@ -182,8 +199,8 @@ class StitchRequest(BaseModel):
 
 class ExportRequest(BaseModel):
     format: str
-    tracks: List[Dict[str, Any]]
-    playlist_title: Optional[str] = "Clean Playlist"
+    tracks: List[Dict[str, Any]] = Field(max_length=2000)
+    playlist_title: Optional[str] = Field(default="Clean Playlist", max_length=200)
     platform: Optional[str] = "ytmusic"
 
 # Router imports
@@ -202,7 +219,7 @@ def get_presets():
         "morphological_suffix_pattern": "(?:ing|ed|s|es)?",
     }
 
-@app.post("/api/catalog/search", response_model=CatalogSearchResponse)
+@app.post("/api/catalog/search", dependencies=[Depends(enforce_api_rate_limit)], response_model=CatalogSearchResponse)
 def search_catalog(req: CatalogSearchRequest):
     query = (req.query or "").strip()
     if not query:
@@ -217,7 +234,7 @@ def search_catalog(req: CatalogSearchRequest):
         "albums": [AlbumSummary(**a) for a in result.get("albums", [])],
     }
 
-@app.post("/api/catalog/album", response_model=CatalogAlbumResponse)
+@app.post("/api/catalog/album", dependencies=[Depends(enforce_api_rate_limit)], response_model=CatalogAlbumResponse)
 def get_catalog_album(req: CatalogAlbumRequest):
     try:
         if req.platform == "spotify":
@@ -240,7 +257,7 @@ def get_catalog_album(req: CatalogAlbumRequest):
         "tracks": [TrackScanItem(**t) for t in result.get("tracks", [])],
     }
 
-@app.post("/api/catalog/resolve", response_model=CatalogResolveResponse)
+@app.post("/api/catalog/resolve", dependencies=[Depends(enforce_api_rate_limit)], response_model=CatalogResolveResponse)
 def resolve_catalog_lines(req: CatalogResolveRequest):
     if len(req.lines) > 50:
         raise HTTPException(status_code=400, detail="Cannot resolve more than 50 lines at once.")
@@ -339,14 +356,15 @@ def resolve_catalog_lines(req: CatalogResolveRequest):
 
     return {"resolved": resolved, "unresolved": unresolved}
 
-@app.post("/api/playlist/fetch")
+@app.post("/api/playlist/fetch", dependencies=[Depends(enforce_api_rate_limit)])
 def fetch_playlist(req: PlaylistFetchRequest, request: Request, response: Response):
+    fetch_limit = min(max(1, req.limit or 50), MAX_PLAYLIST_FETCH_LIMIT)
     try:
         if req.platform == "spotify":
             sp_client = spotify_service.get_client(request=request, response=response)
-            return spotify_service.get_playlist(req.url_or_id, sp_client=sp_client, limit=req.limit or 50)
+            return spotify_service.get_playlist(req.url_or_id, sp_client=sp_client, limit=fetch_limit)
         else:
-            return ytmusic_service.get_playlist(req.url_or_id, limit=req.limit or 50)
+            return ytmusic_service.get_playlist(req.url_or_id, limit=fetch_limit)
     except HTTPException as he:
         raise he
     except Exception as e:
@@ -359,7 +377,7 @@ def _is_lyrics_service_degraded(upstream_error_count: int, total: int) -> bool:
     return total > 0 and upstream_error_count * 2 > total
 
 
-@app.post("/api/scan/playlist", response_model=PlaylistScanResponse)
+@app.post("/api/scan/playlist", dependencies=[Depends(enforce_api_rate_limit)], response_model=PlaylistScanResponse)
 def scan_playlist(req: PlaylistScanRequest):
     for t in req.tracks:
         t.lyrics_lookup = None  # outcome is computed server-side only
@@ -474,7 +492,7 @@ def scan_playlist(req: PlaylistScanRequest):
         lyrics_by_id=lyrics_by_id,
     )
 
-@app.post("/api/scan/track-lyrics")
+@app.post("/api/scan/track-lyrics", dependencies=[Depends(enforce_api_rate_limit)])
 def scan_single_track_lyrics(req: SingleTrackScanRequest):
     platform = (req.platform or "ytmusic").strip().lower()
     if platform == "spotify":
@@ -520,7 +538,7 @@ def scan_single_track_lyrics(req: SingleTrackScanRequest):
         "scan_result": scan_result
     }
 
-@app.post("/api/scan/keywords")
+@app.post("/api/scan/keywords", dependencies=[Depends(enforce_api_rate_limit)])
 def search_keywords_in_playlist(req: KeywordSearchRequest):
     if not req.target_keywords:
         raise HTTPException(status_code=400, detail="Target keywords list cannot be empty.")
@@ -534,7 +552,7 @@ def search_keywords_in_playlist(req: KeywordSearchRequest):
     total_occurrences = 0
     lyrics_unavailable_count = 0
     lyrics_by_id: Dict[str, str] = {}
-    tracks_to_process = req.tracks[: req.max_tracks or 30]
+    tracks_to_process = req.tracks[: min(max(1, req.max_tracks or 30), MAX_TRACKS_PER_REQUEST)]
     platform = (req.platform or "ytmusic").strip().lower()
 
     def _fetch_lyrics(track: TrackScanItem):
@@ -613,7 +631,7 @@ def search_keywords_in_playlist(req: KeywordSearchRequest):
         "lyrics_by_id": lyrics_by_id,
     }
 
-@app.post("/api/replacements/find")
+@app.post("/api/replacements/find", dependencies=[Depends(enforce_api_rate_limit)])
 def find_clean_replacement(req: FindCleanReplacementRequest, request: Request, response: Response):
     exclude_id = req.exclude_track_id or req.track_id
     platform = (req.platform or "ytmusic").strip().lower()
@@ -659,7 +677,7 @@ def find_clean_replacement(req: FindCleanReplacementRequest, request: Request, r
         "lyrics_by_id": lyrics_by_id,
     }
 
-@app.post("/api/replacements/find-batch")
+@app.post("/api/replacements/find-batch", dependencies=[Depends(enforce_api_rate_limit)])
 def find_batch_clean_replacements(req: FindBatchCleanReplacementRequest, request: Request, response: Response):
     if len(req.tracks) > 10:
         raise HTTPException(status_code=400, detail="Maximum 10 tracks allowed per batch request")

@@ -12,9 +12,14 @@ import threading
 import time
 from typing import Callable, Dict, Tuple
 
+from fastapi import HTTPException, Request
+
 DEFAULT_TELEMETRY_RATE_LIMIT = 60
 DEFAULT_TELEMETRY_RATE_WINDOW_SECONDS = 60
 DEFAULT_TELEMETRY_MAX_BODY_BYTES = 2048
+
+DEFAULT_API_RATE_LIMIT = 120
+DEFAULT_API_RATE_WINDOW_SECONDS = 60
 
 DEFAULT_MAX_KEYS = 10_000
 
@@ -124,3 +129,26 @@ def client_key(request) -> str:
 
 
 telemetry_rate_limiter = FixedWindowRateLimiter()
+
+
+api_rate_limiter = FixedWindowRateLimiter()
+
+
+def get_api_limits() -> Tuple[int, int]:
+    """Return ``(limit, window_seconds)`` for upstream-fanout API routes, read from env on every call."""
+    return (
+        _positive_int_env("API_RATE_LIMIT", DEFAULT_API_RATE_LIMIT),
+        _positive_int_env("API_RATE_WINDOW_SECONDS", DEFAULT_API_RATE_WINDOW_SECONDS),
+    )
+
+
+def enforce_api_rate_limit(request: Request) -> None:
+    """FastAPI dependency: 429 when a client exceeds the per-instance API budget (best effort)."""
+    limit, window_seconds = get_api_limits()
+    allowed, retry_after = api_rate_limiter.check(client_key(request), limit, window_seconds)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests. Please slow down and try again shortly.",
+            headers={"Retry-After": str(retry_after)},
+        )

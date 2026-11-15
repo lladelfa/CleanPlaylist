@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+import secrets
 import urllib.parse
 import spotipy
 from spotipy.exceptions import SpotifyException
@@ -14,8 +15,8 @@ class TrackToSave(BaseModel):
 
 class SpotifySaveRequest(BaseModel):
     original_playlist_id: Optional[str] = None
-    playlist_title: str
-    final_track_ids: List[str]
+    playlist_title: str = Field(max_length=100)
+    final_track_ids: List[str] = Field(max_length=10000)
     create_new: bool = False
     is_public: bool = False
 
@@ -24,9 +25,11 @@ def get_auth_status(request: Request, response: Response) -> Dict[str, bool]:
     return {"authenticated": spotify_service.is_authenticated(request=request, response=response)}
 
 @router.get("/api/spotify/login")
-def login(request: Request):
+def login(request: Request, response: Response):
     try:
-        url = spotify_service.get_login_url(request=request)
+        state = secrets.token_urlsafe(32)
+        url = spotify_service.get_login_url(request=request, state=state)
+        spotify_service.set_oauth_state_cookie(response, state, request=request)
         return {"status": "success", "url": url}
     except ValueError as ve:
         if str(ve) == "MISSING_CREDENTIALS":
@@ -34,7 +37,7 @@ def login(request: Request):
         raise HTTPException(status_code=500, detail=str(ve))
 
 @router.get("/api/spotify/callback")
-def auth_callback(request: Request, code: str = None, error: str = None):
+def auth_callback(request: Request, code: str = None, error: str = None, state: str = None):
     if error:
         safe_err = urllib.parse.quote_plus(str(error)[:200])
         redirect_resp = RedirectResponse(url=f"/?auth_error={safe_err}&platform=spotify")
@@ -45,6 +48,13 @@ def auth_callback(request: Request, code: str = None, error: str = None):
         spotify_service.clear_session_cookie(redirect_resp)
         return redirect_resp
 
+    # CSRF / login-CSRF protection: the state must match the one set at /login.
+    if not spotify_service.verify_oauth_state(request, state):
+        redirect_resp = RedirectResponse(url="/?auth_error=invalid_state&platform=spotify")
+        spotify_service.clear_session_cookie(redirect_resp)
+        spotify_service.clear_oauth_state_cookie(redirect_resp)
+        return redirect_resp
+
     try:
         token_info = spotify_service.exchange_code(code, request=request)
         sp = spotipy.Spotify(auth=token_info.get("access_token"))
@@ -52,6 +62,7 @@ def auth_callback(request: Request, code: str = None, error: str = None):
 
         redirect_resp = RedirectResponse(url="/?auth_success=true&platform=spotify")
         spotify_service.set_session_cookie(redirect_resp, token_info, request=request)
+        spotify_service.clear_oauth_state_cookie(redirect_resp)
         return redirect_resp
     except SpotifyException as se:
         if se.http_status == 403:
@@ -60,6 +71,7 @@ def auth_callback(request: Request, code: str = None, error: str = None):
             safe_err = urllib.parse.quote_plus(str(se)[:200])
             redirect_resp = RedirectResponse(url=f"/?auth_error={safe_err}&platform=spotify")
         spotify_service.clear_session_cookie(redirect_resp)
+        spotify_service.clear_oauth_state_cookie(redirect_resp)
         return redirect_resp
     except Exception as e:
         is_403 = getattr(e, "http_status", None) == 403 or getattr(getattr(e, "response", None), "status_code", None) == 403
@@ -69,6 +81,7 @@ def auth_callback(request: Request, code: str = None, error: str = None):
             safe_err = urllib.parse.quote_plus(str(e)[:200])
             redirect_resp = RedirectResponse(url=f"/?auth_error={safe_err}&platform=spotify")
         spotify_service.clear_session_cookie(redirect_resp)
+        spotify_service.clear_oauth_state_cookie(redirect_resp)
         return redirect_resp
 
 @router.post("/api/spotify/logout")

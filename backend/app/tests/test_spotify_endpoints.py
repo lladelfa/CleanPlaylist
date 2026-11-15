@@ -2,7 +2,14 @@ import pytest
 from unittest.mock import MagicMock, patch
 from fastapi import Request, Response
 from spotipy.exceptions import SpotifyException
+from app.services.spotify_service import OAUTH_STATE_COOKIE
 from app.spotify_endpoints import auth_callback, get_auth_status, logout
+
+
+def _req_with_state(state="st"):
+    req = MagicMock(spec=Request)
+    req.cookies = {OAUTH_STATE_COOKIE: state}
+    return req
 
 
 def test_auth_callback_with_error():
@@ -23,7 +30,7 @@ def test_auth_callback_missing_code():
 @patch("app.spotify_endpoints.spotify_service.set_session_cookie")
 @patch("app.spotify_endpoints.spotify_service.exchange_code")
 def test_auth_callback_success(mock_exchange, mock_set_cookie, mock_spotify_cls):
-    mock_request = MagicMock(spec=Request)
+    mock_request = _req_with_state()
     token_info = {"access_token": "valid_token_123"}
     mock_exchange.return_value = token_info
 
@@ -31,7 +38,7 @@ def test_auth_callback_success(mock_exchange, mock_set_cookie, mock_spotify_cls)
     mock_spotify_cls.return_value = mock_sp_instance
     mock_sp_instance.current_user.return_value = {"id": "test_user", "display_name": "Test User"}
 
-    resp = auth_callback(request=mock_request, code="test_code_xyz")
+    resp = auth_callback(request=mock_request, code="test_code_xyz", state="st")
     assert resp.status_code == 307
     assert resp.headers["location"] == "/?auth_success=true&platform=spotify"
 
@@ -46,7 +53,7 @@ def test_auth_callback_success(mock_exchange, mock_set_cookie, mock_spotify_cls)
 @patch("app.spotify_endpoints.spotify_service.set_session_cookie")
 @patch("app.spotify_endpoints.spotify_service.exchange_code")
 def test_auth_callback_allowlist_blocked_403(mock_exchange, mock_set_cookie, mock_spotify_cls, mock_clear_cookie):
-    mock_request = MagicMock(spec=Request)
+    mock_request = _req_with_state()
     token_info = {"access_token": "blocked_token_456"}
     mock_exchange.return_value = token_info
 
@@ -59,7 +66,7 @@ def test_auth_callback_allowlist_blocked_403(mock_exchange, mock_set_cookie, moc
         msg="User not registered in the Developer Dashboard"
     )
 
-    resp = auth_callback(request=mock_request, code="blocked_code")
+    resp = auth_callback(request=mock_request, code="blocked_code", state="st")
     assert resp.status_code == 307
     assert resp.headers["location"] == "/?auth_error=allowlist_blocked&platform=spotify"
 
@@ -74,7 +81,7 @@ def test_auth_callback_allowlist_blocked_403(mock_exchange, mock_set_cookie, moc
 def test_auth_callback_non_403_spotify_exception(
     mock_exchange, mock_set_cookie, mock_spotify_cls, mock_clear_cookie
 ):
-    mock_request = MagicMock(spec=Request)
+    mock_request = _req_with_state()
     token_info = {"access_token": "token_with_multiline_err"}
     mock_exchange.return_value = token_info
 
@@ -86,7 +93,7 @@ def test_auth_callback_non_403_spotify_exception(
         msg="Internal Spotify Error\nLine 2 with special & characters"
     )
 
-    resp = auth_callback(request=mock_request, code="err_code")
+    resp = auth_callback(request=mock_request, code="err_code", state="st")
     assert resp.status_code == 307
     assert "\n" not in resp.headers["location"]
     assert "platform=spotify" in resp.headers["location"]
