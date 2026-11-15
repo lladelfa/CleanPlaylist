@@ -4,6 +4,7 @@ import PlatformSwitchModal from './components/PlatformSwitchModal';
 import ScanTab from './components/ScanTab';
 import KeywordsTab from './components/KeywordsTab';
 import StitchTab from './components/StitchTab';
+import AboutTab from './components/AboutTab';
 import LyricsModal from './components/LyricsModal';
 import NoticeBanner from './components/NoticeBanner';
 
@@ -274,6 +275,7 @@ export default function App() {
             onToggleMasking={handleToggleMasking}
             cleanCandidates={cleanCandidates}
             setCleanCandidates={setCleanCandidates}
+            onNavigateToAbout={() => setActiveTab('about')}
           />
         )}
 
@@ -301,6 +303,13 @@ export default function App() {
             vipMode={vipMode}
             preset={preset}
             customBlocklist={customBlocklist}
+          />
+        )}
+
+        {activeTab === 'about' && (
+          <AboutTab
+            activePlatform={activePlatform}
+            onNavigateTab={setActiveTab}
           />
         )}
       </main>
@@ -434,9 +443,18 @@ export default function App() {
       <footer className="border-t border-border-subtle bg-surface-low py-6 text-center text-xs text-text-muted">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p>© CleanPlaylist • Designed for Spotify & YouTube Music</p>
-          <p className="text-text-muted">
-            Standalone Local & Cloud Ready • Fast Async Language Engine
-          </p>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => setActiveTab('about')}
+              className="min-h-[44px] sm:min-h-0 px-2 py-1 rounded text-brand-tint hover:text-text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-ring-focus"
+            >
+              About &amp; How It Works
+            </button>
+            <p className="text-text-muted">
+              Standalone Local & Cloud Ready • Fast Async Language Engine
+            </p>
+          </div>
         </div>
       </footer>
     </div>

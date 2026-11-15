@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>About &amp; How It Works | CleanPlaylist Studio</title>
+<!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-tertiary": "#003824",
+            "error": "#ffb4ab",
+            "surface-tint": "#d2bbff",
+            "surface-container-highest": "#2e3447",
+            "background": "#0c1324",
+            "secondary-container": "#3131c0",
+            "surface-container-high": "#23293c",
+            "on-surface": "#dce1fb",
+            "on-tertiary-fixed": "#002113",
+            "on-error-container": "#ffdad6",
+            "on-primary-fixed": "#25005a",
+            "surface": "#0c1324",
+            "tertiary-container": "#007650",
+            "primary-container": "#7c3aed",
+            "on-error": "#690005",
+            "surface-container": "#191f31",
+            "on-tertiary-fixed-variant": "#005236",
+            "on-tertiary-container": "#76ffc2",
+            "tertiary-fixed": "#6ffbbe",
+            "secondary-fixed-dim": "#c0c1ff",
+            "tertiary": "#4edea3",
+            "secondary": "#c0c1ff",
+            "surface-dim": "#0c1324",
+            "on-secondary": "#1000a9",
+            "on-primary-container": "#ede0ff",
+            "on-primary": "#3f008e",
+            "on-secondary-fixed": "#07006c",
+            "on-secondary-fixed-variant": "#2f2ebe",
+            "surface-bright": "#33394c",
+            "outline-variant": "#4a4455",
+            "inverse-on-surface": "#2a3043",
+            "inverse-primary": "#732ee4",
+            "outline": "#958da1",
+            "primary": "#d2bbff",
+            "on-primary-fixed-variant": "#5a00c6",
+            "error-container": "#93000a",
+            "surface-container-lowest": "#070d1f",
+            "inverse-surface": "#dce1fb",
+            "on-background": "#dce1fb",
+            "on-secondary-container": "#b0b2ff",
+            "secondary-fixed": "#e1e0ff",
+            "surface-variant": "#2e3447",
+            "surface-container-low": "#151b2d",
+            "on-surface-variant": "#ccc3d8",
+            "tertiary-fixed-dim": "#4edea3",
+            "primary-fixed": "#eaddff",
+            "primary-fixed-dim": "#d2bbff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-sm": "0.5rem",
+            "margin-desktop": "1.5rem",
+            "space-md": "0.75rem",
+            "gutter": "1rem",
+            "space-xs": "0.25rem",
+            "gutter-desktop": "1.25rem",
+            "space-lg": "1.25rem",
+            "space-xl": "2rem",
+            "margin": "1rem"
+          },
+          "fontFamily": {
+            "headline-lg": ["Plus Jakarta Sans"],
+            "headline-md": ["Plus Jakarta Sans"],
+            "label-mono-md": ["JetBrains Mono"],
+            "headline-xl-mobile": ["Plus Jakarta Sans"],
+            "body-sm": ["Plus Jakarta Sans"],
+            "label-sans-bold": ["Plus Jakarta Sans"],
+            "label-mono-sm": ["JetBrains Mono"],
+            "body-md": ["Plus Jakarta Sans"],
+            "headline-xl": ["Plus Jakarta Sans"],
+            "body-lg": ["Plus Jakarta Sans"]
+          },
+          "fontSize": {
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "headline-md": ["18px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "label-mono-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "headline-xl-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-sans-bold": ["11px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "700" }],
+            "label-mono-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "400" }],
+            "body-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-xl": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.005em", "fontWeight": "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    mark.lyric-highlight {
+      background-color: rgba(245, 158, 11, 0.28);
+      color: #fde68a;
+      padding: 0 4px;
+      border-radius: 2px;
+      border-bottom: 1px solid rgba(245, 158, 11, 0.6);
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface antialiased min-h-screen selection:bg-primary-container selection:text-on-primary-container font-body-md">
+<!-- STRICT DOCKED DESKTOP TOP NAVIGATION BAR -->
+<header class="sticky top-0 z-40 w-full h-14 bg-surface/90 backdrop-blur-md border-b border-surface-variant/60 flex items-center justify-between px-6">
+<!-- Left: Brand + Monospace Badge + Catalog Segmented Selector -->
+<div class="flex items-center gap-5">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest border border-primary/30 flex items-center justify-center text-primary shadow-sm shadow-primary/20">
+<span class="material-symbols-outlined text-[20px]" data-icon="album" data-weight="fill" style="font-variation-settings: 'FILL' 1;">album</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-md text-headline-md font-bold tracking-tight text-on-surface">CleanPlaylist</span>
+<span class="font-label-mono-sm text-label-mono-sm text-primary bg-primary/10 border border-primary/30 px-1.5 py-0.5 rounded font-semibold tracking-wider">STUDIO</span>
+</div>
+</div>
+<!-- Segmented Catalog Selector -->
+<div class="hidden sm:flex items-center bg-surface-container-lowest border border-outline-variant/40 rounded-full p-0.5 text-label-mono-sm font-label-mono-sm">
+<span class="text-outline px-2 text-[11px]">Catalog:</span>
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-primary border border-primary/20 font-medium transition-all shadow-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span>Spotify (selected)</span>
+</button>
+<button class="px-2.5 py-1 rounded-full text-outline hover:text-on-surface transition-colors">
+          YouTube Music
+        </button>
+</div>
+</div>
+<!-- Right: EXACTLY 4 Navigation Tabs (Strictly NO bell, gear, avatar, or login) -->
+<nav class="flex items-center gap-1">
+<a class="px-3.5 py-1.5 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container-high/60 transition-colors font-body-md text-body-md font-medium" href="#">
+        Scan &amp; Clean
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container-high/60 transition-colors font-body-md text-body-md font-medium" href="#">
+        Keyword Search
+      </a>
+<a class="px-3.5 py-1.5 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container-high/60 transition-colors font-body-md text-body-md font-medium" href="#">
+        Stitch Studio
+      </a>
+<!-- Active 'About' Tab -->
+<a class="relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-surface-container-high text-primary font-semibold border border-outline-variant/50 shadow-xs" href="#">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+<span class="font-body-md text-body-md text-primary">About</span>
+</a>
+</nav>
+</header>
+<!-- MAIN CANVAS -->
+<main class="max-w-7xl mx-auto px-6 py-10 space-y-12">
+<!-- 1. HERO & BRAND MANIFESTO CARD -->
+<section class="relative overflow-hidden rounded-xl bg-surface-container border border-primary-container/40 p-8 sm:p-10 shadow-2xl">
+<!-- Ambient Glow Behind Hero -->
+<div class="absolute -top-24 -right-24 w-96 h-96 bg-primary-container/15 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute -bottom-24 -left-24 w-96 h-96 bg-tertiary-container/10 rounded-full blur-3xl pointer-events-none"></div>
+<div class="relative z-10 max-w-4xl space-y-5">
+<!-- Eyebrow Tag -->
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-lowest border border-outline-variant/50 text-primary font-label-mono-sm text-label-mono-sm">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span>ZERO-LOGIN MUSIC CONTENT X-RAY • SPOTIFY &amp; YOUTUBE MUSIC</span>
+</div>
+<!-- Display Headline -->
+<h1 class="font-headline-xl text-headline-xl tracking-tight text-on-surface font-extrabold leading-tight">
+          Share the music you love—<span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-surface-tint">without the skip-button panic.</span>
+</h1>
+<!-- Subheading & Manifesto Story -->
+<div class="space-y-3 font-body-lg text-body-lg text-on-surface-variant max-w-3xl leading-relaxed">
+<p class="font-semibold text-on-surface">
+            Informed Judgment Over Blind Censorship.
+          </p>
+<p class="text-outline">
+            Streaming platforms have quietly broken the trust of parents, educators, and curators. Standard algorithms reduce track screening down to an opaque, binary <span class="font-label-mono-sm text-[11px] px-1.5 py-0.5 rounded bg-surface-container-highest border border-outline-variant text-error font-bold">[E]</span> badge. That leaves nostalgic 80s, 90s, and 2000s album remasters completely untagged—even when explicit slurs surface mid-verse—while blindly flagging modern hits with zero context.
+          </p>
+<p class="text-outline">
+            CleanPlaylist is an instant, zero-login lyric X-ray and radio-clean substitution workbench. We display exact timestamped verses, pinpoint flagged categories, and swap tracks automatically so you can play great music everywhere with total confidence.
+          </p>
+</div>
+<!-- Interactive CTA Row -->
+<div class="pt-3 flex flex-wrap items-center gap-4">
+<a class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary-container hover:bg-inverse-primary text-on-primary font-headline-md text-body-md font-semibold transition-all duration-150 shadow-lg shadow-primary-container/20 active:scale-[0.98]" href="#">
+<span>Open Scan &amp; Clean Studio</span>
+<span class="material-symbols-outlined text-[18px]" data-icon="arrow_forward">arrow_forward</span>
+</a>
+<a class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface border border-outline-variant/60 font-body-md text-body-md font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="layers">layers</span>
+<span>Explore Stitch Studio</span>
+</a>
+<div class="flex items-center gap-2 px-3 py-1.5 rounded bg-surface-container-lowest border border-outline-variant/30 text-outline font-label-mono-sm text-label-mono-sm">
+<span class="material-symbols-outlined text-tertiary text-[16px]" data-icon="lock_open">lock_open</span>
+<span>100% Zero-Login • $0 API Keys Required</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. WHY [E] BADGES FAIL VS THE CLEANPLAYLIST X-RAY (2-Column Side-by-Side Comparison) -->
+<section class="space-y-5">
+<div class="flex items-baseline justify-between border-b border-surface-variant/60 pb-3">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface font-bold">Why [E] Badges Fail vs. The CleanPlaylist X-Ray</h2>
+<p class="font-body-md text-body-md text-outline">Deterministic lyric inspection eliminates false confidence and hidden surprises.</p>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-primary">AUDIT ARCHITECTURE</span>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<!-- Left Card: The Streaming [E] Blind Spot -->
+<div class="rounded-xl bg-surface-container-lowest border border-error-container/40 p-6 space-y-5">
+<div class="flex items-center justify-between border-b border-outline-variant/30 pb-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-error text-[20px]" data-icon="report_problem">report_problem</span>
+<h3 class="font-headline-md text-headline-md text-on-surface font-semibold">The Streaming [E] Blind Spot</h3>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-error bg-error-container/30 px-2 py-0.5 rounded border border-error/30 font-semibold">ALGORITHMIC FAILURE</span>
+</div>
+<div class="space-y-4 font-body-md text-body-md text-on-surface-variant">
+<!-- Problem (a) -->
+<div class="space-y-1">
+<div class="flex items-center gap-2 text-on-surface font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+<h4>(a) Nostalgia Blind Spots</h4>
+</div>
+<p class="text-outline text-body-sm pl-3.5">
+                Classic 90s CD rips and remastered deluxe cuts frequently lack metadata tags entirely. Tracks with no [E] badge on mainstream streaming platforms routinely drop raw profanities and slurs in second verses.
+              </p>
+</div>
+<!-- Problem (b) -->
+<div class="space-y-1">
+<div class="flex items-center gap-2 text-on-surface font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+<h4>(b) Opaque Modern Tags</h4>
+</div>
+<p class="text-outline text-body-sm pl-3.5">
+                The standard badge is a blunt binary flag. It never explains whether a song was tagged for a single mild profanity or extreme sexually explicit dialogue, leaving curators in the dark.
+              </p>
+</div>
+<!-- Visual Mockup: Deceiving Untagged Track -->
+<div class="mt-4 p-3.5 rounded-lg bg-surface-container border border-outline-variant/40 space-y-2">
+<div class="flex items-center justify-between text-label-mono-sm font-label-mono-sm">
+<span class="text-outline">STREAMING METADATA PREVIEW</span>
+<span class="text-tertiary bg-tertiary/10 px-1.5 py-0.5 rounded border border-tertiary/20">False Clean (Untagged)</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-surface-container-highest flex items-center justify-center text-outline">
+<span class="material-symbols-outlined text-[20px]" data-icon="music_note">music_note</span>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center gap-2">
+<p class="font-body-md font-semibold text-on-surface truncate">Juicy (1994 Remaster)</p>
+<span class="font-label-mono-sm text-[10px] px-1 py-0.2 rounded bg-surface-container-high text-outline border border-outline-variant/40">NO BADGE</span>
+</div>
+<p class="font-body-sm text-outline truncate">The Notorious B.I.G. • Ready to Die</p>
+</div>
+</div>
+<!-- Deceiving Lyric Snippet -->
+<div class="pt-2 border-t border-outline-variant/30 text-label-mono-sm font-label-mono-sm text-error/90 bg-surface-container-lowest/80 p-2 rounded">
+<span class="text-outline select-none">Verse 2 [Line 24]:</span> "Now I'm in the limelight 'cause I rhyme tight / Time to get paid, blow up like the <span class="bg-error/20 text-error px-1 rounded">[unfiltered lyric]</span>"
+              </div>
+</div>
+</div>
+</div>
+<!-- Right Card: CleanPlaylist Lyric X-Ray & Honest Verification -->
+<div class="rounded-xl bg-surface-container-lowest border border-primary/30 p-6 space-y-5">
+<div class="flex items-center justify-between border-b border-outline-variant/30 pb-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-[20px]" data-icon="verified_user">verified_user</span>
+<h3 class="font-headline-md text-headline-md text-on-surface font-semibold">CleanPlaylist Lyric X-Ray &amp; Verification</h3>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-tertiary bg-tertiary/10 px-2 py-0.5 rounded border border-tertiary/30 font-semibold">HONEST AUDIT</span>
+</div>
+<div class="space-y-3 font-body-md text-body-md">
+<p class="text-outline text-body-sm">
+              We audit actual line-by-line retrieved lyrics using exact keyword matching, regex boundary filters, and cross-platform verification across 4 mutually exclusive states:
+            </p>
+<!-- 4 Mutually Exclusive Verification Status Badges -->
+<div class="space-y-2 pt-1">
+<!-- Status 1: Verified Clean -->
+<div class="flex items-start gap-3 p-2.5 rounded-lg bg-[#062e22]/50 border border-tertiary/30">
+<span class="mt-0.5 px-2 py-0.5 rounded text-label-mono-sm font-label-mono-sm font-semibold bg-[#062e22] text-tertiary border border-tertiary/40 whitespace-nowrap">
+                  Verified Clean
+                </span>
+<p class="text-body-sm text-on-surface font-medium">
+                  Full lyrics successfully scanned with 0 flagged terms across all selected safety rules.
+                </p>
+</div>
+<!-- Status 2: Clean Swapped -->
+<div class="flex items-start gap-3 p-2.5 rounded-lg bg-[#062e22]/30 border border-primary/30">
+<span class="mt-0.5 px-2 py-0.5 rounded text-label-mono-sm font-label-mono-sm font-semibold bg-surface-container-high text-tertiary border border-primary/40 whitespace-nowrap flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]" data-icon="swap_horiz">swap_horiz</span>
+<span>Clean Swapped</span>
+</span>
+<p class="text-body-sm text-on-surface font-medium">
+                  Flagged original automatically substituted with verified non-explicit radio edit or clean single.
+                </p>
+</div>
+<!-- Status 3: Flagged -->
+<div class="flex flex-col gap-2 p-2.5 rounded-lg bg-[#3b0a14]/40 border border-error/30">
+<div class="flex items-center justify-between">
+<span class="px-2 py-0.5 rounded text-label-mono-sm font-label-mono-sm font-semibold bg-[#3b0a14] text-error border border-error/40">
+                    Flagged
+                  </span>
+<div class="flex items-center gap-1.5 font-label-mono-sm text-[11px]">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-highest text-error border border-error/30">strong_profanity: 3</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container-highest text-outline text-on-surface-variant border border-outline-variant/30">substances: 1</span>
+</div>
+</div>
+<div class="text-label-mono-sm font-label-mono-sm text-on-surface-variant bg-surface-container-lowest/90 p-2 rounded border border-outline-variant/30">
+<span class="text-outline">Line 18:</span> "...tell me what you want with the <mark class="lyric-highlight">f*****g</mark> truth in the back room..."
+                </div>
+</div>
+<!-- Status 4: Lyrics Unavailable -->
+<div class="flex items-start gap-3 p-2.5 rounded-lg bg-[#332106]/40 border border-amber-500/30">
+<span class="mt-0.5 px-2 py-0.5 rounded text-label-mono-sm font-label-mono-sm font-semibold bg-[#332106] text-amber-300 border border-amber-500/40 whitespace-nowrap">
+                  Lyrics Unavailable
+                </span>
+<p class="text-body-sm text-on-surface font-medium">
+<span class="text-amber-300 font-semibold">Zero False-Clean Guarantee:</span> If lyrics cannot be retrieved, CleanPlaylist never guesses or marks a track clean.
+                </p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 3. HOW THE STUDIO WORKS — 3 INTERACTIVE WORKBENCH CARDS (3-Column Grid) -->
+<section class="space-y-5">
+<div class="flex items-baseline justify-between border-b border-surface-variant/60 pb-3">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface font-bold">How the Studio Works</h2>
+<p class="font-body-md text-body-md text-outline">Three specialized tools designed for intentional music curators.</p>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-primary">CORE WORKFLOWS</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Card 1: Scan & Clean -->
+<div class="flex flex-col justify-between rounded-xl bg-surface-container border border-outline-variant/40 p-6 space-y-4 hover:border-primary/50 transition-all">
+<div class="space-y-3">
+<div class="flex items-center justify-between">
+<span class="font-label-mono-md text-label-mono-md font-semibold text-primary">01 • WORKBENCH</span>
+<span class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]" data-icon="search_check">search_check</span>
+</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface font-bold">Scan &amp; Clean</h3>
+<p class="font-body-sm text-body-sm text-outline leading-relaxed">
+              Assemble up to 50 tracks via single search, multi-line Paste Track List, or public YouTube Music playlist URL. Screen against Kid Safe, Moderate, Slurs Only, or Custom blocklists. Inspect line-numbered lyrics and click <span class="text-primary font-medium">"Find &amp; Swap All Clean Versions"</span> with a single click.
+            </p>
+<div class="flex flex-wrap gap-1.5 pt-2">
+<span class="text-[11px] font-label-mono-sm bg-surface-container-lowest text-outline px-2 py-0.5 rounded border border-outline-variant/30">Kid Safe Preset</span>
+<span class="text-[11px] font-label-mono-sm bg-surface-container-lowest text-outline px-2 py-0.5 rounded border border-outline-variant/30">Line Inspections</span>
+<span class="text-[11px] font-label-mono-sm bg-surface-container-lowest text-primary px-2 py-0.5 rounded border border-primary/30">Auto Swap</span>
+</div>
+</div>
+<div class="pt-4 border-t border-outline-variant/30">
+<a class="inline-flex items-center gap-1.5 text-primary hover:text-surface-tint font-body-md text-body-md font-semibold group" href="#">
+<span>Try Scan &amp; Clean</span>
+<span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Card 2: Keyword Search -->
+<div class="flex flex-col justify-between rounded-xl bg-surface-container border border-outline-variant/40 p-6 space-y-4 hover:border-primary/50 transition-all">
+<div class="space-y-3">
+<div class="flex items-center justify-between">
+<span class="font-label-mono-md text-label-mono-md font-semibold text-primary">02 • DISCOVERY</span>
+<span class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]" data-icon="manage_search">manage_search</span>
+</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface font-bold">Keyword Search</h3>
+<p class="font-body-sm text-body-sm text-outline leading-relaxed">
+              Hunt specific sensitive themes across your current queue. Target recurring categories like money, drugs, party, alcohol, firearms, or custom strings across all retrieved lyrics in your Working List, accompanied by expandable amber <mark class="lyric-highlight">&lt;mark&gt;</mark> lyric snippets.
+            </p>
+<div class="flex flex-wrap gap-1.5 pt-2">
+<span class="text-[11px] font-label-mono-sm bg-surface-container-lowest text-outline px-2 py-0.5 rounded border border-outline-variant/30">Multi-term Hunt</span>
+<span class="text-[11px] font-label-mono-sm bg-surface-container-lowest text-outline px-2 py-0.5 rounded border border-outline-variant/30">Timestamp Markers</span>
+<span class="text-[11px] font-label-mono-sm bg-surface-container-lowest text-tertiary px-2 py-0.5 rounded border border-tertiary/30">Zero False Negatives</span>
+</div>
+</div>
+<div class="pt-4 border-t border-outline-variant/30">
+<a class="inline-flex items-center gap-1.5 text-primary hover:text-surface-tint font-body-md text-body-md font-semibold group" href="#">
+<span>Open Keyword Search</span>
+<span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Card 3: Stitch Studio -->
+<div class="flex flex-col justify-between rounded-xl bg-surface-container border border-outline-variant/40 p-6 space-y-4 hover:border-primary/50 transition-all">
+<div class="space-y-3">
+<div class="flex items-center justify-between">
+<span class="font-label-mono-md text-label-mono-md font-semibold text-primary">03 • BATCH PIPELINE</span>
+<span class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]" data-icon="merge_type">merge_type</span>
+</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface font-bold">Stitch Studio</h3>
+<p class="font-body-sm text-body-sm text-outline leading-relaxed">
+              Combine disparate sources—such as two favorite throwback albums plus a pasted scratchpad of student or kids' requests—under automated batch clean rules (Swap to Clean or Drop Flagged) and automated title/artist deduplication.
+            </p>
+<div class="flex flex-wrap gap-1.5 pt-2">
+<span class="text-[11px] font-label-mono-sm bg-surface-container-lowest text-outline px-2 py-0.5 rounded border border-outline-variant/30">Multi-Source Merge</span>
+<span class="text-[11px] font-label-mono-sm bg-surface-container-lowest text-outline px-2 py-0.5 rounded border border-outline-variant/30">Auto Deduplication</span>
+<span class="text-[11px] font-label-mono-sm bg-surface-container-lowest text-primary px-2 py-0.5 rounded border border-primary/30">Batch Fallbacks</span>
+</div>
+</div>
+<div class="pt-4 border-t border-outline-variant/30">
+<a class="inline-flex items-center gap-1.5 text-primary hover:text-surface-tint font-body-md text-body-md font-semibold group" href="#">
+<span>Launch Stitch Studio</span>
+<span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</section>
+<!-- 4. BUILT FOR REAL MOMENTS — 3 PERSONA STORIES (3-Column Grid) -->
+<section class="space-y-5">
+<div class="flex items-baseline justify-between border-b border-surface-variant/60 pb-3">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface font-bold">Built for Real Moments</h2>
+<p class="font-body-md text-body-md text-outline">How intentional parents, road-trippers, and teachers use CleanPlaylist in the wild.</p>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-tertiary">COMMUNITY FIELD STORIES</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Story 1: Randy -->
+<div class="rounded-xl bg-surface-container-lowest border border-outline-variant/40 p-6 space-y-4 relative overflow-hidden">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-high border border-primary/30 flex items-center justify-center text-primary font-bold font-headline-md">
+              R
+            </div>
+<div>
+<h4 class="font-body-lg text-body-lg text-on-surface font-bold">Saturday Road Trip</h4>
+<p class="font-label-mono-sm text-label-mono-sm text-outline">Randy • Parent of 2</p>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+            "Vetting two 1990s Golden Era hip-hop albums on desktop before an 8-hour drive. Swapped 10 flagged classics into clean radio edits in 40 seconds, then clicked <span class="text-on-surface font-semibold">'Copy Clean Track Links'</span> and pasted (Cmd+V) straight into an empty Spotify playlist. Zero skips needed in the car."
+          </p>
+<div class="pt-3 border-t border-outline-variant/30 flex items-center justify-between text-label-mono-sm font-label-mono-sm text-outline">
+<span>Spotify Desktop Integration</span>
+<span class="text-tertiary font-semibold">10 Tracks Swapped</span>
+</div>
+</div>
+<!-- Story 2: Jill -->
+<div class="rounded-xl bg-surface-container-lowest border border-outline-variant/40 p-6 space-y-4 relative overflow-hidden">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-high border border-tertiary/30 flex items-center justify-center text-tertiary font-bold font-headline-md">
+              J
+            </div>
+<div>
+<h4 class="font-body-lg text-body-lg text-on-surface font-bold">The 2-Minute Parent Test</h4>
+<p class="font-label-mono-sm text-label-mono-sm text-outline">Jill • Middle School Mom</p>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+            "Screening 5 trending pop and rap requests on my phone right in the kitchen while making dinner. I saw the exact flagged line snippets immediately and could say yes to 4 clean edits without feeling like the fun police, tapping <span class="text-on-surface font-semibold">'Play Clean Queue'</span> instantly."
+          </p>
+<div class="pt-3 border-t border-outline-variant/30 flex items-center justify-between text-label-mono-sm font-label-mono-sm text-outline">
+<span>Mobile Fast-Check</span>
+<span class="text-tertiary font-semibold">Instant Line Excerpts</span>
+</div>
+</div>
+<!-- Story 3: Ms. Rivera -->
+<div class="rounded-xl bg-surface-container-lowest border border-outline-variant/40 p-6 space-y-4 relative overflow-hidden">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-high border border-primary/30 flex items-center justify-center text-primary font-bold font-headline-md">
+              M
+            </div>
+<div>
+<h4 class="font-body-lg text-body-lg text-on-surface font-bold">Friday Classroom Queue</h4>
+<p class="font-label-mono-sm text-label-mono-sm text-outline">Ms. Rivera • 8th Grade Science</p>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+            "Merged a chill study pop playlist with 12 student requests in Stitch Studio. I launched a zero-login YouTube <span class="text-on-surface font-semibold">'Play Clean Queue'</span> directly on the shared classroom projector without ever typing personal Spotify or Google credentials onto school hardware."
+          </p>
+<div class="pt-3 border-t border-outline-variant/30 flex items-center justify-between text-label-mono-sm font-label-mono-sm text-outline">
+<span>Zero-Login Hardware Safety</span>
+<span class="text-tertiary font-semibold">Classroom Verified</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 5. UNDER THE HOOD & ZERO-LOGIN PRIVACY STRIP -->
+<section class="space-y-6">
+<div class="flex items-baseline justify-between border-b border-surface-variant/60 pb-3">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface font-bold">Under the Hood: Deterministic Precision</h2>
+<p class="font-body-md text-body-md text-outline">Engineered around platform constraints with zero surveillance and zero hallucinations.</p>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-primary">PRIVACY &amp; STACK SPECS</span>
+</div>
+<!-- 3 Compact Pillars -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Pillar 1 -->
+<div class="p-5 rounded-xl bg-surface-container-low border border-outline-variant/30 space-y-2.5">
+<div class="flex items-center gap-2 text-primary font-headline-md font-semibold">
+<span class="material-symbols-outlined text-[20px]" data-icon="sync_alt">sync_alt</span>
+<h3>Cross-Platform Cross-Reference</h3>
+</div>
+<p class="font-body-sm text-body-sm text-outline leading-relaxed">
+            Spotify tracks automatically match against YouTube Music lyrics by song title, primary artist, and ±10s audio duration. Regex boundaries verify every word against deterministic safety dictionaries—no probabilistic AI hallucinating false clean results.
+          </p>
+</div>
+<!-- Pillar 2 -->
+<div class="p-5 rounded-xl bg-surface-container-low border border-outline-variant/30 space-y-2.5">
+<div class="flex items-center gap-2 text-tertiary font-headline-md font-semibold">
+<span class="material-symbols-outlined text-[20px]" data-icon="file_download">file_download</span>
+<h3>Dual Zero-Auth Finish Line</h3>
+</div>
+<p class="font-body-sm text-body-sm text-outline leading-relaxed">
+            Take your clean mix anywhere without third-party auth tokens: 1-tap <span class="text-on-surface font-medium">Play Clean Queue</span> creates a public YouTube playback queue, while <span class="text-on-surface font-medium">Copy Clean Track Links</span> allows instant pasting into Spotify Desktop, alongside CSV, M3U8, and JSON exports.
+          </p>
+</div>
+<!-- Pillar 3 -->
+<div class="p-5 rounded-xl bg-surface-container-low border border-outline-variant/30 space-y-2.5">
+<div class="flex items-center gap-2 text-primary font-headline-md font-semibold">
+<span class="material-symbols-outlined text-[20px]" data-icon="shield">shield</span>
+<h3>Zero-Login by Design</h3>
+</div>
+<p class="font-body-sm text-body-sm text-outline leading-relaxed">
+            Architected purely around public platform endpoints. No email capture, no database cookies storing your music history, and zero risk of leaving personal accounts or passwords authenticated on school, gym, or church computers.
+          </p>
+</div>
+</div>
+<!-- Bottom CTA Banner -->
+<div class="rounded-xl bg-surface-container border border-primary-container/50 p-8 flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden shadow-xl">
+<div class="space-y-1 text-center sm:text-left z-10">
+<h3 class="font-headline-lg text-headline-lg text-on-surface font-bold">Ready to screen your library?</h3>
+<p class="font-body-md text-body-md text-outline">Paste any song, track list, or playlist URL to audit lyrics in seconds.</p>
+</div>
+<div class="flex items-center gap-3 z-10">
+<a class="px-5 py-2.5 rounded-lg bg-primary-container hover:bg-inverse-primary text-on-primary font-body-md text-body-md font-semibold transition-all shadow-md active:scale-[0.98]" href="#">
+            Launch Scan &amp; Clean
+          </a>
+<a class="px-4 py-2.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface border border-outline-variant/50 font-body-md text-body-md font-medium transition-colors" href="#">
+            Open Stitch Studio
+          </a>
+</div>
+<!-- Subtle background gradient glow -->
+<div class="absolute -right-10 -bottom-10 w-64 h-64 bg-primary-container/20 rounded-full blur-2xl pointer-events-none"></div>
+</div>
+</section>
+</main>
+<!-- Technical Desktop Footer Dock -->
+<footer class="w-full border-t border-surface-variant/40 bg-surface-container-lowest py-6 px-6 mt-16 text-outline font-label-mono-sm text-label-mono-sm">
+<div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+<div class="flex items-center gap-3">
+<span class="text-on-surface font-semibold">CleanPlaylist Studio</span>
+<span class="text-outline-variant">•</span>
+<span>Version 2.4.8 (Core Engine)</span>
+<span class="text-outline-variant">•</span>
+<span class="text-tertiary flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+          Lyrics Engine Operational
+        </span>
+</div>
+<div class="flex items-center gap-6">
+<a class="hover:text-on-surface transition-colors" href="#">Deterministic Rules Spec</a>
+<a class="hover:text-on-surface transition-colors" href="#">Zero-Auth Privacy</a>
+<a class="hover:text-on-surface transition-colors" href="#">GitHub Repository</a>
+</div>
+</div>
+</footer>
+</body></html>

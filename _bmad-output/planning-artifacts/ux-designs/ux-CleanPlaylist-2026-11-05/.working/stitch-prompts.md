@@ -110,3 +110,37 @@ Layout:
        - Unselected card: `"Replace Tracks in Original Playlist"`.
      - Summary inset box: `"24 verified/swapped tracks will be written to Spotify"` (emerald check icon).
      - Footer: `"Cancel"` button + primary emerald/violet CTA `"Save to Spotify"`.
+
+## Screen 8 — Desktop: `About & How It Works` Tab (`DESKTOP`)
+- **Stitch Screen ID:** `projects/17521564154222297091/screens/c43bad4d4bfa4dd3818820f4aa344040`
+- **Design System:** `assets/2525869ccd694176b1609ffa813710fd` (`Obsidian Audio Core`)
+- **Entry Posture:** Option 1 — Studio-First cold open in `Scan & Clean`, plus a dedicated `About` tab in `GlobalHeader` (4 studio tabs total) and footer/empty-state entry links.
+
+Design the desktop **About & How It Works** tab (`About`) of **CleanPlaylist** using the exact `Obsidian Audio Core` dark studio design system (`#0C1324` canvas, `#191F31` surface cards, `#070D1F` inset boxes, `#2B3247` subtle borders, `#DCE1FB` primary text, `#CCC3D8` secondary text, `#958DA1` muted text, `#7C3AED` electric violet brand primary, `#D2BBFF` brand tint, `Plus Jakarta Sans` headings/body, and `JetBrains Mono` monospace badges/counters). Strictly include ONLY 4 studio navigation tabs in the top header (`Scan & Clean`, `Keyword Search`, `Stitch Studio`, `About` [active]) and the left-aligned `Catalog: [Spotify (selected) | YouTube Music]` segmented pill — do NOT render any notification bell, gear icon, user avatar, or public login button.
+
+Layout from top to bottom (`max-w-7xl` centered studio layout):
+1. **Sticky Global Header:** Left: `CleanPlaylist` disc/wordmark + `Catalog: [Spotify (selected) | YouTube Music]` segmented pill. Right: 4 studio tabs (`Scan & Clean`, `Keyword Search`, `Stitch Studio`, `About` [active in `#D2BBFF` brand-tint on `#23293C` elevated pill]).
+2. **Hero & Brand Manifesto Card (`#191F31` surface-card with subtle `#7C3AED` glow border):**
+   - Monospace eyebrow pill: `ZERO-LOGIN MUSIC CONTENT X-RAY • SPOTIFY & YOUTUBE MUSIC`
+   - Display headline: `"Share the music you love—without the skip-button panic."`
+   - Brand story lead: `"Informed Judgment Over Blind Censorship."` Concise editorial copy explaining why CleanPlaylist exists: streaming apps reduce music screening to an opaque `[E]` badge—missing untagged 80s/90s/00s remasters with forgotten explicit verses while hiding *why* modern songs were flagged. CleanPlaylist is an instant, zero-login lyric X-ray and clean-version workbench built for intentional parents and teachers.
+   - Interactive Hero CTAs: Primary electric violet (`#7C3AED`) button `"Open Scan & Clean Studio →"`, secondary elevated button `"Explore Stitch Studio"`, and subtle badge `"100% Zero-Login • $0 API Keys Required"`.
+3. **Why `[E]` Badges Fail vs. The CleanPlaylist X-Ray (2-Column Comparison Section):**
+   - Left Card (`#070D1F` inset): `"The Streaming [E] Blind Spot"` — Shows two failure modes: (a) *Nostalgia Blind Spots*: classic 90s remasters with no `Explicit` tag that still drop F-bombs in verse two; (b) *Opaque Modern Tags*: a binary `[E]` badge that never tells you whether a song has one mild word or explicit sexual/substance verses.
+   - Right Card (`#070D1F` inset): `"CleanPlaylist Lyric X-Ray & Honest Verification"` — Showcases the 4 mutually exclusive **Verification Status** badges with real visual badge samples:
+     - Emerald (`#4EDEA3` on `#062E22`): `Verified Clean` (Full lyrics scanned, 0 matches)
+     - Emerald (`#4EDEA3` on `#062E22`): `Clean Swapped` (Replaced with verified non-explicit radio/clean edit)
+     - Rose (`#FFB4AB` on `#3B0A14`): `Flagged` (Shows exact category chips `strong_profanity: 3`, `substances: 1` + highlighted lyric line snippet)
+     - Amber (`#FCD34D` on `#332106`): `Lyrics Unavailable` (**Zero False-Clean Guarantee**: if lyrics cannot be retrieved, CleanPlaylist never guesses or marks a track clean).
+4. **How the Studio Works — 3 Interactive Workbench Cards (3-Column Grid):**
+   - Card 1 (`01 • Scan & Clean`): Assemble up to 50 tracks via song/album search, multi-line `Paste Track List`, or YouTube Music playlist URL. Screen against `Kid Safe`, `Moderate`, `Slurs Only`, or `Custom` presets + custom blocklist, inspect line-numbered lyrics, and click `"Find & Swap All Clean Versions"`. Footer button: `"Try Scan & Clean →"`.
+   - Card 2 (`02 • Keyword Search`): Hunt specific themes (`money`, `drugs`, `party`, `alcohol`, `gun`, or custom words) across all cached/cross-referenced lyrics in your Working List with expandable amber `<mark>` excerpts. Footer button: `"Open Keyword Search →"`.
+   - Card 3 (`03 • Stitch Studio`): Combine multiple sources (two favorite albums + a pasted list of kid or student requests) under automated batch clean rules (`Swap to Clean or Drop Flagged`) and deduplication. Footer button: `"Launch Stitch Studio →"`.
+5. **Built for Real Moments — 3 Persona Stories (3-Column Grid):**
+   - Story 1 (`Saturday Road Trip • Randy`): Vetting two 1990s hip-hop albums on desktop, swapping 10 flagged classics to clean edits, and clicking `"Copy Clean Track Links"` to paste (`Ctrl+V` / `Cmd+V`) straight into an empty Spotify Desktop playlist.
+   - Story 2 (`The 2-Minute Parent Test • Jill`): Screening 5 trending pop/rap requests on a phone in the kitchen, reading exact flagged lines, and tapping `"Play Clean Queue"` or `"Open Clean Track"`.
+   - Story 3 (`Friday Classroom Queue • Ms. Rivera`): Merging a pop playlist with 12 student requests in Stitch Studio and launching a zero-login YouTube `"Play Clean Queue"` on a shared classroom display without signing in.
+6. **Under the Hood & Zero-Login Privacy Strip (3 Compact Pillars + Bottom CTA Banner):**
+   - *Cross-Platform Lyric Cross-Reference*: Spotify tracks automatically match against YouTube Music lyrics (by title, primary artist, and `±10s` duration) for deterministic regex scanning—no AI hallucinations.
+   - *Dual Zero-Auth Finish Line*: 1-tap `Play Clean Queue` (instant YouTube queue up to 50 tracks), 1-click `Copy Clean Track Links` for Spotify Desktop paste, plus `CSV`, `M3U8`, and `JSON` exports.
+   - *Zero-Login by Design*: Built around platform API limits so you never hit login errors or leave personal Spotify/Google accounts signed into shared school hardware.

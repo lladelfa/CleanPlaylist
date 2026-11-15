@@ -112,4 +112,33 @@ describe('App Header & Platform Switch Integration', () => {
       expect(screen.queryByText('Track One')).not.toBeInTheDocument();
     });
   });
+
+  it('opens About from header or footer and launches back to Scan & Clean while preserving active platform', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const ytBtn = screen.getByRole('button', { name: /youtube music/i });
+    await user.click(ytBtn);
+    expect(ytBtn).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: /^about$/i }));
+    expect(
+      screen.getByRole('heading', { name: /share the music you love/i })
+    ).toBeInTheDocument();
+    expect(ytBtn).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: /open scan & clean studio/i }));
+    expect(
+      screen.queryByRole('heading', { name: /share the music you love/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(/search songs or albums|e\.g\. https/i)
+    ).toBeInTheDocument();
+    expect(ytBtn).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: /about & how it works/i }));
+    expect(
+      screen.getByRole('heading', { name: /share the music you love/i })
+    ).toBeInTheDocument();
+  });
 });

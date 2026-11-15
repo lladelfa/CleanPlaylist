@@ -1,5 +1,5 @@
 import React from 'react';
-import { Music, Sliders, Sparkles } from 'lucide-react';
+import { ArrowRight, Music, Sliders, Sparkles } from 'lucide-react';
 
 const STEPS = [
   {
@@ -22,7 +22,7 @@ const STEPS = [
   },
 ];
 
-export default function EmptyStateHero({ className = '' }) {
+export default function EmptyStateHero({ className = '', onOpenAbout }) {
   return (
     <section
       role="region"
@@ -67,6 +67,19 @@ export default function EmptyStateHero({ className = '' }) {
           );
         })}
       </div>
+
+      {typeof onOpenAbout === 'function' && (
+        <div className="mt-6 pt-5 border-t border-border-subtle flex justify-center">
+          <button
+            type="button"
+            onClick={onOpenAbout}
+            className="min-h-[44px] sm:min-h-[36px] inline-flex items-center gap-1.5 text-xs font-medium text-brand-tint hover:text-text-primary transition-colors rounded-lg px-3 py-1.5 hover:bg-surface-elevated focus:outline-none focus:ring-2 focus:ring-ring-focus"
+          >
+            <span>Learn how CleanPlaylist works &amp; why [E] badges fail</span>
+            <ArrowRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+          </button>
+        </div>
+      )}
     </section>
   );
 }
