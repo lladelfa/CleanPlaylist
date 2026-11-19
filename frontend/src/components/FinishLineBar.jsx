@@ -225,13 +225,13 @@ export default function FinishLineBar({
         </button>
 
         {/* Secondary Actions Row below it on Mobile */}
-        <div className="flex items-center gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={handleCopyLinks}
             disabled={readyCount === 0}
             aria-label="Copy Clean Track Links"
-            className="flex-1 min-h-[44px] px-3 rounded-xl bg-surface-elevated hover:bg-surface-highest text-text-primary border border-border-subtle font-medium text-xs flex items-center justify-center gap-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+            className="w-full min-h-[44px] px-3 rounded-xl bg-surface-elevated hover:bg-surface-highest text-text-primary border border-border-subtle font-medium text-xs flex items-center justify-center gap-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
           >
             {isCopied ? (
               <>
@@ -241,13 +241,13 @@ export default function FinishLineBar({
             ) : (
               <>
                 <Copy className="w-4 h-4 text-text-muted shrink-0" aria-hidden="true" />
-                <span>Copy Clean Track Links</span>
+                <span className="truncate">Copy Links ({readyCount})</span>
               </>
             )}
           </button>
 
           {/* Export Dropdown Popover on Mobile */}
-          <div className="relative" ref={mobileExportRef}>
+          <div className="relative w-full" ref={mobileExportRef}>
             <button
               type="button"
               onClick={() => setExportMenuOpen((prev) => !prev)}
@@ -255,7 +255,7 @@ export default function FinishLineBar({
               aria-label="Export options"
               aria-haspopup="true"
               aria-expanded={exportMenuOpen}
-              className="min-h-[44px] px-3 rounded-xl bg-surface-elevated hover:bg-surface-highest text-text-primary border border-border-subtle font-medium text-xs flex items-center justify-center gap-1 transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              className="w-full min-h-[44px] px-3 rounded-xl bg-surface-elevated hover:bg-surface-highest text-text-primary border border-border-subtle font-medium text-xs flex items-center justify-center gap-1 transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
             >
               {isExporting ? (
                 <Loader2 className="w-4 h-4 text-text-muted animate-spin shrink-0" aria-hidden="true" />

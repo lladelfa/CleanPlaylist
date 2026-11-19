@@ -205,7 +205,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-canvas text-text-primary flex flex-col font-sans">
+    <div className="min-h-screen bg-surface-canvas text-text-primary flex flex-col font-sans overflow-x-hidden">
       <GlobalHeader
         activeTab={activeTab}
         setActiveTab={setActiveTab}

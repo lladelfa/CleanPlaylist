@@ -164,7 +164,7 @@ describe('GlobalHeader', () => {
     expect(header).toHaveClass('sticky');
   });
 
-  it('lets the header row grow to fit the stacked title and CatalogSelector on mobile', () => {
+  it('uses a responsive two-row layout on mobile and compact single-row height from md up', () => {
     render(
       <GlobalHeader
         activeTab="scan"
@@ -176,8 +176,34 @@ describe('GlobalHeader', () => {
 
     const row = screen.getByRole('banner').firstElementChild;
     expect(row).toHaveClass('min-h-14');
-    expect(row).toHaveClass('sm:h-14');
+    expect(row).toHaveClass('flex-col');
+    expect(row).toHaveClass('md:flex-row');
+    expect(row).toHaveClass('md:h-14');
     expect(row).not.toHaveClass('h-14');
+  });
+
+  it('renders a 4-column mobile navigation grid with visible mobile labels for all 4 tabs', () => {
+    render(
+      <GlobalHeader
+        activeTab="scan"
+        setActiveTab={() => {}}
+        activePlatform="spotify"
+        onSelectPlatform={() => {}}
+      />
+    );
+
+    const nav = screen.getByRole('navigation', { name: /studio navigation/i });
+    expect(nav).toHaveClass('grid', 'grid-cols-4', 'md:flex');
+
+    const scanBtn = screen.getByRole('button', { name: /scan & clean/i });
+    const keywordsBtn = screen.getByRole('button', { name: /keyword search/i });
+    const stitchBtn = screen.getByRole('button', { name: /stitch studio/i });
+    const aboutBtn = screen.getByRole('button', { name: /^about$/i });
+
+    expect(scanBtn.querySelector('span.md\\:hidden')).toHaveTextContent('Scan');
+    expect(keywordsBtn.querySelector('span.md\\:hidden')).toHaveTextContent('Keywords');
+    expect(stitchBtn.querySelector('span.md\\:hidden')).toHaveTextContent('Stitch');
+    expect(aboutBtn.querySelector('span.md\\:hidden')).toHaveTextContent('About');
   });
 
   it('gives tab buttons a 44px minimum touch target on mobile and 40px from sm up', () => {

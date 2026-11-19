@@ -19,37 +19,37 @@ export default function GlobalHeader({
   onExitVip = () => {},
 }) {
   const tabs = [
-    { id: 'scan', label: 'Scan & Clean', icon: Disc3 },
-    { id: 'keywords', label: 'Keyword Search', icon: Search },
-    { id: 'stitch', label: 'Stitch Studio', icon: Shuffle },
-    { id: 'about', label: 'About', icon: BookOpen },
+    { id: 'scan', label: 'Scan & Clean', mobileLabel: 'Scan', icon: Disc3 },
+    { id: 'keywords', label: 'Keyword Search', mobileLabel: 'Keywords', icon: Search },
+    { id: 'stitch', label: 'Stitch Studio', mobileLabel: 'Stitch', icon: Shuffle },
+    { id: 'about', label: 'About', mobileLabel: 'About', icon: BookOpen },
   ];
 
   return (
     <header className="sticky top-0 z-40 h-auto pt-[env(safe-area-inset-top)] bg-surface-low/95 backdrop-blur border-b border-border-subtle">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-14 py-2 sm:h-14 sm:py-0 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-14 py-2 md:h-14 md:py-0 flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4">
         {/* Brand & Catalog Context */}
-        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-          <div className="h-9 w-9 rounded-xl bg-brand-primary/20 border border-brand-primary/40 flex items-center justify-center shadow-md shadow-brand-primary/10">
-            <Disc3 className="h-5 w-5 text-brand-tint animate-spin-slow" aria-hidden="true" />
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-            <span className="text-lg sm:text-xl font-bold text-text-primary tracking-tight">
+        <div className="flex items-center justify-between md:justify-start gap-2 sm:gap-4 w-full md:w-auto shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-brand-primary/20 border border-brand-primary/40 flex items-center justify-center shadow-md shadow-brand-primary/10 shrink-0">
+              <Disc3 className="h-4 w-4 sm:h-5 sm:w-5 text-brand-tint animate-spin-slow" aria-hidden="true" />
+            </div>
+            <span className="text-base sm:text-xl font-bold text-text-primary tracking-tight truncate">
               CleanPlaylist
             </span>
-            <CatalogSelector
-              activePlatform={activePlatform}
-              onSelectPlatform={onSelectPlatform}
-            />
           </div>
+          <CatalogSelector
+            activePlatform={activePlatform}
+            onSelectPlatform={onSelectPlatform}
+          />
         </div>
 
         {/* Studio Navigation Tabs & VIP Controls */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between md:justify-end gap-2 sm:gap-3 w-full md:w-auto">
           <nav
             role="navigation"
             aria-label="Studio Navigation"
-            className="flex items-center space-x-1 sm:space-x-2"
+            className="grid grid-cols-4 gap-1.5 w-full md:w-auto md:flex md:items-center md:space-x-2"
           >
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -61,13 +61,14 @@ export default function GlobalHeader({
                   aria-label={tab.label}
                   aria-current={isActive ? 'page' : undefined}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`min-h-[44px] sm:min-h-[40px] flex items-center space-x-2 px-3 sm:px-4 py-1.5 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-ring-focus ${
+                  className={`min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 sm:space-x-2 px-2 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-ring-focus ${
                     isActive
                       ? 'bg-surface-elevated text-brand-tint border border-brand-primary/30 shadow-sm'
                       : 'text-text-secondary hover:text-text-primary hover:bg-surface-elevated'
                   }`}
                 >
                   <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span className="md:hidden truncate">{tab.mobileLabel}</span>
                   <span className="hidden md:inline">{tab.label}</span>
                 </button>
               );
@@ -75,7 +76,7 @@ export default function GlobalHeader({
           </nav>
 
           {vipMode && (
-            <div className="flex items-center gap-2 border-l border-border-subtle pl-2 sm:pl-3">
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border-subtle pt-2 sm:border-t-0 sm:pt-0 sm:border-l sm:pl-3">
               <span className="bg-brand-primary/20 text-brand-tint border border-brand-primary/40 text-xs px-2 py-0.5 rounded-full font-mono font-semibold">
                 VIP
               </span>
