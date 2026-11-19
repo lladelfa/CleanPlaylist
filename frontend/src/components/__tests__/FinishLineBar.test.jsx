@@ -273,6 +273,26 @@ describe('FinishLineBar Component', () => {
       expect(screen.getByText(/ctrl\+v \/ cmd\+v in spotify desktop/i)).toBeInTheDocument();
     });
 
+    it('renders equal-width 2-column secondary actions with Copy Links (N) and Export on mobile', () => {
+      render(
+        <FinishLineBar
+          tracks={mockTracks}
+          activePlatform="spotify"
+          onNotice={vi.fn()}
+        />
+      );
+
+      const mobileCopyBtn = screen.getAllByRole('button', { name: /copy clean track links/i })[0];
+      const mobileExportBtn = screen.getAllByRole('button', { name: /export options/i })[0];
+      const secondaryRow = mobileCopyBtn.parentElement;
+
+      expect(secondaryRow).toHaveClass('grid', 'grid-cols-2', 'gap-2');
+      expect(mobileCopyBtn).toHaveClass('w-full', 'min-h-[44px]');
+      expect(mobileCopyBtn).toHaveTextContent('Copy Links (2)');
+      expect(mobileExportBtn.parentElement).toHaveClass('w-full');
+      expect(mobileExportBtn).toHaveClass('w-full', 'min-h-[44px]');
+    });
+
     it('propagates vipMode to finish-line actions and emits telemetry with vip_mode: true', () => {
       vi.spyOn(window, 'open').mockImplementation(() => ({}));
       const sendBeaconSpy = vi.fn().mockReturnValue(true);
