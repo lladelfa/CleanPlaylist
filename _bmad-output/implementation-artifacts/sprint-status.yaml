@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 11-06-2026 10:39
-last_updated: 11-13-2026 22:35
+last_updated: 11-20-2026 14:10
 project: CleanPlaylist
 project_key: NOKEY
 tracking_system: file-system
@@ -84,7 +84,7 @@ development_status:
   6-4-screening-preset-micro-explainers-policy-badging: done
   epic-6-retrospective: optional
 
-  epic-7: in-progress
+  epic-7: done
   7-1-telemetry-rate-limiting-payload-bounds: done
   7-2-preset-micro-copy-contract-test: done
   7-3-custom-preset-copy-accuracy: done
@@ -95,4 +95,4 @@ development_status:
   7-8-rename-the-custom-preset-label: done
   7-9-verified-clean-caveat-copy: done
   7-10-accessibility-and-mobile-pass: done
-  epic-7-retrospective: optional
+  epic-7-retrospective: done
