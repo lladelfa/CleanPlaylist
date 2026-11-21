@@ -212,14 +212,35 @@ class YTMusicService:
         """True when the latest get_track_lyrics call for this ID hit an upstream error."""
         return video_id in self._lyrics_failed_ids
 
-    def search_clean_replacement(
+    LOW_FIDELITY_KEYWORDS = ("instrumental", "karaoke", "tribute", "lullaby", "8-bit")
+
+    @classmethod
+    def _compute_low_fidelity_penalty(
+        cls,
+        original_title: str,
+        candidate_title: str,
+        original_artist: str = "",
+        candidate_artist: str = "",
+        candidate_album: str = "",
+    ) -> int:
+        orig_text = f"{original_title or ''} {original_artist or ''}".lower()
+        cand_text = f"{candidate_title or ''} {candidate_artist or ''} {candidate_album or ''}".lower()
+        for term in cls.LOW_FIDELITY_KEYWORDS:
+            pattern = rf"\b{re.escape(term)}\b"
+            if re.search(pattern, cand_text) and not re.search(pattern, orig_text):
+                return -45
+        return 0
+
+    def search_clean_replacements(
         self,
         title: str,
         artist: str,
         duration_seconds: int = 0,
         exclude_track_id: Optional[str] = None,
-    ) -> Optional[Dict]:
+        max_results: int = 5,
+    ) -> List[Dict]:
         from app.services.lyric_xref_service import LyricXRefService
+        capped_max = max(1, int(5 if max_results is None else max_results))
         clean_title = LyricXRefService().clean_title_for_query(title) or title.strip()
         clean_queries = [
             f"{clean_title} {artist} clean",
@@ -227,11 +248,11 @@ class YTMusicService:
             f"{clean_title} {artist}",
         ]
 
-        candidates = []
+        candidates_by_id: Dict[str, Dict] = {}
 
         for q in clean_queries:
             try:
-                results = self.yt.search(q, filter="songs", limit=5)
+                results = self.yt.search(q, filter="songs", limit=10)
                 for res in results:
                     if res.get("isExplicit", False):
                         continue
@@ -259,11 +280,18 @@ class YTMusicService:
                     score -= min(30, duration_diff)
                     if any(term in cand_title.lower() for term in ["clean", "radio edit", "clean version"]):
                         score += 20
+                    score += self._compute_low_fidelity_penalty(
+                        original_title=title,
+                        candidate_title=cand_title,
+                        original_artist=artist,
+                        candidate_artist=cand_artist_str,
+                        candidate_album=cand_album,
+                    )
 
                     thumb_list = res.get("thumbnails", [])
                     thumb = thumb_list[-1]["url"] if thumb_list else None
 
-                    candidates.append({
+                    candidate = {
                         "id": cand_video_id,
                         "title": cand_title,
                         "artist": cand_artist_str,
@@ -278,19 +306,36 @@ class YTMusicService:
                         "source_platform": "ytmusic",
                         "verification_status": "clean",
                         "ytmusic_video_id": cand_video_id,
-                    })
+                    }
 
-                if candidates:
+                    existing = candidates_by_id.get(cand_video_id)
+                    if existing is None or score > existing["confidence_score"]:
+                        candidates_by_id[cand_video_id] = candidate
+
+                if sum(1 for c in candidates_by_id.values() if c["confidence_score"] >= 70) >= capped_max:
                     break
             except Exception as e:
                 print(f"[YTMusicService] Search error for query '{q}': {e}")
                 continue
 
-        if not candidates:
-            return None
+        ranked = sorted(candidates_by_id.values(), key=lambda x: x["confidence_score"], reverse=True)
+        return ranked[:capped_max]
 
-        candidates.sort(key=lambda x: x["confidence_score"], reverse=True)
-        return candidates[0]
+    def search_clean_replacement(
+        self,
+        title: str,
+        artist: str,
+        duration_seconds: int = 0,
+        exclude_track_id: Optional[str] = None,
+    ) -> Optional[Dict]:
+        results = self.search_clean_replacements(
+            title=title,
+            artist=artist,
+            duration_seconds=duration_seconds,
+            exclude_track_id=exclude_track_id,
+            max_results=1,
+        )
+        return results[0] if results else None
 
     def search_catalog(self, query: str, limit: int = 10) -> Dict[str, Any]:
         capped_limit = min(max(1, limit), 10)

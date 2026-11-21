@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { X, AlertTriangle, CheckCircle, Music2, ExternalLink, RefreshCw, ChevronUp, ChevronDown, ArrowLeftRight } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle, Music2, ExternalLink, RefreshCw, ChevronUp, ChevronDown, ArrowLeftRight, RotateCcw } from 'lucide-react';
 import { evaluateLyrics } from '../utils/lyricEvaluator';
 import { maskWord, maskText } from '../utils/masking';
 import { VERIFIED_CLEAN_CAVEAT, isVerifiedCleanTrack } from '../utils/verifiedCleanCaveat';
@@ -23,6 +23,8 @@ export default function LyricsModal({
   onSwapTrack,
   cleanCandidate,
   cleanCandidates = EMPTY_OBJECT,
+  cleanAlternatives = EMPTY_OBJECT,
+  onOpenAlternatives,
   activePlatform,
   lyricsByTrackId = EMPTY_OBJECT,
   setLyricsByTrackId,
@@ -334,6 +336,17 @@ export default function LyricsModal({
   const resolvedCleanCandidate =
     cleanCandidate ?? cleanCandidates?.[trackId] ?? track?.clean_candidate ?? null;
 
+  const resolvedAlternatives =
+    [
+      cleanAlternatives?.[track?.original_id],
+      cleanAlternatives?.[trackId],
+      track?.clean_alternatives,
+    ].find((a) => Array.isArray(a) && a.length > 0) || EMPTY_ARRAY;
+
+  const isSwappedTrack = Boolean(
+    track?.was_replaced || track?.verification_status === 'clean_swapped'
+  );
+
   const handleModalSwap = () => {
     if (!resolvedCleanCandidate || typeof resolvedCleanCandidate !== 'object') return;
     if (onSwapTrack) {
@@ -342,6 +355,12 @@ export default function LyricsModal({
       onApplyReplacement(resolvedCleanCandidate);
     }
     handleClose();
+  };
+
+  const handleModalOpenAlternatives = () => {
+    if (!onOpenAlternatives) return;
+    onOpenAlternatives(track, previousActiveElement.current || null);
+    onCloseRef.current?.();
   };
 
   if (!track) return null;
@@ -505,8 +524,38 @@ export default function LyricsModal({
           </p>
         )}
 
+        {/* Swapped Track Change / Undo Banner */}
+        {isSwappedTrack && onOpenAlternatives && (
+          <div
+            role="region"
+            aria-label="Clean swap options"
+            className="px-4 py-3 bg-status-clean-bg/60 border-b border-status-clean-border flex flex-wrap items-center justify-between gap-3 shrink-0"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-status-clean flex items-center gap-1.5">
+                <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                <span>Swapped to Clean Version</span>
+              </p>
+              {track.original_title && (
+                <p className="text-xs text-text-muted truncate mt-0.5">
+                  Original: {track.original_title}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleModalOpenAlternatives}
+              aria-label="Change / Undo"
+              className="min-h-[44px] px-3.5 py-1.5 rounded-lg bg-surface-elevated hover:bg-surface-highest text-text-primary border border-border-subtle text-xs font-semibold transition-colors inline-flex items-center gap-1.5 shrink-0"
+            >
+              <RotateCcw className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+              <span>Change / Undo</span>
+            </button>
+          </div>
+        )}
+
         {/* Emerald Clean Replacement Top Banner */}
-        {resolvedCleanCandidate && typeof resolvedCleanCandidate === 'object' && (
+        {!isSwappedTrack && resolvedCleanCandidate && typeof resolvedCleanCandidate === 'object' && (
           <div
             role="region"
             aria-label="Clean replacement available"
@@ -521,14 +570,26 @@ export default function LyricsModal({
                 {resolvedCleanCandidate.title || track.title} ({formatDurationDelta(track, resolvedCleanCandidate)})
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleModalSwap}
-              className="min-h-[44px] px-3.5 py-1.5 rounded-lg bg-status-clean hover:bg-status-clean/90 text-status-clean-ink border border-status-clean-border text-xs font-semibold shadow transition-colors inline-flex items-center gap-1.5 shrink-0"
-            >
-              <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-              <span>Swap to Clean</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              {Array.isArray(resolvedAlternatives) && resolvedAlternatives.length >= 2 && onOpenAlternatives && (
+                <button
+                  type="button"
+                  onClick={handleModalOpenAlternatives}
+                  aria-label={`Other matches (${resolvedAlternatives.length})`}
+                  className="min-h-[44px] px-3 py-1.5 rounded-lg bg-surface-elevated hover:bg-surface-highest text-brand-tint border border-border-subtle text-xs font-medium transition-colors inline-flex items-center shrink-0"
+                >
+                  <span>Other matches ({resolvedAlternatives.length})</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleModalSwap}
+                className="min-h-[44px] px-3.5 py-1.5 rounded-lg bg-status-clean hover:bg-status-clean/90 text-status-clean-ink border border-status-clean-border text-xs font-semibold shadow transition-colors inline-flex items-center gap-1.5 shrink-0"
+              >
+                <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                <span>Swap to Clean</span>
+              </button>
+            </div>
           </div>
         )}
 

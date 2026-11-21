@@ -22,9 +22,11 @@ export default function WorkingListWorkbench({
   onClearList,
   onOpenLyrics,
   cleanCandidates = {},
+  cleanAlternatives = {},
   searchingClean = {},
   onFindClean,
   onSwapTrack,
+  onOpenAlternatives,
   keptTrackIds,
   _onKeepTrack,
   className = '',
@@ -272,9 +274,17 @@ export default function WorkingListWorkbench({
                             <CleanReplacementControl
                               track={track}
                               cleanCandidate={cleanCand}
+                              cleanAlternatives={
+                                [
+                                  cleanAlternatives[track.original_id],
+                                  cleanAlternatives[track.id],
+                                  track.clean_alternatives,
+                                ].find((a) => Array.isArray(a) && a.length > 0) || []
+                              }
                               isSearching={Boolean(isSearching)}
                               onFindClean={onFindClean}
                               onSwapTrack={onSwapTrack}
+                              onOpenAlternatives={onOpenAlternatives}
                               onRemoveTrack={onRemoveTrack}
                               variant="desktop"
                             />
@@ -325,9 +335,17 @@ export default function WorkingListWorkbench({
                   onRemoveTrack={onRemoveTrack}
                   onOpenLyrics={onOpenLyrics}
                   cleanCandidate={cleanCandidates[track.id]}
+                  cleanAlternatives={
+                    [
+                      cleanAlternatives[track.original_id],
+                      cleanAlternatives[track.id],
+                      track.clean_alternatives,
+                    ].find((a) => Array.isArray(a) && a.length > 0) || []
+                  }
                   isSearchingClean={searchingClean[track.id]}
                   onFindClean={onFindClean}
                   onSwapTrack={onSwapTrack}
+                  onOpenAlternatives={onOpenAlternatives}
                   activePlatform={activePlatform}
                   keptTrackIds={keptTrackIds}
                 />

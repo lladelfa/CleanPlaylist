@@ -453,15 +453,36 @@ class SpotifyService:
     def get_track_lyrics(self, track_id: str) -> Optional[str]:
         return None
 
-    def search_clean_replacement(
+    LOW_FIDELITY_KEYWORDS = ("instrumental", "karaoke", "tribute", "lullaby", "8-bit")
+
+    @classmethod
+    def _compute_low_fidelity_penalty(
+        cls,
+        original_title: str,
+        candidate_title: str,
+        original_artist: str = "",
+        candidate_artist: str = "",
+        candidate_album: str = "",
+    ) -> int:
+        orig_text = f"{original_title or ''} {original_artist or ''}".lower()
+        cand_text = f"{candidate_title or ''} {candidate_artist or ''} {candidate_album or ''}".lower()
+        for term in cls.LOW_FIDELITY_KEYWORDS:
+            pattern = rf"\b{re.escape(term)}\b"
+            if re.search(pattern, cand_text) and not re.search(pattern, orig_text):
+                return -45
+        return 0
+
+    def search_clean_replacements(
         self,
         title: str,
         artist: str,
         duration_seconds: int = 0,
         sp_client: Optional[spotipy.Spotify] = None,
         exclude_track_id: Optional[str] = None,
-    ) -> Optional[Dict]:
+        max_results: int = 5,
+    ) -> List[Dict]:
         sp = sp_client or self.get_catalog_client()
+        capped_max = max(1, int(5 if max_results is None else max_results))
 
         # Token-level bounds to ensure formatted query strings never exceed 200 chars or break quoted syntax
         clean_title = clean_title_for_query(title).replace('"', '').strip()[:80]
@@ -484,6 +505,8 @@ class SpotifyService:
         elif primary_artist:
             tiers.append((f'artist:"{primary_artist}"', False))
 
+        candidates_by_id: Dict[str, Dict] = {}
+
         for query, validate_artist in tiers:
             # Ensure hard 200-character ceiling
             bounded_query = query[:200]
@@ -496,7 +519,6 @@ class SpotifyService:
                 logger.warning(f"Unexpected Spotify search error for query '{bounded_query}': {e}")
                 continue
 
-            candidates = []
             tracks_items = results.get('tracks', {}).get('items', []) if isinstance(results, dict) else []
             for track in tracks_items:
                 if not track or not isinstance(track, dict):
@@ -505,6 +527,8 @@ class SpotifyService:
                     continue
 
                 track_id = track.get('id')
+                if not track_id:
+                    continue
                 if exclude_track_id and track_id == exclude_track_id:
                     continue
 
@@ -516,7 +540,8 @@ class SpotifyService:
                     continue
 
                 artists = [a['name'] for a in track.get('artists', []) if isinstance(a, dict) and a.get('name')]
-                
+                artist_str = ", ".join(artists)
+
                 # If query dropped artist field (Tier 4), post-validate artist alignment
                 if validate_artist and primary_artist:
                     norm_target_artist = primary_artist.lower()
@@ -524,20 +549,27 @@ class SpotifyService:
                     if not any(norm_target_artist in a or a in norm_target_artist for a in norm_cand_artists):
                         continue
 
+                album_name = (track.get('album', {}).get('name') or '') if isinstance(track.get('album'), dict) else ''
                 score = 100 - min(30, diff)
-                track_name = track.get('name', '').lower()
-                if any(term in track_name for term in ["clean", "radio edit"]):
+                track_name = track.get('name') or ''
+                if any(term in track_name.lower() for term in ["clean", "radio edit"]):
                     score += 20
+                score += self._compute_low_fidelity_penalty(
+                    original_title=title,
+                    candidate_title=track_name,
+                    original_artist=artist,
+                    candidate_artist=artist_str,
+                    candidate_album=album_name,
+                )
 
                 images = track.get('album', {}).get('images', []) if isinstance(track.get('album'), dict) else []
                 thumbnail = images[0]['url'] if images else None
                 m, s = divmod(dur_sec, 60)
-                album_name = track.get('album', {}).get('name', '') if isinstance(track.get('album'), dict) else ''
 
-                candidates.append({
+                candidate = {
                     "id": track_id,
-                    "title": track.get('name', ''),
-                    "artist": ", ".join(artists),
+                    "title": track_name,
+                    "artist": artist_str,
                     "artists_list": artists,
                     "album": album_name,
                     "duration": f"{m}:{s:02d}",
@@ -548,13 +580,35 @@ class SpotifyService:
                     "confidence_score": score,
                     "source_platform": "spotify",
                     "verification_status": "clean",
-                })
+                }
 
-            if candidates:
-                candidates.sort(key=lambda x: x["confidence_score"], reverse=True)
-                return candidates[0]
+                existing = candidates_by_id.get(track_id)
+                if existing is None or score > existing["confidence_score"]:
+                    candidates_by_id[track_id] = candidate
 
-        return None
+            if sum(1 for c in candidates_by_id.values() if c["confidence_score"] >= 70) >= capped_max:
+                break
+
+        ranked = sorted(candidates_by_id.values(), key=lambda x: x["confidence_score"], reverse=True)
+        return ranked[:capped_max]
+
+    def search_clean_replacement(
+        self,
+        title: str,
+        artist: str,
+        duration_seconds: int = 0,
+        sp_client: Optional[spotipy.Spotify] = None,
+        exclude_track_id: Optional[str] = None,
+    ) -> Optional[Dict]:
+        results = self.search_clean_replacements(
+            title=title,
+            artist=artist,
+            duration_seconds=duration_seconds,
+            sp_client=sp_client,
+            exclude_track_id=exclude_track_id,
+            max_results=1,
+        )
+        return results[0] if results else None
 
     def search_catalog(self, query: str, limit: int = 10) -> Dict[str, Any]:
         capped_limit = min(max(1, limit), 10)

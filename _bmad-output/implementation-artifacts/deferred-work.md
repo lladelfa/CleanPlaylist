@@ -29,3 +29,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-10-accessibility-and-mobile-pass.md`
   summary: Modal robustness follow-ups: ref-counted body scroll lock and topmost-only Escape/Tab for stacked modals, shared focus helper, KeywordsTab thumbnail div onClick, aria-live/aria-pressed gaps.
   evidence: Raised by edge-case and blind reviewers; none reachable in current flows or required by the story ACs.
+
+- source_spec: none
+  summary: Add inline manual catalog search override inside the clean-swap replacement picker so users can search and swap any song from the active platform catalog when none of the top ranked auto-matches fit.
+  evidence: Split from clean-swap recovery intent as Slice 2 so Slice 1 (instrumental/cover ranking guardrail, top 3-5 ranked alternatives picker, and undo/revert in Scan & Clean) ships first as an independently deliverable increment.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-clean-swap-alternatives-and-undo.md`
+  summary: Guard `swapFn`/`revertFn` in ScanTab and App against duplicate track IDs if raw imported playlists ever contain the same track twice.
+  evidence: Pre-existing ID-matching update pattern (`t.id === originalTrack.id`); WorkingList deduplicates tracks on staging, so this only applies if a raw playlist source contains duplicate track IDs.

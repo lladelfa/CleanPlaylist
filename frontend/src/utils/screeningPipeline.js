@@ -229,12 +229,13 @@ export async function runBulkCleanPipeline({
   onError,
 }) {
   if (!tracks || !Array.isArray(tracks) || tracks.length === 0) {
-    return { results: {}, lyricsById: {} };
+    return { results: {}, alternativesById: {}, lyricsById: {} };
   }
 
   const total = tracks.length;
   const chunks = chunkTracks(tracks, 10, 10);
   const allResults = {};
+  const allAlternativesById = {};
   const allLyricsById = {};
   let processedCount = 0;
 
@@ -245,6 +246,7 @@ export async function runBulkCleanPipeline({
       abortErr.name = 'AbortError';
       return {
         results: allResults,
+        alternativesById: allAlternativesById,
         lyricsById: allLyricsById,
         error: abortErr,
         unprocessedTracks: tracks.slice(processedCount),
@@ -261,6 +263,7 @@ export async function runBulkCleanPipeline({
 
     let batchError = null;
     let batchResults = {};
+    let batchAlternatives = {};
     let batchLyrics = {};
 
     try {
@@ -284,6 +287,7 @@ export async function runBulkCleanPipeline({
       } else {
         const data = await res.json();
         batchResults = data.results || {};
+        batchAlternatives = data.alternatives || {};
         batchLyrics = data.lyrics_by_id || {};
       }
     } catch (networkErr) {
@@ -303,6 +307,7 @@ export async function runBulkCleanPipeline({
 
       return {
         results: allResults,
+        alternativesById: allAlternativesById,
         lyricsById: allLyricsById,
         error: batchError,
         unprocessedTracks: remainingTracks,
@@ -310,6 +315,7 @@ export async function runBulkCleanPipeline({
     }
 
     Object.assign(allResults, batchResults);
+    Object.assign(allAlternativesById, batchAlternatives);
     Object.assign(allLyricsById, batchLyrics);
     processedCount += chunk.length;
 
@@ -329,6 +335,7 @@ export async function runBulkCleanPipeline({
       try {
         onBatchComplete({
           results: batchResults,
+          alternativesById: batchAlternatives,
           lyricsById: batchLyrics,
           chunk,
         });
@@ -340,6 +347,7 @@ export async function runBulkCleanPipeline({
 
   return {
     results: allResults,
+    alternativesById: allAlternativesById,
     lyricsById: allLyricsById,
   };
 }

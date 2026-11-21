@@ -387,4 +387,102 @@ describe('Story 3.3: One-Click Bulk Clean Replacement in Scan & Clean', () => {
 
     expect(workingListState[0].verification_status).toBe('clean_swapped');
   });
+
+  it('forwards alternatives from find-batch and supports Change / Undo and Revert after Bulk Swap', async () => {
+    const initialTrack = createMockTrack('trk_bulk_1', 'Explicit Bulk Song', true, true);
+    const cand1 = {
+      id: 'clean_bulk_1_a',
+      title: 'Explicit Bulk Song (Instrumental)',
+      artist: 'Test Artist',
+      artists_list: ['Test Artist'],
+      album: 'Inst Album',
+      duration: '3:00',
+      duration_seconds: 180,
+      is_explicit: false,
+      thumbnail: 'https://example.com/a.jpg',
+      video_url: 'https://open.spotify.com/track/clean_bulk_1_a',
+    };
+    const cand2 = {
+      id: 'clean_bulk_1_b',
+      title: 'Explicit Bulk Song (Clean Vocal)',
+      artist: 'Test Artist',
+      artists_list: ['Test Artist'],
+      album: 'Clean Album',
+      duration: '3:02',
+      duration_seconds: 182,
+      is_explicit: false,
+      thumbnail: 'https://example.com/b.jpg',
+      video_url: 'https://open.spotify.com/track/clean_bulk_1_b',
+    };
+
+    global.fetch = vi.fn().mockImplementation(async (url) => {
+      if (url === '/api/presets') return { ok: true, json: async () => ({ presets: {} }) };
+      if (url === '/api/replacements/find-batch') {
+        return {
+          ok: true,
+          json: async () => ({
+            results: { trk_bulk_1: cand1 },
+            alternatives: { trk_bulk_1: [cand1, cand2] },
+            lyrics_by_id: {},
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    function StatefulBulkWrapper() {
+      const [tracks, setTracks] = React.useState([initialTrack]);
+      const [playlist, setPlaylist] = React.useState({
+        id: 'pl_bulk',
+        title: 'Bulk Playlist',
+        tracks: [initialTrack],
+      });
+      return (
+        <div>
+          <ScanTab
+            playlist={playlist}
+            setPlaylist={setPlaylist}
+            workingList={tracks}
+            setWorkingList={setTracks}
+            scannedTracks={tracks}
+            setScannedTracks={setTracks}
+            lyricsByTrackId={{}}
+            setLyricsByTrackId={vi.fn()}
+            activePlatform="spotify"
+          />
+          <div data-testid="bulk-tracks-json">{JSON.stringify(tracks)}</div>
+        </div>
+      );
+    }
+
+    render(<StatefulBulkWrapper />);
+
+    fireEvent.click(screen.getByRole('button', { name: /find & swap all clean versions/i }));
+
+    // Wait for Change / Undo button to appear after Bulk Swap
+    const changeUndoBtn = await screen.findByRole('button', { name: /Change \/ Undo|Change or undo/i });
+    fireEvent.click(changeUndoBtn);
+
+    // Picker shows both cached alternatives from find-batch
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Explicit Bulk Song (Clean Vocal)')).toBeInTheDocument();
+
+    // Select alternate #2
+    const selectBtns = screen.getAllByRole('button', { name: /Use This Match|Select/i });
+    fireEvent.click(selectBtns[selectBtns.length - 1]);
+
+    let current = JSON.parse(screen.getByTestId('bulk-tracks-json').textContent);
+    expect(current[0].id).toBe('clean_bulk_1_b');
+    expect(current[0].original_track.id).toBe('trk_bulk_1');
+
+    // Revert to original
+    fireEvent.click(screen.getByRole('button', { name: /Change \/ Undo|Change or undo/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Revert to Original/i }));
+
+    current = JSON.parse(screen.getByTestId('bulk-tracks-json').textContent);
+    expect(current[0].id).toBe('trk_bulk_1');
+    expect(current[0].is_flagged).toBe(true);
+    expect(current[0].verification_status).toBe('flagged');
+    expect(current[0].was_replaced).toBeUndefined();
+  });
 });
