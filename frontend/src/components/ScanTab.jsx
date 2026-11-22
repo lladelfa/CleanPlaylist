@@ -12,6 +12,7 @@ import {
 
 import SavePlaylistModal from "./SavePlaylistModal";
 import PlaylistPickerModal from "./PlaylistPickerModal";
+import CleanReplacementPickerModal from "./CleanReplacementPickerModal";
 import SmartInputBar from "./SmartInputBar";
 import NoticeBanner from "./NoticeBanner";
 import PasteTrackListPanel from "./PasteTrackListPanel";
@@ -24,6 +25,7 @@ import { exportCleanPlaylistFile, getReadyTracks } from "../utils/finishLine";
 import { reevaluateTracks } from "../utils/lyricEvaluator";
 import { VERIFIED_CLEAN_CAVEAT, CAVEAT_DISMISSED_KEY, isVerifiedCleanTrack } from "../utils/verifiedCleanCaveat";
 import { runScreeningPipeline, runBulkCleanPipeline, isLyricsServiceDegraded } from "../utils/screeningPipeline";
+import { buildSwappedTrack, buildRevertedTrack } from "../utils/swapHelpers";
 import { isYouTubePlaylist, isSpotifyPlaylistUrl } from "../utils/inputParser";
 import { emitTelemetryEvent, getTrackCountBucket } from "../utils/telemetry";
 
@@ -54,6 +56,12 @@ export default function ScanTab({
   onToggleMasking,
   cleanCandidates: externalCleanCandidates,
   setCleanCandidates: externalSetCleanCandidates,
+  cleanAlternatives: externalCleanAlternatives,
+  setCleanAlternatives: externalSetCleanAlternatives,
+  pickerTrack: externalPickerTrack,
+  setPickerTrack: externalSetPickerTrack,
+  pickerTriggerEl: externalPickerTriggerEl,
+  setPickerTriggerEl: externalSetPickerTriggerEl,
   onNavigateToAbout,
 }) {
   const vipMode = propVipMode ?? Boolean(isAuthenticated);
@@ -63,6 +71,19 @@ export default function ScanTab({
   const [internalCleanCandidates, setInternalCleanCandidates] = useState({});
   const cleanCandidates = externalCleanCandidates ?? internalCleanCandidates;
   const setCleanCandidates = externalSetCleanCandidates ?? setInternalCleanCandidates;
+  const [internalCleanAlternatives, setInternalCleanAlternatives] = useState({});
+  const cleanAlternatives = externalCleanAlternatives ?? internalCleanAlternatives;
+  const setCleanAlternatives = externalSetCleanAlternatives ?? setInternalCleanAlternatives;
+  const [internalPickerTrack, setInternalPickerTrack] = useState(null);
+  const pickerTrack = externalPickerTrack !== undefined ? externalPickerTrack : internalPickerTrack;
+  const setPickerTrack = externalSetPickerTrack ?? setInternalPickerTrack;
+  const [internalPickerTriggerEl, setInternalPickerTriggerEl] = useState(null);
+  const pickerTriggerEl =
+    externalPickerTriggerEl !== undefined ? externalPickerTriggerEl : internalPickerTriggerEl;
+  const setPickerTriggerEl = externalSetPickerTriggerEl ?? setInternalPickerTriggerEl;
+  const [fetchingAlternatives, setFetchingAlternatives] = useState(false);
+  const [fetchAlternativesError, setFetchAlternativesError] = useState(null);
+  const fetchAltReqIdRef = useRef(0);
   const [searchingClean, setSearchingClean] = useState({});
   const [bulkCleaning, setBulkCleaning] = useState(false);
   const [bulkCleanProgress, setBulkCleanProgress] = useState("");
@@ -308,6 +329,12 @@ export default function ScanTab({
     if (setWorkingList) setWorkingList([]);
     setPlaylist(null);
     setCleanCandidates({});
+    setCleanAlternatives({});
+    fetchAltReqIdRef.current += 1;
+    setPickerTrack(null);
+    setPickerTriggerEl(null);
+    setFetchAlternativesError(null);
+    setFetchingAlternatives(false);
     setSearchingClean({});
     setIsSwitchModalOpen(false);
     if (onSwitchPlatform) onSwitchPlatform(pendingPlatform);
@@ -640,9 +667,22 @@ export default function ScanTab({
           resolvedLyrics !== undefined
             ? { ...data.clean_candidate, lyrics: resolvedLyrics }
             : data.clean_candidate;
+        const rawAlts =
+          Array.isArray(data.clean_alternatives) && data.clean_alternatives.length > 0
+            ? data.clean_alternatives
+            : [enrichedCandidate];
+        const enrichedAlts = rawAlts.map((alt) =>
+          alt && alt.id === candId && resolvedLyrics !== undefined
+            ? { ...alt, lyrics: resolvedLyrics }
+            : alt
+        );
         setCleanCandidates((prev) => ({
           ...prev,
           [track.id]: enrichedCandidate,
+        }));
+        setCleanAlternatives((prev) => ({
+          ...prev,
+          [track.id]: enrichedAlts,
         }));
       } else {
         setCleanCandidates((prev) => ({ ...prev, [track.id]: "none" }));
@@ -690,9 +730,10 @@ export default function ScanTab({
         setBulkCleanProgress(progressMsg);
         setScanProgressAnnouncement(progressMsg);
       },
-      onBatchComplete: ({ results, lyricsById: batchLyrics, chunk = [] }) => {
+      onBatchComplete: ({ results, alternativesById: batchAlternatives = {}, lyricsById: batchLyrics, chunk = [] }) => {
         const newlySwapped = [];
         const newCandidatesUpdate = {};
+        const mergedLyricsLookup = { ...lyricsByTrackId, ...batchLyrics };
 
         Object.entries(results).forEach(([origTrackId, cand]) => {
           if (cand) {
@@ -700,27 +741,15 @@ export default function ScanTab({
               chunk.find((t) => t.id === origTrackId) ||
               currentTracksRef.current.find((t) => t.id === origTrackId);
             if (origTrack) {
-              const candLyrics =
-                (cand.id && batchLyrics?.[cand.id]) ||
-                cand.lyrics ||
-                lyricsByTrackId?.[cand.id] ||
-                undefined;
-              const swapped = {
-                ...origTrack,
-                ...cand,
-                verification_status: "clean_swapped",
-                is_flagged: false,
-                reasons: [],
-                detected_terms: [],
-                snippets: [],
-                total_flagged_count: 0,
-                is_explicit: false,
-                has_lyrics: Boolean(typeof candLyrics === "string" && candLyrics.trim()),
-                was_replaced: true,
-                original_title: origTrack.original_title || origTrack.title,
-                original_id: origTrack.original_id || origTrack.id,
-                original_set_video_id: origTrack.original_set_video_id || origTrack.setVideoId,
-              };
+              const trackAlts =
+                Array.isArray(batchAlternatives?.[origTrackId]) &&
+                batchAlternatives[origTrackId].length > 0
+                  ? batchAlternatives[origTrackId]
+                  : [cand];
+              const swapped = buildSwappedTrack(origTrack, cand, {
+                lyricsByTrackId: mergedLyricsLookup,
+                alternatives: trackAlts,
+              });
               newlySwapped.push({ origId: origTrackId, swappedTrack: swapped });
               currentBatchSwapped++;
             }
@@ -729,6 +758,13 @@ export default function ScanTab({
             currentBatchUnfound++;
           }
         });
+
+        if (batchAlternatives && Object.keys(batchAlternatives).length > 0) {
+          setCleanAlternatives((prev) => ({
+            ...prev,
+            ...batchAlternatives,
+          }));
+        }
 
         if (newlySwapped.length > 0) {
           const swapMap = new Map(newlySwapped.map((s) => [s.origId, s.swappedTrack]));
@@ -833,29 +869,34 @@ export default function ScanTab({
     });
   };
 
+  const resolveAlternativesForTrack = (track) => {
+    if (!track) return [];
+    const origId = track.original_id || track.original_track?.id;
+    if (origId && Array.isArray(cleanAlternatives[origId]) && cleanAlternatives[origId].length > 0) {
+      return cleanAlternatives[origId];
+    }
+    if (track.id && Array.isArray(cleanAlternatives[track.id]) && cleanAlternatives[track.id].length > 0) {
+      return cleanAlternatives[track.id];
+    }
+    if (Array.isArray(track.clean_alternatives) && track.clean_alternatives.length > 0) {
+      return track.clean_alternatives;
+    }
+    return [];
+  };
+
+  const handleOpenAlternatives = (track, triggerEl = null) => {
+    setFetchAlternativesError(null);
+    setPickerTriggerEl(triggerEl || (typeof document !== "undefined" ? document.activeElement : null));
+    setPickerTrack(track);
+  };
+
   const handleSwapTrack = (originalTrack, cleanTrack) => {
-    const cleanLyrics =
-      typeof cleanTrack?.lyrics === "string"
-        ? cleanTrack.lyrics
-        : cleanTrack?.id
-        ? lyricsByTrackId?.[cleanTrack.id]
-        : undefined;
-    const swappedTrack = {
-      ...originalTrack,
-      ...cleanTrack,
-      verification_status: "clean_swapped",
-      is_flagged: false,
-      reasons: [],
-      detected_terms: [],
-      snippets: [],
-      total_flagged_count: 0,
-      is_explicit: false,
-      has_lyrics: Boolean(typeof cleanLyrics === "string" && cleanLyrics.trim()),
-      was_replaced: true,
-      original_title: originalTrack.title,
-      original_id: originalTrack.id,
-      original_set_video_id: originalTrack.setVideoId,
-    };
+    const resolvedAlts = resolveAlternativesForTrack(originalTrack);
+    const altsToAttach = resolvedAlts.length > 0 ? resolvedAlts : [cleanTrack];
+    const swappedTrack = buildSwappedTrack(originalTrack, cleanTrack, {
+      lyricsByTrackId,
+      alternatives: altsToAttach,
+    });
     const swapFn = (t) => (t.id === originalTrack.id ? swappedTrack : t);
 
     setScannedTracks((prev) => prev.map(swapFn));
@@ -889,7 +930,8 @@ export default function ScanTab({
       delete updated[originalTrack.id];
       return updated;
     });
-    const swapMsg = `Swapped "${originalTrack.title}" to clean version "${cleanTrack.title || originalTrack.title}".`;
+    const displayOrigTitle = originalTrack.original_title || originalTrack.title;
+    const swapMsg = `Swapped "${displayOrigTitle}" to clean version "${cleanTrack.title || displayOrigTitle}".`;
     setScanProgressAnnouncement(swapMsg);
     setStatusMessage({
       type: "clean",
@@ -903,6 +945,115 @@ export default function ScanTab({
       swapped_count: 1,
       unfound_count: 0,
     });
+  };
+
+  const handleSelectAlternative = (currentTrack, selectedCandidate) => {
+    if (!currentTrack || !selectedCandidate) return;
+    handleSwapTrack(currentTrack, selectedCandidate);
+    setPickerTrack(null);
+  };
+
+  const handleRevertSwap = (swappedTrack) => {
+    if (!swappedTrack || !swappedTrack.original_track) return;
+    const revertedTrack = buildRevertedTrack(swappedTrack);
+    const revertFn = (t) => (t.id === swappedTrack.id ? revertedTrack : t);
+
+    setScannedTracks((prev) => prev.map(revertFn));
+    if (setWorkingList) {
+      setWorkingList((prev) => prev.map(revertFn));
+    }
+    if (playlist && setPlaylist) {
+      setPlaylist((prev) =>
+        prev
+          ? {
+              ...prev,
+              tracks: (prev.tracks || []).map(revertFn),
+            }
+          : prev
+      );
+    }
+    const cachedAlts =
+      [cleanAlternatives[revertedTrack.id], swappedTrack.clean_alternatives].find(
+        (a) => Array.isArray(a) && a.length > 0
+      ) || [];
+    if (cachedAlts.length > 0) {
+      setCleanCandidates((prev) => ({
+        ...prev,
+        [revertedTrack.id]: cachedAlts[0],
+      }));
+    }
+    const revertMsg = `Reverted "${swappedTrack.title}" back to original track "${revertedTrack.title}".`;
+    setScanProgressAnnouncement(revertMsg);
+    setStatusMessage({
+      type: "info",
+      text: revertMsg,
+    });
+    fetchAltReqIdRef.current += 1;
+    setPickerTrack(null);
+    setPickerTriggerEl(null);
+    setFetchAlternativesError(null);
+    setFetchingAlternatives(false);
+  };
+
+  const handleFetchAlternatives = async (track) => {
+    if (!track) return;
+    const baseTrack = track.original_track || track;
+    const targetTrackId = track.id;
+    const reqId = ++fetchAltReqIdRef.current;
+    setFetchingAlternatives(true);
+    setFetchAlternativesError(null);
+    try {
+      const res = await fetch("/api/replacements/find", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: baseTrack.title,
+          artist: baseTrack.artist,
+          duration_seconds: baseTrack.duration_seconds || 0,
+          track_id: baseTrack.id,
+          platform: activePlatform,
+        }),
+      });
+      if (fetchAltReqIdRef.current !== reqId) return;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to fetch alternative matches");
+      }
+      const data = await res.json();
+      if (fetchAltReqIdRef.current !== reqId) return;
+      const rawAlts =
+        Array.isArray(data.clean_alternatives) && data.clean_alternatives.length > 0
+          ? data.clean_alternatives
+          : data.clean_candidate
+          ? [data.clean_candidate]
+          : [];
+
+      if (data.lyrics_by_id && Object.keys(data.lyrics_by_id).length > 0 && setLyricsByTrackId) {
+        setLyricsByTrackId((prev) => ({
+          ...prev,
+          ...data.lyrics_by_id,
+        }));
+      }
+
+      setCleanAlternatives((prev) => ({
+        ...prev,
+        [baseTrack.id]: rawAlts,
+      }));
+      setPickerTrack((prev) =>
+        prev && prev.id === targetTrackId ? { ...prev, clean_alternatives: rawAlts } : prev
+      );
+
+      if (rawAlts.length === 0) {
+        setFetchAlternativesError("No clean matches found for this track.");
+      }
+    } catch (err) {
+      if (fetchAltReqIdRef.current !== reqId) return;
+      setFetchAlternativesError(err.message || "Failed to fetch alternative matches.");
+    } finally {
+      if (fetchAltReqIdRef.current === reqId) {
+        setFetchingAlternatives(false);
+      }
+    }
   };
 
   const reevaluateWith = useCallback((newPreset, newBlocklist) => {
@@ -992,6 +1143,12 @@ export default function ScanTab({
     }
     setPlaylist(null);
     setCleanCandidates({});
+    setCleanAlternatives({});
+    fetchAltReqIdRef.current += 1;
+    setPickerTrack(null);
+    setPickerTriggerEl(null);
+    setFetchAlternativesError(null);
+    setFetchingAlternatives(false);
     setSearchingClean({});
   };
 
@@ -1131,9 +1288,11 @@ export default function ScanTab({
           onClearList={handleClearList}
           onOpenLyrics={onOpenLyrics}
           cleanCandidates={cleanCandidates}
+          cleanAlternatives={cleanAlternatives}
           searchingClean={searchingClean}
           onFindClean={handleFindClean}
           onSwapTrack={handleSwapTrack}
+          onOpenAlternatives={handleOpenAlternatives}
           keptTrackIds={keptTrackIds}
           onKeepTrack={onKeepTrack}
           isMasked={isMasked}
@@ -1271,6 +1430,27 @@ export default function ScanTab({
           handleFetchPlaylist(selectedUrl);
         }}
       />
+
+      {pickerTrack && (
+        <CleanReplacementPickerModal
+          track={pickerTrack}
+          alternatives={resolveAlternativesForTrack(pickerTrack)}
+          activePlatform={activePlatform}
+          isFetching={fetchingAlternatives}
+          fetchError={fetchAlternativesError}
+          onSelectAlternative={handleSelectAlternative}
+          onRevert={handleRevertSwap}
+          onFetchAlternatives={handleFetchAlternatives}
+          onClose={() => {
+            fetchAltReqIdRef.current += 1;
+            setPickerTrack(null);
+            setPickerTriggerEl(null);
+            setFetchAlternativesError(null);
+            setFetchingAlternatives(false);
+          }}
+          triggerEl={pickerTriggerEl}
+        />
+      )}
 
       {!onRequestPlatformChange && (
         <PlatformSwitchModal

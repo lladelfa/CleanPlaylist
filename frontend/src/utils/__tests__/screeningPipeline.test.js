@@ -212,7 +212,7 @@ describe('screeningPipeline utility', () => {
   describe('runBulkCleanPipeline', () => {
     it('returns empty results when given empty tracks', async () => {
       const result = await runBulkCleanPipeline({ tracks: [] });
-      expect(result).toEqual({ results: {}, lyricsById: {} });
+      expect(result).toEqual({ results: {}, alternativesById: {}, lyricsById: {} });
     });
 
     it('chunks tracks into batches of <= 10, calls POST /api/replacements/find-batch, and aggregates results', async () => {
@@ -236,25 +236,36 @@ describe('screeningPipeline utility', () => {
         expect(body.tracks.length).toBeLessThanOrEqual(10);
 
         const results = {};
+        const alternatives = {};
         const lyricsById = {};
         body.tracks.forEach((t, idx) => {
           if (idx % 2 === 0) {
-            results[t.id] = {
+            const topCand = {
               id: `clean_${t.id}`,
               title: `${t.title} (Clean)`,
               artist: t.artist,
               duration_seconds: 180,
               is_explicit: false,
             };
+            const altCand = {
+              id: `alt_${t.id}`,
+              title: `${t.title} (Radio Edit)`,
+              artist: t.artist,
+              duration_seconds: 181,
+              is_explicit: false,
+            };
+            results[t.id] = topCand;
+            alternatives[t.id] = [topCand, altCand];
             lyricsById[`clean_${t.id}`] = `Clean lyrics for ${t.id}`;
           } else {
             results[t.id] = null;
+            alternatives[t.id] = [];
           }
         });
 
         return {
           ok: true,
-          json: async () => ({ results, lyrics_by_id: lyricsById }),
+          json: async () => ({ results, alternatives, lyrics_by_id: lyricsById }),
         };
       });
 
@@ -287,6 +298,12 @@ describe('screeningPipeline utility', () => {
       expect(Object.keys(outcome.results)).toHaveLength(15);
       expect(outcome.results['trk_0'].title).toBe('Explicit Song 0 (Clean)');
       expect(outcome.results['trk_1']).toBeNull();
+      expect(outcome.alternativesById['trk_0']).toHaveLength(2);
+      expect(outcome.alternativesById['trk_0'][1].id).toBe('alt_trk_0');
+      expect(outcome.alternativesById['trk_1']).toEqual([]);
+      expect(outcome.alternativesById['trk_10']).toHaveLength(2);
+      expect(batchCompletes[0].alternativesById['trk_0']).toHaveLength(2);
+      expect(batchCompletes[1].alternativesById['trk_10']).toHaveLength(2);
       expect(outcome.lyricsById['clean_trk_0']).toBe('Clean lyrics for trk_0');
     });
 
@@ -304,12 +321,15 @@ describe('screeningPipeline utility', () => {
         const body = JSON.parse(options.body);
         if (callCount === 1) {
           const results = {};
+          const alternatives = {};
           body.tracks.forEach((t) => {
-            results[t.id] = { id: `clean_${t.id}`, title: `${t.title} (Clean)` };
+            const top = { id: `clean_${t.id}`, title: `${t.title} (Clean)` };
+            results[t.id] = top;
+            alternatives[t.id] = [top, { id: `alt_${t.id}`, title: `${t.title} (Alt)` }];
           });
           return {
             ok: true,
-            json: async () => ({ results, lyrics_by_id: {} }),
+            json: async () => ({ results, alternatives, lyrics_by_id: {} }),
           };
         }
         return {
@@ -331,9 +351,11 @@ describe('screeningPipeline utility', () => {
       expect(errors[0].status).toBe(429);
       expect(errors[0].isRateLimit).toBe(true);
 
-      // Crucial: results from chunk 1 are preserved
+      // Crucial: results and alternatives from chunk 1 are preserved
       expect(Object.keys(outcome.results)).toHaveLength(10);
       expect(outcome.results['trk_0'].id).toBe('clean_trk_0');
+      expect(Object.keys(outcome.alternativesById)).toHaveLength(10);
+      expect(outcome.alternativesById['trk_0']).toHaveLength(2);
       expect(outcome.error).toBeDefined();
       expect(outcome.unprocessedTracks).toHaveLength(5);
     });
@@ -354,12 +376,15 @@ describe('screeningPipeline utility', () => {
         controller.abort();
         const body = JSON.parse(options.body);
         const results = {};
+        const alternatives = {};
         body.tracks.forEach((t) => {
-          results[t.id] = { id: `clean_${t.id}`, title: `${t.title} (Clean)` };
+          const top = { id: `clean_${t.id}`, title: `${t.title} (Clean)` };
+          results[t.id] = top;
+          alternatives[t.id] = [top];
         });
         return {
           ok: true,
-          json: async () => ({ results, lyrics_by_id: {} }),
+          json: async () => ({ results, alternatives, lyrics_by_id: {} }),
         };
       });
 
@@ -372,6 +397,8 @@ describe('screeningPipeline utility', () => {
       expect(outcome.error).toBeDefined();
       expect(outcome.error.name).toBe('AbortError');
       expect(Object.keys(outcome.results)).toHaveLength(10);
+      expect(Object.keys(outcome.alternativesById)).toHaveLength(10);
+      expect(outcome.alternativesById['trk_0'][0].id).toBe('clean_trk_0');
       expect(outcome.unprocessedTracks).toHaveLength(10);
     });
 

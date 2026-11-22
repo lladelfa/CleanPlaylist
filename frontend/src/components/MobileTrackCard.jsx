@@ -21,9 +21,11 @@ export default function MobileTrackCard({
   onRemoveTrack,
   onOpenLyrics,
   cleanCandidate,
+  cleanAlternatives,
   isSearchingClean,
   onFindClean,
   onSwapTrack,
+  onOpenAlternatives,
   className = '',
   isMasked = true,
   activePlatform = 'spotify',
@@ -157,9 +159,11 @@ export default function MobileTrackCard({
           <CleanReplacementControl
             track={track}
             cleanCandidate={cleanCandidate}
+            cleanAlternatives={cleanAlternatives}
             isSearching={Boolean(isSearchingClean)}
             onFindClean={onFindClean}
             onSwapTrack={onSwapTrack}
+            onOpenAlternatives={onOpenAlternatives}
             onRemoveTrack={onRemoveTrack}
             variant="mobile"
           />

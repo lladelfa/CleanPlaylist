@@ -636,16 +636,20 @@ def find_clean_replacement(req: FindCleanReplacementRequest, request: Request, r
     exclude_id = req.exclude_track_id or req.track_id
     platform = (req.platform or "ytmusic").strip().lower()
     lyrics_by_id: Dict[str, str] = {}
+    candidates: List[Dict[str, Any]] = []
+    candidate: Optional[Dict[str, Any]] = None
     try:
         if platform == "spotify":
             sp_client = spotify_service.get_catalog_client()
-            candidate = spotify_service.search_clean_replacement(
+            candidates = spotify_service.search_clean_replacements(
                 title=req.title,
                 artist=req.artist,
                 duration_seconds=req.duration_seconds or 0,
                 sp_client=sp_client,
                 exclude_track_id=exclude_id,
-            )
+                max_results=5,
+            ) or []
+            candidate = candidates[0] if candidates else None
             if candidate:
                 yt_id, lyrics = lyric_xref_service.resolve_lyrics_and_yt_id(candidate, platform="spotify")
                 if yt_id:
@@ -654,12 +658,14 @@ def find_clean_replacement(req: FindCleanReplacementRequest, request: Request, r
                 if cand_id and lyrics:
                     lyrics_by_id[cand_id] = lyrics
         else:
-            candidate = ytmusic_service.search_clean_replacement(
+            candidates = ytmusic_service.search_clean_replacements(
                 title=req.title,
                 artist=req.artist,
                 duration_seconds=req.duration_seconds or 0,
                 exclude_track_id=exclude_id,
-            )
+                max_results=5,
+            ) or []
+            candidate = candidates[0] if candidates else None
             if candidate:
                 yt_id, lyrics = lyric_xref_service.resolve_lyrics_and_yt_id(candidate, platform="ytmusic")
                 if yt_id and not candidate.get("ytmusic_video_id"):
@@ -670,10 +676,13 @@ def find_clean_replacement(req: FindCleanReplacementRequest, request: Request, r
     except Exception as e:
         logger.warning(f"Error in find_clean_replacement: {e}")
         candidate = None
+        candidates = []
+        lyrics_by_id = {}
 
     return {
         "found": candidate is not None,
         "clean_candidate": candidate,
+        "clean_alternatives": candidates,
         "lyrics_by_id": lyrics_by_id,
     }
 
@@ -688,52 +697,64 @@ def find_batch_clean_replacements(req: FindBatchCleanReplacementRequest, request
         sp_client = spotify_service.get_catalog_client()
 
     raw_results: Dict[str, Optional[Dict[str, Any]]] = {}
+    raw_alternatives: Dict[str, List[Dict[str, Any]]] = {}
     lyrics_by_id: Dict[str, str] = {}
 
-    def process_track(track: TrackScanItem) -> Tuple[str, Optional[Dict[str, Any]], Optional[str], Optional[str]]:
+    def process_track(
+        track: TrackScanItem,
+    ) -> Tuple[str, Optional[Dict[str, Any]], List[Dict[str, Any]], Optional[str], Optional[str]]:
         try:
             if platform == "spotify":
-                clean_cand = spotify_service.search_clean_replacement(
+                cands = spotify_service.search_clean_replacements(
                     title=track.title,
                     artist=track.artist,
                     duration_seconds=track.duration_seconds or 0,
                     sp_client=sp_client,
                     exclude_track_id=track.id,
-                )
+                    max_results=5,
+                ) or []
+                clean_cand = cands[0] if cands else None
                 if clean_cand:
                     yt_id, lyrics = lyric_xref_service.resolve_lyrics_and_yt_id(clean_cand, platform="spotify")
                     if yt_id:
                         clean_cand["ytmusic_video_id"] = yt_id
-                    return track.id, clean_cand, clean_cand.get("id"), lyrics
-                return track.id, None, None, None
+                    return track.id, clean_cand, cands, clean_cand.get("id"), lyrics
+                return track.id, None, [], None, None
             else:
-                clean_cand = ytmusic_service.search_clean_replacement(
+                cands = ytmusic_service.search_clean_replacements(
                     title=track.title,
                     artist=track.artist,
                     duration_seconds=track.duration_seconds or 0,
                     exclude_track_id=track.id,
-                )
+                    max_results=5,
+                ) or []
+                clean_cand = cands[0] if cands else None
                 if clean_cand:
                     yt_id, lyrics = lyric_xref_service.resolve_lyrics_and_yt_id(clean_cand, platform="ytmusic")
-                    return track.id, clean_cand, clean_cand.get("id"), lyrics
-                return track.id, None, None, None
+                    if yt_id and not clean_cand.get("ytmusic_video_id"):
+                        clean_cand["ytmusic_video_id"] = yt_id
+                    return track.id, clean_cand, cands, clean_cand.get("id"), lyrics
+                return track.id, None, [], None, None
         except Exception as e:
             logger.warning(f"Error processing clean replacement for {track.id}: {e}")
-            return track.id, None, None, None
+            return track.id, None, [], None, None
 
     with ThreadPoolExecutor(max_workers=4) as executor:
         future_to_track = {executor.submit(process_track, t): t for t in req.tracks}
         for future in concurrent.futures.as_completed(future_to_track):
-            track_id, cand, cand_id, lyrics = future.result()
+            track_id, cand, alts, cand_id, lyrics = future.result()
             raw_results[track_id] = cand
+            raw_alternatives[track_id] = alts
             if cand_id and lyrics:
                 lyrics_by_id[cand_id] = lyrics
 
     # Preserve deterministic ordering of requested tracks
     results = {t.id: raw_results.get(t.id) for t in req.tracks}
+    alternatives = {t.id: raw_alternatives.get(t.id, []) for t in req.tracks}
 
     return {
         "results": results,
+        "alternatives": alternatives,
         "lyrics_by_id": lyrics_by_id,
     }
 

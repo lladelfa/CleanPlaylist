@@ -7,6 +7,7 @@ import StitchTab from './components/StitchTab';
 import AboutTab from './components/AboutTab';
 import LyricsModal from './components/LyricsModal';
 import NoticeBanner from './components/NoticeBanner';
+import { buildSwappedTrack } from './utils/swapHelpers';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('scan');
@@ -96,6 +97,9 @@ export default function App() {
   const [keptTrackIds, setKeptTrackIds] = useState(() => new Set());
   const [isMasked, setIsMasked] = useState(true);
   const [cleanCandidates, setCleanCandidates] = useState({});
+  const [cleanAlternatives, setCleanAlternatives] = useState({});
+  const [selectedTrackForPicker, setSelectedTrackForPicker] = useState(null);
+  const [pickerTriggerEl, setPickerTriggerEl] = useState(null);
   const [swapAnnouncement, setSwapAnnouncement] = useState('');
 
   const handleToggleMasking = () => {
@@ -151,6 +155,9 @@ export default function App() {
     setLyricsByTrackId({});
     setKeptTrackIds(new Set());
     setCleanCandidates({});
+    setCleanAlternatives({});
+    setSelectedTrackForPicker(null);
+    setPickerTriggerEl(null);
     setIsSwitchModalOpen(false);
     setPendingPlatform(null);
   };
@@ -275,6 +282,12 @@ export default function App() {
             onToggleMasking={handleToggleMasking}
             cleanCandidates={cleanCandidates}
             setCleanCandidates={setCleanCandidates}
+            cleanAlternatives={cleanAlternatives}
+            setCleanAlternatives={setCleanAlternatives}
+            pickerTrack={selectedTrackForPicker}
+            setPickerTrack={setSelectedTrackForPicker}
+            pickerTriggerEl={pickerTriggerEl}
+            setPickerTriggerEl={setPickerTriggerEl}
             onNavigateToAbout={() => setActiveTab('about')}
           />
         )}
@@ -320,33 +333,37 @@ export default function App() {
           track={selectedTrackForLyrics}
           triggerEl={lyricsTriggerEl}
           cleanCandidates={cleanCandidates}
+          cleanAlternatives={cleanAlternatives}
+          onOpenAlternatives={
+            activeTab === 'scan'
+              ? (trackToEdit, trigger) => {
+                  setPickerTriggerEl(trigger || null);
+                  setSelectedTrackForPicker(trackToEdit);
+                }
+              : undefined
+          }
           onClose={() => {
             setSelectedTrackForLyrics(null);
             setLyricsTriggerEl(null);
           }}
           onSwapTrack={(originalTrack, cleanTrack) => {
+            const origId = originalTrack.original_id || originalTrack.id;
+            const resolvedAlts =
+              [
+                cleanAlternatives[origId],
+                cleanAlternatives[originalTrack.id],
+                originalTrack.clean_alternatives,
+              ].find((a) => Array.isArray(a) && a.length > 0) || [cleanTrack];
+            const swappedTrack = buildSwappedTrack(originalTrack, cleanTrack, {
+              lyricsByTrackId,
+              alternatives: resolvedAlts,
+            });
             const cleanLyrics =
               typeof cleanTrack?.lyrics === 'string'
                 ? cleanTrack.lyrics
                 : cleanTrack?.id
                 ? lyricsByTrackId?.[cleanTrack.id]
                 : undefined;
-            const swappedTrack = {
-              ...originalTrack,
-              ...cleanTrack,
-              verification_status: 'clean_swapped',
-              is_flagged: false,
-              reasons: [],
-              detected_terms: [],
-              snippets: [],
-              total_flagged_count: 0,
-              is_explicit: false,
-              has_lyrics: Boolean(typeof cleanLyrics === 'string' && cleanLyrics.trim()),
-              was_replaced: true,
-              original_title: originalTrack.title,
-              original_id: originalTrack.id,
-              original_set_video_id: originalTrack.setVideoId,
-            };
             const swapFn = (t) => (t.id === originalTrack.id ? swappedTrack : t);
             handleSetScannedTracks((prev) => prev.map(swapFn));
             setPlaylist((prev) =>
@@ -368,34 +385,30 @@ export default function App() {
               delete updated[originalTrack.id];
               return updated;
             });
+            const displayOrigTitle = originalTrack.original_title || originalTrack.title;
             setSwapAnnouncement(
-              `Swapped "${originalTrack.title}" to clean version "${cleanTrack.title || originalTrack.title}".`
+              `Swapped "${displayOrigTitle}" to clean version "${cleanTrack.title || displayOrigTitle}".`
             );
           }}
           onApplyReplacement={(cleanTrack) => {
             const originalTrack = selectedTrackForLyrics;
+            const origId = originalTrack.original_id || originalTrack.id;
+            const resolvedAlts =
+              [
+                cleanAlternatives[origId],
+                cleanAlternatives[originalTrack.id],
+                originalTrack.clean_alternatives,
+              ].find((a) => Array.isArray(a) && a.length > 0) || [cleanTrack];
+            const swappedTrack = buildSwappedTrack(originalTrack, cleanTrack, {
+              lyricsByTrackId,
+              alternatives: resolvedAlts,
+            });
             const cleanLyrics =
               typeof cleanTrack?.lyrics === 'string'
                 ? cleanTrack.lyrics
                 : cleanTrack?.id
                 ? lyricsByTrackId?.[cleanTrack.id]
                 : undefined;
-            const swappedTrack = {
-              ...originalTrack,
-              ...cleanTrack,
-              verification_status: 'clean_swapped',
-              is_flagged: false,
-              reasons: [],
-              detected_terms: [],
-              snippets: [],
-              total_flagged_count: 0,
-              is_explicit: false,
-              has_lyrics: Boolean(typeof cleanLyrics === 'string' && cleanLyrics.trim()),
-              was_replaced: true,
-              original_title: originalTrack.title,
-              original_id: originalTrack.id,
-              original_set_video_id: originalTrack.setVideoId,
-            };
             const swapFn = (t) => (t.id === originalTrack.id ? swappedTrack : t);
             handleSetScannedTracks((prev) => prev.map(swapFn));
             setPlaylist((prev) =>
@@ -417,8 +430,9 @@ export default function App() {
               delete updated[originalTrack.id];
               return updated;
             });
+            const displayOrigTitle = originalTrack.original_title || originalTrack.title;
             setSwapAnnouncement(
-              `Swapped "${originalTrack.title}" to clean version "${cleanTrack.title || originalTrack.title}".`
+              `Swapped "${displayOrigTitle}" to clean version "${cleanTrack.title || displayOrigTitle}".`
             );
           }}
           activePlatform={activePlatform}
